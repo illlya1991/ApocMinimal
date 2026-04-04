@@ -1,0 +1,48 @@
+<Window x:Class="ApocMinimal.StartWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Симуляция Апокалипсиса"
+        Height="420" Width="560"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#0d0d1a">
+
+    <Grid>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="300">
+
+            <TextBlock Text="СИМУЛЯЦИЯ АПОКАЛИПСИСА"
+                       Foreground="#e0e0e0"
+                       FontSize="20" FontWeight="Bold" LetterSpacing="2"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,6"/>
+
+            <TextBlock Text="Управляй выжившими. Развивай алтарь."
+                       Foreground="#666"
+                       FontSize="12"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,40"/>
+
+            <Button x:Name="NewGameButton"
+                    Content="Новая игра"
+                    Height="42" FontSize="14"
+                    Background="#4a90d9" Foreground="White"
+                    BorderThickness="0" Cursor="Hand"
+                    Margin="0,0,0,10"
+                    Click="NewGame_Click"/>
+
+            <Button x:Name="ContinueButton"
+                    Content="Продолжить"
+                    Height="42" FontSize="14"
+                    Background="#2a6040" Foreground="White"
+                    BorderThickness="0" Cursor="Hand"
+                    Margin="0,0,0,20"
+                    Click="Continue_Click"/>
+
+            <TextBlock x:Name="SaveInfoText"
+                       Foreground="#555"
+                       FontSize="11"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+
+</Window>
