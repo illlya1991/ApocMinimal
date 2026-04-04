@@ -40,22 +40,22 @@
         </Style>
 
         <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="Height"         Value="32"/>
-            <Setter Property="FontSize"       Value="13"/>
-            <Setter Property="Background"     Value="#4a90d9"/>
-            <Setter Property="Foreground"     Value="White"/>
-            <Setter Property="BorderThickness"Value="0"/>
-            <Setter Property="Cursor"         Value="Hand"/>
+            <Setter Property="Height"          Value="32"/>
+            <Setter Property="FontSize"        Value="13"/>
+            <Setter Property="Background"      Value="#4a90d9"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
         </Style>
 
         <Style x:Key="DayBtn" TargetType="Button">
-            <Setter Property="Height"         Value="36"/>
-            <Setter Property="FontSize"       Value="13"/>
-            <Setter Property="FontWeight"     Value="Bold"/>
-            <Setter Property="Background"     Value="#7c3aed"/>
-            <Setter Property="Foreground"     Value="White"/>
-            <Setter Property="BorderThickness"Value="0"/>
-            <Setter Property="Cursor"         Value="Hand"/>
+            <Setter Property="Height"          Value="36"/>
+            <Setter Property="FontSize"        Value="13"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Background"      Value="#7c3aed"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
         </Style>
     </Window.Resources>
 

@@ -7,7 +7,7 @@ using ApocMinimal.Models;
 namespace ApocMinimal;
 
 // Описание доступных заданий для НПС
-file record TaskDef(string Name, int Days, int RewardResId, double RewardAmt, string Description);
+internal record TaskDef(string Name, int Days, int RewardResId, double RewardAmt, string Description);
 
 public partial class GameWindow : Window
 {
