@@ -291,24 +291,27 @@ public partial class GameWindow : Window
         if (npc.HasTask)
             Log($"  Задание: {npc.ActiveTask} (осталось {npc.TaskDaysLeft} дн.)", LogEntry.ColorSpeech);
 
-        // 30 характеристик — по две в строке
-        Log("  --- Характеристики ---", LogEntry.ColorDay);
-        var statIds = StatDefs.Names.Keys.OrderBy(k => k).ToList();
-        for (int i = 0; i < statIds.Count; i += 2)
+        // 30 характеристик по категориям — по две в строке
+        foreach (var (catName, ids) in StatDefs.Categories)
         {
-            int  id1   = statIds[i];
-            var  val1  = npc.Stats.TryGetValue(id1, out var v1) ? v1 : 0;
-            string col1 = $"  {StatDefs.Names[id1],-20} {val1,3:F0}";
+            Log($"  {catName}", LogEntry.ColorDay);
+            for (int i = 0; i < ids.Length; i += 2)
+            {
+                int    id1  = ids[i];
+                double val1 = npc.Stats.TryGetValue(id1, out var v1) ? v1 : 0;
+                string line = $"    {StatDefs.Names[id1],-24} {val1,3:F0}";
 
-            if (i + 1 < statIds.Count)
-            {
-                int  id2  = statIds[i + 1];
-                var  val2 = npc.Stats.TryGetValue(id2, out var v2) ? v2 : 0;
-                Log($"{col1}    {StatDefs.Names[id2],-20} {val2,3:F0}", StatColor(val1 > val2 ? val1 : val2));
-            }
-            else
-            {
-                Log(col1, StatColor(val1));
+                if (i + 1 < ids.Length)
+                {
+                    int    id2  = ids[i + 1];
+                    double val2 = npc.Stats.TryGetValue(id2, out var v2) ? v2 : 0;
+                    Log($"{line}    {StatDefs.Names[id2],-24} {val2,3:F0}",
+                        StatColor(Math.Max(val1, val2)));
+                }
+                else
+                {
+                    Log(line, StatColor(val1));
+                }
             }
         }
         Log("───────────────────────────────────────────────", LogEntry.ColorNormal);

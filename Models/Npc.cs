@@ -10,62 +10,74 @@ public enum NpcTrait
 
 public static class StatDefs
 {
+    // ── ФИЗИЧЕСКИЕ (1–10) ────────────────────────────────────
     public static readonly Dictionary<int, string> Names = new()
     {
         [1]  = "Сила",
         [2]  = "Ловкость",
-        [3]  = "Интеллект",
-        [4]  = "Выносливость",
-        [5]  = "Восприятие",
-        [6]  = "Харизма",
-        [7]  = "Воля",
-        [8]  = "Удача",
-        [9]  = "Скорость",
-        [10] = "Меткость",
-        [11] = "Скрытность",
-        [12] = "Механика",
-        [13] = "Медицина",
-        [14] = "Выживание",
-        [15] = "Торговля",
-        [16] = "Лидерство",
-        [17] = "Строительство",
-        [18] = "Готовка",
-        [19] = "Охота",
-        [20] = "Земледелие",
-        [21] = "Электроника",
-        [22] = "Химия",
-        [23] = "Боевые искусства",
-        [24] = "Стрельба",
-        [25] = "Ближний бой",
-        [26] = "Защита",
-        [27] = "Медитация",
-        [28] = "Интуиция",
-        [29] = "Память",
-        [30] = "Адаптация",
+        [3]  = "Выносливость",
+        [4]  = "Сенсорика",
+        [5]  = "Регенерация",
+        [6]  = "Адаптация",
+        [7]  = "Рефлексы",
+        [8]  = "Восстановление сил",
+        [9]  = "Стойкость",
+        [10] = "Долголетие",
+
+        // ── УМСТВЕННЫЕ (11–22) ───────────────────────────────
+        [11] = "Пространств. интеллект",
+        [12] = "Логика",
+        [13] = "Память",
+        [14] = "Соц.-эмоц. интеллект",
+        [15] = "Когнитивная гибкость",
+        [16] = "Фокус",
+        [17] = "Интуиция",
+        [18] = "Творчество",
+        [19] = "Дедукция",
+        [20] = "Математич. способности",
+        [21] = "Воля",
+        [22] = "Скорость обучения",
+
+        // ── ЭНЕРГЕТИЧЕСКИЕ (23–30) ───────────────────────────
+        [23] = "Запас энергии",
+        [24] = "Восстановление энергии",
+        [25] = "Концентрация энергии",
+        [26] = "Контроль энергии",
+        [27] = "Максимальный выход",
+        [28] = "Тонкость манипуляций",
+        [29] = "Энергетич. восприятие",
+        [30] = "Энергетич. стойкость",
+    };
+
+    public static readonly Dictionary<string, int[]> Categories = new()
+    {
+        ["⚔ ФИЗИЧЕСКИЕ"]    = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+        ["🧠 УМСТВЕННЫЕ"]   = new[] { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 },
+        ["✦ ЭНЕРГЕТИЧЕСКИЕ"] = new[] { 23, 24, 25, 26, 27, 28, 29, 30 },
     };
 }
 
 public class Npc
 {
-    public int      Id             { get; set; }
-    public string   Name           { get; set; } = "";
-    public int      Age            { get; set; }
-    public string   Profession     { get; set; } = "";
-    public double   Health         { get; set; }
-    public double   Faith          { get; set; }
-    public double   Hunger         { get; set; }
-    public double   Thirst         { get; set; }
-    public NpcTrait Trait          { get; set; }
-    public string   ActiveTask     { get; set; } = "";
-    public int      TaskDaysLeft   { get; set; }
-    public int      TaskRewardResId{ get; set; }
-    public double   TaskRewardAmt  { get; set; }
+    public int      Id              { get; set; }
+    public string   Name            { get; set; } = "";
+    public int      Age             { get; set; }
+    public string   Profession      { get; set; } = "";
+    public double   Health          { get; set; }
+    public double   Faith           { get; set; }
+    public double   Hunger          { get; set; }
+    public double   Thirst          { get; set; }
+    public NpcTrait Trait           { get; set; }
+    public string   ActiveTask      { get; set; } = "";
+    public int      TaskDaysLeft    { get; set; }
+    public int      TaskRewardResId { get; set; }
+    public double   TaskRewardAmt   { get; set; }
 
-    // 30 характеристик: ключ = StatDefs.Names, значение 0–100
+    /// <summary>30 характеристик: ключ = ID из StatDefs.Names, значение 0–100</summary>
     public Dictionary<int, double> Stats { get; set; } = new();
 
-    public bool IsAlive  => Health > 0;
-    public bool HasTask  => !string.IsNullOrEmpty(ActiveTask);
+    public bool IsAlive => Health > 0;
+    public bool HasTask => !string.IsNullOrEmpty(ActiveTask);
 
     public string TraitLabel => Trait switch
     {
@@ -79,9 +91,9 @@ public class Npc
     {
         get
         {
-            if (!IsAlive)                        return "#3d1515";
-            if (Health < 30)                     return "#3d2200";
-            if (Hunger > 80 || Thirst > 80)      return "#3d3200";
+            if (!IsAlive)                    return "#3d1515";
+            if (Health < 30)                 return "#3d2200";
+            if (Hunger > 80 || Thirst > 80)  return "#3d3200";
             return "#16213e";
         }
     }
