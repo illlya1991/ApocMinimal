@@ -6,22 +6,21 @@ using ApocMinimal.Models;
 
 namespace ApocMinimal;
 
-// Описание доступных заданий для НПС
 internal record TaskDef(string Name, int Days, int RewardResId, double RewardAmt, string Description);
 
 public partial class GameWindow : Window
 {
     private readonly DatabaseManager _db;
-    private Player    _player    = null!;
-    private List<Npc> _npcs      = new();
+    private Player         _player    = null!;
+    private List<Npc>      _npcs      = new();
     private List<Resource> _resources = new();
 
     private static readonly TaskDef[] Tasks =
     {
-        new("Собрать еду",   3, 1, 5.0, "Вернёт 5 ед. еды через 3 дня"),
-        new("Найти воду",    2, 2, 4.0, "Вернёт 4 ед. воды через 2 дня"),
-        new("Добыть дерево", 3, 4, 6.0, "Вернёт 6 ед. дерева через 3 дня"),
-        new("Найти инструменты", 4, 5, 3.0, "Вернёт 3 ед. инструментов через 4 дня"),
+        new("Собрать еду",        3, 1, 5.0,  "→ 5 ед. еды через 3 дня"),
+        new("Найти воду",         2, 2, 4.0,  "→ 4 ед. воды через 2 дня"),
+        new("Добыть дерево",      3, 4, 6.0,  "→ 6 ед. дерева через 3 дня"),
+        new("Найти инструменты",  4, 5, 3.0,  "→ 3 ед. инстр. через 4 дня"),
     };
 
     // =========================================================
@@ -99,7 +98,7 @@ public partial class GameWindow : Window
     {
         ResourceCombo.Items.Clear();
         foreach (var r in _resources)
-            ResourceCombo.Items.Add($"{r.Name} ({r.Amount:F0} ед.)");
+            ResourceCombo.Items.Add($"{r.Name}  ({r.Amount:F0} ед.)");
         if (ResourceCombo.Items.Count > 0) ResourceCombo.SelectedIndex = 0;
     }
 
@@ -114,16 +113,16 @@ public partial class GameWindow : Window
     {
         var card = new Border
         {
-            Background   = new SolidColorBrush((Color)ColorConverter.ConvertFromString(npc.StatusColor)),
+            Background   = HexBrush(npc.StatusColor),
             CornerRadius = new CornerRadius(4),
-            Margin       = new Thickness(4, 4, 4, 0),
+            Margin       = new Thickness(6, 4, 6, 0),
             Padding      = new Thickness(8, 6, 8, 6),
             Opacity      = npc.IsAlive ? 1.0 : 0.5,
         };
 
         var panel = new StackPanel();
 
-        // Имя + черта характера
+        // Имя + черта
         var nameRow = new Grid();
         nameRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         nameRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -131,94 +130,84 @@ public partial class GameWindow : Window
         var nameText = new TextBlock
         {
             Text       = npc.IsAlive ? npc.Name : $"✝ {npc.Name}",
-            Foreground = new SolidColorBrush(Colors.White),
+            Foreground = Brushes.White,
             FontSize   = 13, FontWeight = FontWeights.SemiBold,
         };
         Grid.SetColumn(nameText, 0);
-
         var traitText = new TextBlock
         {
-            Text       = npc.TraitLabel,
-            Foreground = TraitColor(npc.Trait),
+            Text      = npc.TraitLabel,
+            Foreground = TraitBrush(npc.Trait),
             FontSize   = 10,
             VerticalAlignment = VerticalAlignment.Center,
         };
         Grid.SetColumn(traitText, 1);
-
         nameRow.Children.Add(nameText);
         nameRow.Children.Add(traitText);
         panel.Children.Add(nameRow);
 
         if (!npc.IsAlive)
         {
-            panel.Children.Add(new TextBlock
-            {
-                Text = "Погиб", Foreground = Brushes.Gray, FontSize = 11
-            });
+            panel.Children.Add(new TextBlock { Text = "Погиб", Foreground = Brushes.Gray, FontSize = 11 });
             card.Child = panel;
             return card;
         }
 
-        // Полоска здоровья
-        panel.Children.Add(BuildBar("HP", npc.Health, "#4ade80", "#1a3a1a"));
-        panel.Children.Add(BuildBar("🍖", npc.Hunger, npc.Hunger > 70 ? "#f87171" : "#fbbf24", "#2a2010"));
-        panel.Children.Add(BuildBar("💧", npc.Thirst, npc.Thirst > 70 ? "#f87171" : "#60a5fa", "#10202a"));
+        panel.Children.Add(MakeBar("HP",  npc.Health, npc.Health < 30 ? "#f87171" : "#4ade80", "#1a3a1a"));
+        panel.Children.Add(MakeBar("🍖", npc.Hunger, npc.Hunger > 70 ? "#f87171" : "#fbbf24",  "#2a2010"));
+        panel.Children.Add(MakeBar("💧", npc.Thirst, npc.Thirst > 70 ? "#f87171" : "#60a5fa",  "#10202a"));
 
-        // Вера и задание
         panel.Children.Add(new TextBlock
         {
-            Text = $"Вера: {npc.Faith:F0}  |  Профессия: {npc.Profession}",
-            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#aaa")),
-            FontSize = 10, Margin = new Thickness(0, 3, 0, 0)
+            Text       = $"Вера: {npc.Faith:F0}  |  {npc.Profession}",
+            Foreground = HexBrush("#aaa"),
+            FontSize   = 10, Margin = new Thickness(0, 3, 0, 0)
         });
 
         if (npc.HasTask)
             panel.Children.Add(new TextBlock
             {
-                Text = $"⚙ {npc.ActiveTask} (осталось {npc.TaskDaysLeft} дн.)",
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e879f9")),
-                FontSize = 10
+                Text       = $"⚙ {npc.ActiveTask} ({npc.TaskDaysLeft} дн.)",
+                Foreground = HexBrush("#e879f9"),
+                FontSize   = 10
             });
 
         card.Child = panel;
         return card;
     }
 
-    private static Border BuildBar(string label, double value, string fillHex, string bgHex)
+    private static StackPanel MakeBar(string label, double value, string fillHex, string bgHex)
     {
-        var bg = new Border
-        {
-            Background   = new SolidColorBrush((Color)ColorConverter.ConvertFromString(bgHex)),
-            CornerRadius = new CornerRadius(2),
-            Height       = 10,
-            Margin       = new Thickness(0, 2, 0, 0),
-        };
-        var fill = new Border
-        {
-            Background        = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fillHex)),
-            CornerRadius      = new CornerRadius(2),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Width             = Math.Max(0, Math.Min(1, value / 100.0)) * 188,
-        };
-        var grid = new Grid();
-        grid.Children.Add(bg);
-        grid.Children.Add(fill);
-        // Метка
+        const double maxWidth = 200;
         var wrap = new StackPanel();
         wrap.Children.Add(new TextBlock
         {
             Text = label, Foreground = Brushes.Gray, FontSize = 9,
             Margin = new Thickness(0, 2, 0, 0)
         });
+        var bg = new Border
+        {
+            Background = HexBrush(bgHex), CornerRadius = new CornerRadius(2), Height = 8,
+        };
+        var fill = new Border
+        {
+            Background          = HexBrush(fillHex),
+            CornerRadius        = new CornerRadius(2),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Width               = Math.Max(0, Math.Min(1, value / 100.0)) * maxWidth,
+        };
+        var grid = new Grid();
+        grid.Children.Add(bg);
+        grid.Children.Add(fill);
         wrap.Children.Add(grid);
-        return new Border { Child = wrap };
+        return wrap;
     }
 
-    private static Brush TraitColor(NpcTrait t) => t switch
+    private static Brush TraitBrush(NpcTrait t) => t switch
     {
-        NpcTrait.Leader => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#facc15")),
-        NpcTrait.Coward => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#f87171")),
-        NpcTrait.Loner  => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94a3b8")),
+        NpcTrait.Leader => HexBrush("#facc15"),
+        NpcTrait.Coward => HexBrush("#f87171"),
+        NpcTrait.Loner  => HexBrush("#94a3b8"),
         _               => Brushes.Transparent,
     };
 
@@ -226,28 +215,37 @@ public partial class GameWindow : Window
     {
         AltarInfoText.Text =
             $"Уровень: {_player.AltarLevel} / 5\n" +
-            $"ОВ: {_player.FaithPoints:F0} / {_player.DailyFaithLimit:F0} в день\n" +
-            $"Улучшение стоит: {_player.UpgradeCost} ОВ";
+            $"ОВ: {_player.FaithPoints:F0}\n" +
+            $"Лимит в день: {_player.DailyFaithLimit:F0}\n" +
+            $"Улучшение: {_player.UpgradeCost} ОВ";
 
         UpgradeAltarBtn.IsEnabled = _player.CanUpgrade;
         UpgradeAltarBtn.Opacity   = _player.CanUpgrade ? 1.0 : 0.5;
-        if (_player.AltarLevel >= 5)
-            UpgradeAltarBtn.Content = "Максимальный уровень";
+        UpgradeAltarBtn.Content   = _player.AltarLevel >= 5
+            ? "Максимальный уровень"
+            : $"Улучшить ({_player.UpgradeCost} ОВ)";
     }
 
     // =========================================================
-    // Выбор действия — показ/скрытие строк
+    // Выбор действия
     // =========================================================
 
     private void ActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ActionCombo.SelectedIndex < 0) return;
-
         var action = ActionCombo.SelectedItem.ToString()!;
 
-        NpcRow.Visibility      = Visibility.Visible;
-        ResourceRow.Visibility = action == "Передать ресурс" ? Visibility.Visible : Visibility.Collapsed;
-        TaskRow.Visibility     = action == "Дать задание"    ? Visibility.Visible : Visibility.Collapsed;
+        bool showNpc      = true;
+        bool showResource = action == "Передать ресурс";
+        bool showTask     = action == "Дать задание";
+
+        SetVis(NpcLabel,     showNpc);
+        SetVis(NpcCombo,     showNpc);
+        SetVis(ResLabel,     showResource);
+        SetVis(ResourceCombo,showResource);
+        SetVis(AmountRow,    showResource);
+        SetVis(TaskLabel,    showTask);
+        SetVis(TaskCombo,    showTask);
 
         ActionButton.Visibility = Visibility.Visible;
         ActionButton.Content = action switch
@@ -261,7 +259,7 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Выполнение действия
+    // Выполнение действий
     // =========================================================
 
     private void ActionButton_Click(object sender, RoutedEventArgs e)
@@ -273,30 +271,47 @@ public partial class GameWindow : Window
 
         switch (action)
         {
-            case "Посмотреть информацию": DoViewInfo(npc);     break;
-            case "Передать ресурс":       DoTransfer(npc);     break;
-            case "Разговор":              DoChat(npc);         break;
-            case "Дать задание":          DoAssignTask(npc);   break;
+            case "Посмотреть информацию": DoViewInfo(npc);   break;
+            case "Передать ресурс":       DoTransfer(npc);   break;
+            case "Разговор":              DoChat(npc);       break;
+            case "Дать задание":          DoAssignTask(npc); break;
         }
     }
 
-    // --- Посмотреть информацию ---
+    // --- Посмотреть информацию + 30 статов ---
 
     private void DoViewInfo(Npc npc)
     {
-        Log($"─── {npc.Name} ───────────────────", LogEntry.ColorNormal);
-        Log($"  Возраст:    {npc.Age} лет     Профессия: {npc.Profession}", LogEntry.ColorNormal);
-        Log($"  Здоровье:   {npc.Health:F0}/100" +
-            (npc.Health < 30 ? "  ⚠ КРИТИЧНО" : ""), HealthColor(npc.Health));
-        Log($"  Голод:      {npc.Hunger:F0}/100" +
-            (npc.Hunger > 80 ? "  ⚠ ГОЛОДАЕТ" : ""), NeedColor(npc.Hunger));
-        Log($"  Жажда:      {npc.Thirst:F0}/100" +
-            (npc.Thirst > 80 ? "  ⚠ ХОЧЕТ ПИТЬ" : ""), NeedColor(npc.Thirst));
-        Log($"  Вера:       {npc.Faith:F0}", LogEntry.ColorNormal);
-        Log($"  Характер:   {(npc.Trait == NpcTrait.None ? "обычный" : npc.TraitLabel)}", LogEntry.ColorNormal);
+        Log($"─── {npc.Name} ───────────────────────────────", LogEntry.ColorNormal);
+        Log($"  Возраст: {npc.Age} лет   Профессия: {npc.Profession}   Характер: {(npc.Trait == NpcTrait.None ? "обычный" : npc.TraitLabel)}", LogEntry.ColorNormal);
+        Log($"  Здоровье: {npc.Health:F0}/100{(npc.Health < 30 ? "  ⚠ КРИТИЧНО" : "")}", HealthColor(npc.Health));
+        Log($"  Голод:    {npc.Hunger:F0}/100{(npc.Hunger > 80 ? "  ⚠ ГОЛОДАЕТ" : "")}", NeedColor(npc.Hunger));
+        Log($"  Жажда:    {npc.Thirst:F0}/100{(npc.Thirst > 80 ? "  ⚠ ХОЧЕТ ПИТЬ" : "")}", NeedColor(npc.Thirst));
+        Log($"  Вера: {npc.Faith:F0}", LogEntry.ColorNormal);
         if (npc.HasTask)
-            Log($"  Задание:    {npc.ActiveTask} (осталось {npc.TaskDaysLeft} дн.)", LogEntry.ColorSpeech);
-        Log("───────────────────────────────────", LogEntry.ColorNormal);
+            Log($"  Задание: {npc.ActiveTask} (осталось {npc.TaskDaysLeft} дн.)", LogEntry.ColorSpeech);
+
+        // 30 характеристик — по две в строке
+        Log("  --- Характеристики ---", LogEntry.ColorDay);
+        var statIds = StatDefs.Names.Keys.OrderBy(k => k).ToList();
+        for (int i = 0; i < statIds.Count; i += 2)
+        {
+            int  id1   = statIds[i];
+            var  val1  = npc.Stats.TryGetValue(id1, out var v1) ? v1 : 0;
+            string col1 = $"  {StatDefs.Names[id1],-20} {val1,3:F0}";
+
+            if (i + 1 < statIds.Count)
+            {
+                int  id2  = statIds[i + 1];
+                var  val2 = npc.Stats.TryGetValue(id2, out var v2) ? v2 : 0;
+                Log($"{col1}    {StatDefs.Names[id2],-20} {val2,3:F0}", StatColor(val1 > val2 ? val1 : val2));
+            }
+            else
+            {
+                Log(col1, StatColor(val1));
+            }
+        }
+        Log("───────────────────────────────────────────────", LogEntry.ColorNormal);
     }
 
     // --- Передать ресурс ---
@@ -315,16 +330,15 @@ public partial class GameWindow : Window
         var res = _resources[ResourceCombo.SelectedIndex];
         if (res.Amount < amount)
         {
-            Log($"Недостаточно ресурса «{res.Name}». Есть: {res.Amount:F0}.", LogEntry.ColorWarning);
+            Log($"Недостаточно «{res.Name}». Есть: {res.Amount:F0}.", LogEntry.ColorWarning);
             return;
         }
 
         res.Amount -= amount;
         _db.SaveResource(res);
-        _db.SaveNpc(npc);
 
-        Log($"Передано {amount:F0} ед. «{res.Name}» → {npc.Name}.", LogEntry.ColorSuccess);
-        Log($"Осталось «{res.Name}»: {res.Amount:F0} ед.", LogEntry.ColorNormal);
+        Log($"✓ Передано {amount:F0} ед. «{res.Name}» → {npc.Name}.", LogEntry.ColorSuccess);
+        Log($"  Осталось «{res.Name}»: {res.Amount:F0} ед.", LogEntry.ColorNormal);
 
         RefreshResourceCombo();
         RefreshNpcSidebar();
@@ -340,28 +354,19 @@ public partial class GameWindow : Window
 
         string response = (npc.Trait, npc.Faith) switch
         {
-            (NpcTrait.Loner, _) when npc.Faith < 50
-                => "...(пожимает плечами и отводит взгляд)",
-            (NpcTrait.Loner, _)
-                => "Я справлюсь сам. Спасибо.",
+            (NpcTrait.Loner, < 50)  => "...(пожимает плечами и отводит взгляд)",
+            (NpcTrait.Loner, _)     => "Я справлюсь сам. Спасибо.",
             (NpcTrait.Coward, _) when npc.Health < 40
-                => "Пожалуйста, не бросай нас! Я боюсь...",
-            (NpcTrait.Coward, _)
-                => "Я... постараюсь. Только это не опасно?",
-            (NpcTrait.Leader, _) when npc.Faith > 60
-                => "Я верую в тебя, Божество! Веду остальных вперёд.",
-            (_, >= 70)
-                => "Я верую в тебя, Божество! Мы выживем вместе.",
-            (_, >= 40)
-                => "Спасибо за заботу. Стараюсь держаться.",
-            _   => "Тяжело. Не знаю, есть ли смысл продолжать...",
+                                    => "Пожалуйста, не бросай нас! Я боюсь...",
+            (NpcTrait.Coward, _)    => "Я... постараюсь. Только это не опасно?",
+            (NpcTrait.Leader, > 60) => "Я верую в тебя, Божество! Веду остальных вперёд.",
+            (_, >= 70)              => "Я верую в тебя, Божество! Мы выживем вместе.",
+            (_, >= 40)              => "Спасибо за заботу. Стараюсь держаться.",
+            _                       => "Тяжело. Не знаю, есть ли смысл продолжать...",
         };
 
-        // Физическое состояние добавляет к ответу
-        if (npc.Hunger > 80)
-            response += " Я очень голоден...";
-        else if (npc.Thirst > 80)
-            response += " Мне срочно нужна вода.";
+        if (npc.Hunger > 80)       response += " Я очень голоден...";
+        else if (npc.Thirst > 80)  response += " Мне срочно нужна вода.";
 
         Log($"  {npc.Name}: «{response}»", LogEntry.ColorSpeech);
     }
@@ -370,17 +375,16 @@ public partial class GameWindow : Window
 
     private void DoAssignTask(Npc npc)
     {
-        if (!npc.IsAlive)  { Log($"{npc.Name} мёртв.", LogEntry.ColorDanger);  return; }
-        if (npc.HasTask)   { Log($"{npc.Name} уже выполняет: {npc.ActiveTask}.", LogEntry.ColorWarning); return; }
+        if (!npc.IsAlive)  { Log($"{npc.Name} мёртв.",                              LogEntry.ColorDanger);  return; }
+        if (npc.HasTask)   { Log($"{npc.Name} уже выполняет: {npc.ActiveTask}.",     LogEntry.ColorWarning); return; }
 
         var idx  = TaskCombo.SelectedIndex;
         if (idx < 0) return;
         var task = Tasks[idx];
 
-        // Трус может отказаться
         if (npc.Trait == NpcTrait.Coward && Random.Shared.Next(2) == 0)
         {
-            Log($"{npc.Name} отказался от задания «{task.Name}». (Трус)", LogEntry.ColorWarning);
+            Log($"{npc.Name} отказался от «{task.Name}». (Трус)", LogEntry.ColorWarning);
             Log($"  {npc.Name}: «Нет-нет-нет, это слишком опасно!»", LogEntry.ColorSpeech);
             return;
         }
@@ -398,13 +402,13 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Завершение дня (Этап 2: игровой день)
+    // Завершение дня
     // =========================================================
 
     private void EndDay_Click(object sender, RoutedEventArgs e)
     {
         _player.CurrentDay++;
-        LogDay($"═══ ДЕНЬ {_player.CurrentDay} ═══════════════════");
+        LogDay($"═══ ДЕНЬ {_player.CurrentDay} ════════════════════════");
 
         ProcessTasks();
         ProcessNeeds();
@@ -412,45 +416,33 @@ public partial class GameWindow : Window
         GenerateFaith();
         AutoConsumeResources();
 
-        // Сохраняем всё
         _db.SavePlayer(_player);
-        foreach (var n in _npcs) _db.SaveNpc(n);
+        foreach (var n in _npcs)      _db.SaveNpc(n);
         foreach (var r in _resources) _db.SaveResource(r);
 
-        var alive = _npcs.Count(n => n.IsAlive);
-        Log($"Выживших: {alive} / {_npcs.Count}  |  ОВ: {_player.FaithPoints:F0}", LogEntry.ColorDay);
-        LogDay("══════════════════════════════════");
+        Log($"Выживших: {_npcs.Count(n => n.IsAlive)} / {_npcs.Count}  |  ОВ: {_player.FaithPoints:F0}", LogEntry.ColorDay);
+        LogDay("═══════════════════════════════════════════");
 
         RefreshAll();
     }
-
-    // --- Задания: завершение ---
 
     private void ProcessTasks()
     {
         foreach (var npc in _npcs.Where(n => n.IsAlive && n.HasTask))
         {
             npc.TaskDaysLeft--;
+            if (npc.TaskDaysLeft > 0) continue;
 
-            if (npc.TaskDaysLeft <= 0)
+            var res = _resources.FirstOrDefault(r => r.Id == npc.TaskRewardResId);
+            if (res != null)
             {
-                var res = _resources.FirstOrDefault(r => r.Id == npc.TaskRewardResId);
-                if (res != null)
-                {
-                    res.Amount += npc.TaskRewardAmt;
-                    Log($"✓ {npc.Name} вернулся с задания «{npc.ActiveTask}» " +
-                        $"и принёс {npc.TaskRewardAmt:F0} ед. «{res.Name}».", LogEntry.ColorSuccess);
-                }
-
-                npc.ActiveTask      = "";
-                npc.TaskDaysLeft    = 0;
-                npc.TaskRewardResId = 0;
-                npc.TaskRewardAmt   = 0;
+                res.Amount += npc.TaskRewardAmt;
+                Log($"✓ {npc.Name} вернулся с «{npc.ActiveTask}» → +{npc.TaskRewardAmt:F0} ед. «{res.Name}».", LogEntry.ColorSuccess);
             }
+            npc.ActiveTask = ""; npc.TaskDaysLeft = 0;
+            npc.TaskRewardResId = 0; npc.TaskRewardAmt = 0;
         }
     }
-
-    // --- Потребности ---
 
     private void ProcessNeeds()
     {
@@ -459,60 +451,33 @@ public partial class GameWindow : Window
             npc.Hunger = Math.Min(100, npc.Hunger + 12);
             npc.Thirst = Math.Min(100, npc.Thirst + 16);
 
-            if (npc.Hunger >= 90)
-            {
-                npc.Health = Math.Max(0, npc.Health - 12);
-                Log($"⚠ {npc.Name} голодает! HP -{12} → {npc.Health:F0}", LogEntry.ColorDanger);
-            }
-            if (npc.Thirst >= 90)
-            {
-                npc.Health = Math.Max(0, npc.Health - 16);
-                Log($"⚠ {npc.Name} обезвожен! HP -{16} → {npc.Health:F0}", LogEntry.ColorDanger);
-            }
-
-            if (npc.Health <= 0 && npc.IsAlive)
-                Log($"✝ {npc.Name} погиб.", LogEntry.ColorDanger);
+            if (npc.Hunger >= 90) { npc.Health = Math.Max(0, npc.Health - 12); Log($"⚠ {npc.Name} голодает! HP → {npc.Health:F0}", LogEntry.ColorDanger); }
+            if (npc.Thirst >= 90) { npc.Health = Math.Max(0, npc.Health - 16); Log($"⚠ {npc.Name} обезвожен! HP → {npc.Health:F0}", LogEntry.ColorDanger); }
+            if (npc.Health <= 0)   Log($"✝ {npc.Name} погиб.", LogEntry.ColorDanger);
         }
     }
-
-    // --- Лидер даёт +3 Веры соседям ---
 
     private void ApplyLeaderBonus()
     {
-        var leaders = _npcs.Where(n => n.IsAlive && n.Trait == NpcTrait.Leader).ToList();
-        if (!leaders.Any()) return;
-
-        foreach (var leader in leaders)
+        foreach (var leader in _npcs.Where(n => n.IsAlive && n.Trait == NpcTrait.Leader))
         {
-            var targets = _npcs
-                .Where(n => n.IsAlive && n.Id != leader.Id && n.Trait != NpcTrait.Loner)
-                .ToList();
-            foreach (var t in targets)
-                t.Faith = Math.Min(100, t.Faith + 3);
-
-            if (targets.Any())
-                Log($"★ {leader.Name} (Лидер) поднял Веру {targets.Count} выжившим +3.", LogEntry.ColorAltarColor);
+            var targets = _npcs.Where(n => n.IsAlive && n.Id != leader.Id && n.Trait != NpcTrait.Loner).ToList();
+            foreach (var t in targets) t.Faith = Math.Min(100, t.Faith + 3);
+            if (targets.Any()) Log($"★ {leader.Name} (Лидер) поднял Веру {targets.Count} выжившим +3.", LogEntry.ColorAltarColor);
         }
     }
 
-    // --- Генерация ОВ ---
-
     private void GenerateFaith()
     {
-        double generated = _npcs
-            .Where(n => n.IsAlive)
-            .Sum(n => n.Faith / 100.0 * (1 + _player.AltarLevel * 0.1));
-
-        double gained = Math.Min(generated, _player.DailyFaithLimit);
+        double generated = _npcs.Where(n => n.IsAlive).Sum(n => n.Faith / 100.0 * (1 + _player.AltarLevel * 0.1));
+        double gained    = Math.Min(generated, _player.DailyFaithLimit);
         _player.FaithPoints += gained;
-        Log($"✦ Получено ОВ за день: +{gained:F1}  (лимит {_player.DailyFaithLimit:F0})", LogEntry.ColorAltarColor);
+        Log($"✦ Получено ОВ: +{gained:F1}  (лимит {_player.DailyFaithLimit:F0})", LogEntry.ColorAltarColor);
     }
-
-    // --- Автопотребление еды и воды ---
 
     private void AutoConsumeResources()
     {
-        var alive = _npcs.Count(n => n.IsAlive);
+        int alive = _npcs.Count(n => n.IsAlive);
         if (alive == 0) return;
 
         var food  = _resources.FirstOrDefault(r => r.Name == "Еда");
@@ -520,49 +485,41 @@ public partial class GameWindow : Window
 
         if (food != null)
         {
-            double eat = Math.Min(food.Amount, alive * 1.0);
+            double eat = Math.Min(food.Amount, alive);
             food.Amount -= eat;
-            // Сытость: снижаем голод тем, кого накормили
             int fed = (int)eat;
-            foreach (var npc in _npcs.Where(n => n.IsAlive).Take(fed))
-                npc.Hunger = Math.Max(0, npc.Hunger - 30);
-            Log($"🍖 Потреблено еды: {eat:F0} ед.  Осталось: {food.Amount:F0}", LogEntry.ColorNormal);
+            foreach (var n in _npcs.Where(n => n.IsAlive).Take(fed)) n.Hunger = Math.Max(0, n.Hunger - 30);
+            Log($"🍖 Еда: -{eat:F0} ед.  Осталось: {food.Amount:F0}", LogEntry.ColorNormal);
         }
-
         if (water != null)
         {
-            double drink = Math.Min(water.Amount, alive * 1.0);
+            double drink = Math.Min(water.Amount, alive);
             water.Amount -= drink;
             int watered = (int)drink;
-            foreach (var npc in _npcs.Where(n => n.IsAlive).Take(watered))
-                npc.Thirst = Math.Max(0, npc.Thirst - 35);
-            Log($"💧 Потреблено воды: {drink:F0} ед.  Осталось: {water.Amount:F0}", LogEntry.ColorNormal);
+            foreach (var n in _npcs.Where(n => n.IsAlive).Take(watered)) n.Thirst = Math.Max(0, n.Thirst - 35);
+            Log($"💧 Вода: -{drink:F0} ед.  Осталось: {water.Amount:F0}", LogEntry.ColorNormal);
         }
     }
 
     // =========================================================
-    // Улучшение алтаря
+    // Алтарь
     // =========================================================
 
     private void UpgradeAltar_Click(object sender, RoutedEventArgs e)
     {
         if (!_player.CanUpgrade) return;
-
         int cost = _player.UpgradeCost;
         _player.FaithPoints -= cost;
         _player.AltarLevel++;
         _db.SavePlayer(_player);
-
-        Log($"✦ Алтарь улучшен до уровня {_player.AltarLevel}!  " +
-            $"(потрачено {cost} ОВ)", LogEntry.ColorAltarColor);
+        Log($"✦ Алтарь улучшен до уровня {_player.AltarLevel}! (потрачено {cost} ОВ)", LogEntry.ColorAltarColor);
         Log($"  Новый лимит ОВ в день: {_player.DailyFaithLimit:F0}", LogEntry.ColorAltarColor);
-
         RefreshHeader();
         RefreshAltarPanel();
     }
 
     // =========================================================
-    // Логирование
+    // Лог
     // =========================================================
 
     private void Log(string text, string color)
@@ -580,16 +537,21 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Вспомогательные цвета
+    // Вспомогательные
     // =========================================================
 
+    private static void SetVis(UIElement el, bool visible) =>
+        el.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+    private static SolidColorBrush HexBrush(string hex) =>
+        new((Color)ColorConverter.ConvertFromString(hex));
+
     private static string HealthColor(double hp) =>
-        hp < 30 ? LogEntry.ColorDanger :
-        hp < 60 ? LogEntry.ColorWarning :
-        LogEntry.ColorSuccess;
+        hp < 30 ? LogEntry.ColorDanger : hp < 60 ? LogEntry.ColorWarning : LogEntry.ColorSuccess;
 
     private static string NeedColor(double v) =>
-        v > 80 ? LogEntry.ColorDanger :
-        v > 60 ? LogEntry.ColorWarning :
-        LogEntry.ColorNormal;
+        v > 80 ? LogEntry.ColorDanger : v > 60 ? LogEntry.ColorWarning : LogEntry.ColorNormal;
+
+    private static string StatColor(double v) =>
+        v >= 75 ? LogEntry.ColorSuccess : v >= 50 ? LogEntry.ColorNormal : LogEntry.ColorWarning;
 }

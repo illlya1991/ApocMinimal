@@ -1,5 +1,6 @@
 using System.Data.SQLite;
 using System.IO;
+using System.Text.Json;
 using ApocMinimal.Models;
 
 namespace ApocMinimal.Database;
@@ -9,6 +10,8 @@ public class DatabaseManager
     private readonly string _connectionString;
     private readonly string _dbPath;
 
+    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
+
     public DatabaseManager()
     {
         _dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apoc_minimal.db");
@@ -16,9 +19,18 @@ public class DatabaseManager
         InitializeDatabase();
     }
 
-    public bool SaveExists =>
-        File.Exists(_dbPath) &&
-        ExecuteScalarGlobal("SELECT COUNT(*) FROM Player") is long c && c > 0;
+    public bool SaveExists
+    {
+        get
+        {
+            try
+            {
+                using var conn = OpenConnection();
+                return (long)(ExecuteScalar(conn, "SELECT COUNT(*) FROM Player") ?? 0L) > 0;
+            }
+            catch { return false; }
+        }
+    }
 
     // =========================================================
     // Инициализация схемы
@@ -28,7 +40,7 @@ public class DatabaseManager
     {
         using var conn = OpenConnection();
 
-        Execute(conn, @"
+        ExecuteNQ(conn, @"
             CREATE TABLE IF NOT EXISTS Player (
                 Id           INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name         TEXT    NOT NULL,
@@ -37,7 +49,7 @@ public class DatabaseManager
                 CurrentDay   INTEGER DEFAULT 0
             )");
 
-        Execute(conn, @"
+        ExecuteNQ(conn, @"
             CREATE TABLE IF NOT EXISTS Npcs (
                 Id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name            TEXT    NOT NULL,
@@ -51,10 +63,11 @@ public class DatabaseManager
                 ActiveTask      TEXT    DEFAULT '',
                 TaskDaysLeft    INTEGER DEFAULT 0,
                 TaskRewardResId INTEGER DEFAULT 0,
-                TaskRewardAmt   REAL    DEFAULT 0
+                TaskRewardAmt   REAL    DEFAULT 0,
+                Stats           TEXT    DEFAULT '{}'
             )");
 
-        Execute(conn, @"
+        ExecuteNQ(conn, @"
             CREATE TABLE IF NOT EXISTS Resources (
                 Id       INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name     TEXT NOT NULL,
@@ -62,41 +75,45 @@ public class DatabaseManager
                 Category TEXT DEFAULT ''
             )");
 
-        // Миграция: добавляем колонки если их нет (для уже существующих БД)
         MigrateColumns(conn);
-
         SeedIfEmpty(conn);
     }
 
     private void MigrateColumns(SQLiteConnection conn)
     {
-        var migrations = new[]
+        var cols = new[]
         {
-            ("Player", "CurrentDay",   "INTEGER DEFAULT 0"),
-            ("Npcs",   "Hunger",       "REAL DEFAULT 0"),
-            ("Npcs",   "Thirst",       "REAL DEFAULT 0"),
-            ("Npcs",   "Trait",        "TEXT DEFAULT 'None'"),
-            ("Npcs",   "ActiveTask",   "TEXT DEFAULT ''"),
-            ("Npcs",   "TaskDaysLeft", "INTEGER DEFAULT 0"),
+            ("Player", "CurrentDay",      "INTEGER DEFAULT 0"),
+            ("Npcs",   "Hunger",          "REAL DEFAULT 0"),
+            ("Npcs",   "Thirst",          "REAL DEFAULT 0"),
+            ("Npcs",   "Trait",           "TEXT DEFAULT 'None'"),
+            ("Npcs",   "ActiveTask",      "TEXT DEFAULT ''"),
+            ("Npcs",   "TaskDaysLeft",    "INTEGER DEFAULT 0"),
             ("Npcs",   "TaskRewardResId", "INTEGER DEFAULT 0"),
             ("Npcs",   "TaskRewardAmt",   "REAL DEFAULT 0"),
+            ("Npcs",   "Stats",           "TEXT DEFAULT '{}'"),
         };
-        foreach (var (table, col, def) in migrations)
+        foreach (var (table, col, def) in cols)
         {
-            try { Execute(conn, $"ALTER TABLE {table} ADD COLUMN {col} {def}"); }
-            catch { /* колонка уже существует */ }
+            try { ExecuteNQ(conn, $"ALTER TABLE {table} ADD COLUMN {col} {def}"); }
+            catch { }
         }
     }
 
     private void SeedIfEmpty(SQLiteConnection conn)
     {
-        var count = ExecuteScalar(conn, "SELECT COUNT(*) FROM Player") as long? ?? 0;
+        var count = (long)(ExecuteScalar(conn, "SELECT COUNT(*) FROM Player") ?? 0L);
         if (count > 0) return;
 
-        Execute(conn,
-            "INSERT INTO Player (Name, FaithPoints, AltarLevel, CurrentDay) " +
-            "VALUES ('Божество', 0, 1, 1)");
+        using var cmd = new SQLiteCommand(
+            "INSERT INTO Player (Name, FaithPoints, AltarLevel, CurrentDay) VALUES (@n,@fp,@al,@cd)", conn);
+        cmd.Parameters.AddWithValue("@n",  "Божество");
+        cmd.Parameters.AddWithValue("@fp", 0.0);
+        cmd.Parameters.AddWithValue("@al", 1);
+        cmd.Parameters.AddWithValue("@cd", 1);
+        cmd.ExecuteNonQuery();
 
+        var rnd = new Random(42);
         var npcs = new[]
         {
             ("Алексей", 32, "Механик",  90.0, 40.0, "Leader"),
@@ -105,9 +122,23 @@ public class DatabaseManager
             ("Анна",    23, "Инженер",  80.0, 55.0, "Loner"),
         };
         foreach (var (name, age, prof, hp, faith, trait) in npcs)
-            Execute(conn,
-                $"INSERT INTO Npcs (Name, Age, Profession, Health, Faith, Hunger, Thirst, Trait) " +
-                $"VALUES ('{name}', {age}, '{prof}', {hp}, {faith}, 10, 10, '{trait}')");
+        {
+            var stats = GenerateStats(prof, rnd);
+            var statsJson = JsonSerializer.Serialize(stats, JsonOpts);
+            using var c2 = new SQLiteCommand(
+                "INSERT INTO Npcs (Name,Age,Profession,Health,Faith,Hunger,Thirst,Trait,Stats) " +
+                "VALUES (@nm,@ag,@pr,@hp,@fa,@hu,@th,@tr,@st)", conn);
+            c2.Parameters.AddWithValue("@nm", name);
+            c2.Parameters.AddWithValue("@ag", age);
+            c2.Parameters.AddWithValue("@pr", prof);
+            c2.Parameters.AddWithValue("@hp", hp);
+            c2.Parameters.AddWithValue("@fa", faith);
+            c2.Parameters.AddWithValue("@hu", 10.0);
+            c2.Parameters.AddWithValue("@th", 10.0);
+            c2.Parameters.AddWithValue("@tr", trait);
+            c2.Parameters.AddWithValue("@st", statsJson);
+            c2.ExecuteNonQuery();
+        }
 
         var resources = new[]
         {
@@ -118,9 +149,36 @@ public class DatabaseManager
             ("Инструменты",  10.0, "Материал"),
         };
         foreach (var (name, amount, cat) in resources)
-            Execute(conn,
-                $"INSERT INTO Resources (Name, Amount, Category) " +
-                $"VALUES ('{name}', {amount}, '{cat}')");
+        {
+            using var c3 = new SQLiteCommand(
+                "INSERT INTO Resources (Name,Amount,Category) VALUES (@n,@a,@c)", conn);
+            c3.Parameters.AddWithValue("@n", name);
+            c3.Parameters.AddWithValue("@a", amount);
+            c3.Parameters.AddWithValue("@c", cat);
+            c3.ExecuteNonQuery();
+        }
+    }
+
+    // Генерация 30 статов с бонусами по профессии
+    private static Dictionary<int, double> GenerateStats(string profession, Random rnd)
+    {
+        var stats = new Dictionary<int, double>();
+        for (int i = 1; i <= 30; i++)
+            stats[i] = rnd.Next(20, 60);
+
+        // Профессиональные бонусы
+        var bonuses = profession switch
+        {
+            "Механик"  => new[] { 12, 21, 3, 17 },   // Механика, Электроника, Интеллект, Строительство
+            "Медик"    => new[] { 13, 3, 7, 28 },     // Медицина, Интеллект, Воля, Интуиция
+            "Охотник"  => new[] { 19, 10, 9, 14 },    // Охота, Меткость, Скорость, Выживание
+            "Инженер"  => new[] { 17, 21, 3, 22 },    // Строительство, Электроника, Интеллект, Химия
+            _          => new[] { 1, 4, 6, 8 },
+        };
+        foreach (var id in bonuses)
+            stats[id] = Math.Min(100, stats[id] + rnd.Next(25, 40));
+
+        return stats;
     }
 
     // =========================================================
@@ -130,10 +188,10 @@ public class DatabaseManager
     public void ResetDatabase()
     {
         using var conn = OpenConnection();
-        Execute(conn, "DELETE FROM Player");
-        Execute(conn, "DELETE FROM Npcs");
-        Execute(conn, "DELETE FROM Resources");
-        Execute(conn, "DELETE FROM sqlite_sequence");   // сброс AUTOINCREMENT
+        ExecuteNQ(conn, "DELETE FROM Player");
+        ExecuteNQ(conn, "DELETE FROM Npcs");
+        ExecuteNQ(conn, "DELETE FROM Resources");
+        try { ExecuteNQ(conn, "DELETE FROM sqlite_sequence"); } catch { }
         SeedIfEmpty(conn);
     }
 
@@ -146,8 +204,7 @@ public class DatabaseManager
         using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand("SELECT * FROM Player LIMIT 1", conn);
         using var rdr  = cmd.ExecuteReader();
-        if (!rdr.Read()) return null;
-        return ReadPlayer(rdr);
+        return rdr.Read() ? ReadPlayer(rdr) : null;
     }
 
     public List<Npc> GetAllNpcs()
@@ -178,41 +235,56 @@ public class DatabaseManager
     }
 
     // =========================================================
-    // Запись
+    // Запись — параметризованные запросы (без зависимости от культуры)
     // =========================================================
 
     public void SavePlayer(Player p)
     {
         using var conn = OpenConnection();
-        Execute(conn,
-            $"UPDATE Player SET FaithPoints={p.FaithPoints:F2}, AltarLevel={p.AltarLevel}, " +
-            $"CurrentDay={p.CurrentDay} WHERE Id={p.Id}");
+        using var cmd  = new SQLiteCommand(
+            "UPDATE Player SET FaithPoints=@fp, AltarLevel=@al, CurrentDay=@cd WHERE Id=@id", conn);
+        cmd.Parameters.AddWithValue("@fp", p.FaithPoints);
+        cmd.Parameters.AddWithValue("@al", p.AltarLevel);
+        cmd.Parameters.AddWithValue("@cd", p.CurrentDay);
+        cmd.Parameters.AddWithValue("@id", p.Id);
+        cmd.ExecuteNonQuery();
     }
 
     public void SaveNpc(Npc n)
     {
         using var conn = OpenConnection();
-        Execute(conn,
-            $"UPDATE Npcs SET " +
-            $"Health={n.Health:F2}, Faith={n.Faith:F2}, " +
-            $"Hunger={n.Hunger:F2}, Thirst={n.Thirst:F2}, " +
-            $"ActiveTask='{Esc(n.ActiveTask)}', TaskDaysLeft={n.TaskDaysLeft}, " +
-            $"TaskRewardResId={n.TaskRewardResId}, TaskRewardAmt={n.TaskRewardAmt:F2} " +
-            $"WHERE Id={n.Id}");
+        using var cmd  = new SQLiteCommand(
+            "UPDATE Npcs SET Health=@hp, Faith=@fa, Hunger=@hu, Thirst=@th, " +
+            "ActiveTask=@at, TaskDaysLeft=@tdl, TaskRewardResId=@trr, TaskRewardAmt=@tra, " +
+            "Stats=@st WHERE Id=@id", conn);
+        cmd.Parameters.AddWithValue("@hp",  n.Health);
+        cmd.Parameters.AddWithValue("@fa",  n.Faith);
+        cmd.Parameters.AddWithValue("@hu",  n.Hunger);
+        cmd.Parameters.AddWithValue("@th",  n.Thirst);
+        cmd.Parameters.AddWithValue("@at",  n.ActiveTask);
+        cmd.Parameters.AddWithValue("@tdl", n.TaskDaysLeft);
+        cmd.Parameters.AddWithValue("@trr", n.TaskRewardResId);
+        cmd.Parameters.AddWithValue("@tra", n.TaskRewardAmt);
+        cmd.Parameters.AddWithValue("@st",  JsonSerializer.Serialize(n.Stats, JsonOpts));
+        cmd.Parameters.AddWithValue("@id",  n.Id);
+        cmd.ExecuteNonQuery();
     }
 
     public void SaveResource(Resource r)
     {
         using var conn = OpenConnection();
-        Execute(conn,
-            $"UPDATE Resources SET Amount={r.Amount:F2} WHERE Id={r.Id}");
+        using var cmd  = new SQLiteCommand(
+            "UPDATE Resources SET Amount=@a WHERE Id=@id", conn);
+        cmd.Parameters.AddWithValue("@a",  r.Amount);
+        cmd.Parameters.AddWithValue("@id", r.Id);
+        cmd.ExecuteNonQuery();
     }
 
     // =========================================================
     // Вспомогательные
     // =========================================================
 
-    private static Player ReadPlayer(SQLiteDataReader rdr) => new Player
+    private static Player ReadPlayer(SQLiteDataReader rdr) => new()
     {
         Id          = rdr.GetInt32(rdr.GetOrdinal("Id")),
         Name        = rdr.GetString(rdr.GetOrdinal("Name")),
@@ -221,22 +293,33 @@ public class DatabaseManager
         CurrentDay  = rdr.GetInt32(rdr.GetOrdinal("CurrentDay")),
     };
 
-    private static Npc ReadNpc(SQLiteDataReader rdr) => new Npc
+    private static Npc ReadNpc(SQLiteDataReader rdr)
     {
-        Id              = rdr.GetInt32(rdr.GetOrdinal("Id")),
-        Name            = rdr.GetString(rdr.GetOrdinal("Name")),
-        Age             = rdr.GetInt32(rdr.GetOrdinal("Age")),
-        Profession      = rdr.GetString(rdr.GetOrdinal("Profession")),
-        Health          = rdr.GetDouble(rdr.GetOrdinal("Health")),
-        Faith           = rdr.GetDouble(rdr.GetOrdinal("Faith")),
-        Hunger          = rdr.GetDouble(rdr.GetOrdinal("Hunger")),
-        Thirst          = rdr.GetDouble(rdr.GetOrdinal("Thirst")),
-        Trait           = Enum.TryParse<NpcTrait>(rdr.GetString(rdr.GetOrdinal("Trait")), out var t) ? t : NpcTrait.None,
-        ActiveTask      = rdr.GetString(rdr.GetOrdinal("ActiveTask")),
-        TaskDaysLeft    = rdr.GetInt32(rdr.GetOrdinal("TaskDaysLeft")),
-        TaskRewardResId = rdr.GetInt32(rdr.GetOrdinal("TaskRewardResId")),
-        TaskRewardAmt   = rdr.GetDouble(rdr.GetOrdinal("TaskRewardAmt")),
-    };
+        var statsJson = rdr.IsDBNull(rdr.GetOrdinal("Stats"))
+            ? "{}" : rdr.GetString(rdr.GetOrdinal("Stats"));
+        Dictionary<int, double> stats;
+        try { stats = JsonSerializer.Deserialize<Dictionary<int, double>>(statsJson) ?? new(); }
+        catch  { stats = new(); }
+
+        return new Npc
+        {
+            Id              = rdr.GetInt32(rdr.GetOrdinal("Id")),
+            Name            = rdr.GetString(rdr.GetOrdinal("Name")),
+            Age             = rdr.GetInt32(rdr.GetOrdinal("Age")),
+            Profession      = rdr.GetString(rdr.GetOrdinal("Profession")),
+            Health          = rdr.GetDouble(rdr.GetOrdinal("Health")),
+            Faith           = rdr.GetDouble(rdr.GetOrdinal("Faith")),
+            Hunger          = rdr.GetDouble(rdr.GetOrdinal("Hunger")),
+            Thirst          = rdr.GetDouble(rdr.GetOrdinal("Thirst")),
+            Trait           = Enum.TryParse<NpcTrait>(rdr.GetString(rdr.GetOrdinal("Trait")), out var t)
+                              ? t : NpcTrait.None,
+            ActiveTask      = rdr.GetString(rdr.GetOrdinal("ActiveTask")),
+            TaskDaysLeft    = rdr.GetInt32(rdr.GetOrdinal("TaskDaysLeft")),
+            TaskRewardResId = rdr.GetInt32(rdr.GetOrdinal("TaskRewardResId")),
+            TaskRewardAmt   = rdr.GetDouble(rdr.GetOrdinal("TaskRewardAmt")),
+            Stats           = stats,
+        };
+    }
 
     private SQLiteConnection OpenConnection()
     {
@@ -245,7 +328,7 @@ public class DatabaseManager
         return conn;
     }
 
-    private static void Execute(SQLiteConnection conn, string sql)
+    private static void ExecuteNQ(SQLiteConnection conn, string sql)
     {
         using var cmd = new SQLiteCommand(sql, conn);
         cmd.ExecuteNonQuery();
@@ -256,16 +339,4 @@ public class DatabaseManager
         using var cmd = new SQLiteCommand(sql, conn);
         return cmd.ExecuteScalar();
     }
-
-    private object? ExecuteScalarGlobal(string sql)
-    {
-        try
-        {
-            using var conn = OpenConnection();
-            return ExecuteScalar(conn, sql);
-        }
-        catch { return null; }
-    }
-
-    private static string Esc(string s) => s.Replace("'", "''");
 }
