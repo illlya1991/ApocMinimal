@@ -115,7 +115,7 @@ public partial class GameWindow : Window
             Background   = HexBrush(npc.StatusColor),
             CornerRadius = new CornerRadius(4),
             Margin       = new Thickness(0, 0, 0, 6),
-            Padding      = new Thickness(8, 6),
+            Padding      = new Thickness(8, 6, 8, 6),
             Opacity      = npc.IsAlive ? 1.0 : 0.5,
         };
         var panel = new StackPanel();
@@ -264,7 +264,7 @@ public partial class GameWindow : Window
             {
                 Background = HexBrush("#161b22"), BorderBrush = HexBrush("#30363d"),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(3),
-                Margin = new Thickness(0, 0, 0, 4), Padding = new Thickness(6, 4),
+                Margin = new Thickness(0, 0, 0, 4), Padding = new Thickness(6, 4, 6, 4),
             };
             var sp = new StackPanel();
             sp.Children.Add(new TextBlock { Text = q.Title, Foreground = HexBrush("#c9d1d9"), FontWeight = FontWeights.SemiBold });
@@ -284,7 +284,7 @@ public partial class GameWindow : Window
             {
                 Background = HexBrush("#1a2a1a"), BorderBrush = HexBrush("#30363d"),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(3),
-                Margin = new Thickness(0, 0, 0, 4), Padding = new Thickness(6, 4),
+                Margin = new Thickness(0, 0, 0, 4), Padding = new Thickness(6, 4, 6, 4),
             };
             var sp = new StackPanel();
             sp.Children.Add(new TextBlock { Text = q.Title, Foreground = HexBrush("#56d364"), FontWeight = FontWeights.SemiBold });
