@@ -1,28 +1,40 @@
 <Window x:Class="ApocMinimal.GameWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Симуляция Апокалипсиса"
-        Height="780" Width="1200"
-        MinHeight="640" MinWidth="960"
-        WindowStartupLocation="CenterScreen"
-        Background="#0d0d1a">
+        Title="Apocalypse Simulation" Height="780" Width="1300"
+        Background="#0d1117" Foreground="#c9d1d9"
+        FontFamily="Consolas" FontSize="13"
+        WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        <!-- Шаблон строки лога -->
-        <DataTemplate x:Key="LogTemplate">
-            <TextBlock Text="{Binding Text}"
-                       Foreground="{Binding Color}"
-                       FontFamily="Consolas"
-                       FontSize="12"
-                       TextWrapping="Wrap"
-                       Padding="2,1"/>
-        </DataTemplate>
+        <!-- NPC card style -->
+        <Style x:Key="NpcCard" TargetType="Border">
+            <Setter Property="Background"      Value="#161b22"/>
+            <Setter Property="BorderBrush"     Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius"    Value="4"/>
+            <Setter Property="Margin"          Value="0,0,0,6"/>
+            <Setter Property="Padding"         Value="8,6"/>
+        </Style>
 
-        <!-- Пункты выпадающего списка: чёрный текст на белом фоне -->
+        <!-- Section header -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="Margin"     Value="0,8,0,4"/>
+        </Style>
+
+        <!-- Light ComboBox -->
+        <Style x:Key="LightCombo" TargetType="ComboBox">
+            <Setter Property="Background"   Value="#ffffff"/>
+            <Setter Property="Foreground"   Value="#111111"/>
+            <Setter Property="BorderBrush"  Value="#30363d"/>
+            <Setter Property="Height"       Value="26"/>
+            <Setter Property="Margin"       Value="0,2,0,4"/>
+        </Style>
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="#111111"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Padding"    Value="6,4"/>
+            <Setter Property="Background" Value="#ffffff"/>
             <Style.Triggers>
                 <Trigger Property="IsHighlighted" Value="True">
                     <Setter Property="Background" Value="#cce0f5"/>
@@ -31,186 +43,221 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Сам ComboBox: светлый фон, чёрный текст (включая выбранный элемент) -->
-        <Style x:Key="LightCombo" TargetType="ComboBox">
-            <Setter Property="Background"  Value="#ffffff"/>
-            <Setter Property="Foreground"  Value="#111111"/>
-            <Setter Property="BorderBrush" Value="#2a3a60"/>
-            <Setter Property="Height"      Value="28"/>
-            <Setter Property="FontSize"    Value="13"/>
-        </Style>
-
+        <!-- Action button -->
         <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="Height"          Value="32"/>
-            <Setter Property="FontSize"        Value="13"/>
-            <Setter Property="Background"      Value="#4a90d9"/>
-            <Setter Property="Foreground"      Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background"      Value="#21262d"/>
+            <Setter Property="Foreground"      Value="#c9d1d9"/>
+            <Setter Property="BorderBrush"     Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height"          Value="28"/>
+            <Setter Property="Margin"          Value="0,2"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363d"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
-        <Style x:Key="DayBtn" TargetType="Button">
-            <Setter Property="Height"          Value="36"/>
-            <Setter Property="FontSize"        Value="13"/>
-            <Setter Property="FontWeight"      Value="Bold"/>
-            <Setter Property="Background"      Value="#7c3aed"/>
-            <Setter Property="Foreground"      Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
+        <!-- Tab toggle button -->
+        <Style x:Key="TabBtn" TargetType="ToggleButton">
+            <Setter Property="Background"      Value="#21262d"/>
+            <Setter Property="Foreground"      Value="#8b949e"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush"     Value="Transparent"/>
+            <Setter Property="Height"          Value="30"/>
+            <Setter Property="Padding"         Value="10,0"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Foreground"  Value="#58a6ff"/>
+                    <Setter Property="BorderBrush" Value="#58a6ff"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363d"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
+
+        <!-- Log entry template -->
+        <DataTemplate x:Key="LogTemplate">
+            <TextBlock Text="{Binding Text}" Foreground="{Binding Color}"
+                       TextWrapping="Wrap" Margin="0,1"/>
+        </DataTemplate>
     </Window.Resources>
 
-    <DockPanel Margin="8">
-
-        <!-- ===== ШАПКА ===== -->
-        <Border DockPanel.Dock="Top"
-                Background="#16213e" CornerRadius="4"
-                Padding="12,7" Margin="0,0,0,8">
+    <DockPanel>
+        <!-- ── TOP HEADER ─────────────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Top" Background="#161b22"
+                BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="12,8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="HeaderText"
-                           Grid.Column="0"
-                           Foreground="#aad4f5" FontSize="13"
-                           VerticalAlignment="Center"/>
-                <Button Grid.Column="1"
-                        Content="⏭  Завершить день"
-                        Style="{StaticResource DayBtn}"
-                        Width="165"
-                        Click="EndDay_Click"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="APOCALYPSE SIMULATION" FontSize="15"
+                               Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="DayLabel"   Text="  |  День 1"
+                               Foreground="#8b949e" VerticalAlignment="Center" Margin="8,0"/>
+                    <TextBlock x:Name="FaithLabel" Text="  0 веры"
+                               Foreground="#d29922" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="AltarLabel" Text="  Алтарь: ур.1"
+                               Foreground="#58a6ff" VerticalAlignment="Center" Margin="8,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" x:Name="EndDayBtn" Content="КОНЕЦ ДНЯ"
+                        Style="{StaticResource ActionBtn}"
+                        Background="#1f4e8c" Foreground="#a5d6ff"
+                        Width="130" Click="EndDayBtn_Click"/>
             </Grid>
         </Border>
 
-        <!-- ===== ЛЕВАЯ ПАНЕЛЬ: НПС ===== -->
-        <Border DockPanel.Dock="Left"
-                Width="240"
-                Background="#111827"
-                CornerRadius="4"
-                Margin="0,0,8,0">
+        <!-- ── LEFT PANEL: NPC LIST ───────────────────────────────────────── -->
+        <Border DockPanel.Dock="Left" Width="260"
+                Background="#0d1117" BorderBrush="#30363d" BorderThickness="0,0,1,0">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top"
-                           Text="  ПЕРСОНАЖИ"
-                           Foreground="#60a5fa"
-                           FontSize="12" FontWeight="Bold"
-                           Padding="8,6"/>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel x:Name="NpcCardsPanel"/>
+                <Border DockPanel.Dock="Top" Padding="10,6" Background="#161b22"
+                        BorderBrush="#30363d" BorderThickness="0,0,0,1">
+                    <TextBlock Text="ВЫЖИВШИЕ" Foreground="#8b949e" FontSize="11"/>
+                </Border>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                    <StackPanel x:Name="NpcPanel"/>
                 </ScrollViewer>
             </DockPanel>
         </Border>
 
-        <!-- ===== ПРАВАЯ ПАНЕЛЬ: ДЕЙСТВИЯ + АЛТАРЬ ===== -->
-        <Border DockPanel.Dock="Right"
-                Width="280"
-                Background="#111827"
-                CornerRadius="4"
-                Margin="8,0,0,0">
+        <!-- ── RIGHT PANEL: TABS ──────────────────────────────────────────── -->
+        <Border DockPanel.Dock="Right" Width="310"
+                Background="#0d1117" BorderBrush="#30363d" BorderThickness="1,0,0,0">
             <DockPanel>
+                <!-- Tab bar -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
+                            Background="#161b22">
+                    <ToggleButton x:Name="TabActions" Content="Действия"
+                                  Style="{StaticResource TabBtn}"
+                                  IsChecked="True" Click="Tab_Click"/>
+                    <ToggleButton x:Name="TabQuests"  Content="Квесты"
+                                  Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+                    <ToggleButton x:Name="TabAltar"   Content="Алтарь"
+                                  Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+                    <ToggleButton x:Name="TabMap"     Content="Карта"
+                                  Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+                </StackPanel>
 
-                <!-- Алтарь внизу -->
-                <Border DockPanel.Dock="Bottom"
-                        Background="#1a1a0a"
-                        CornerRadius="4"
-                        Padding="10,8"
-                        Margin="6,0,6,6">
+                <!-- ── ACTIONS TAB ─────────────────────────────────────────── -->
+                <ScrollViewer x:Name="PanelActions" VerticalScrollBarVisibility="Auto" Padding="10">
                     <StackPanel>
-                        <TextBlock Text="✦  АЛТАРЬ"
-                                   Foreground="#facc15"
-                                   FontSize="12" FontWeight="Bold"
-                                   Margin="0,0,0,6"/>
-                        <TextBlock x:Name="AltarInfoText"
-                                   Foreground="#d4c26a"
-                                   FontSize="11"
-                                   Margin="0,0,0,8"/>
-                        <Button x:Name="UpgradeAltarBtn"
-                                Content="Улучшить алтарь"
-                                Height="28" FontSize="12"
-                                Background="#92400e"
-                                Foreground="#facc15"
-                                BorderThickness="0"
-                                Cursor="Hand"
-                                Click="UpgradeAltar_Click"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Панель действий -->
-                <Border Background="#16213e"
-                        CornerRadius="4"
-                        Padding="10,10"
-                        Margin="6,6,6,4">
-                    <StackPanel>
-                        <TextBlock Text="ДЕЙСТВИЕ ИГРОКА"
-                                   Foreground="#60a5fa"
-                                   FontSize="12" FontWeight="Bold"
-                                   Margin="0,0,0,10"/>
-
-                        <TextBlock Text="Действие:" Foreground="#aaa" FontSize="12" Margin="0,0,0,3"/>
-                        <ComboBox x:Name="ActionCombo"
-                                  Style="{StaticResource LightCombo}"
-                                  Margin="0,0,0,8"
+                        <TextBlock Text="ДЕЙСТВИЕ" Style="{StaticResource SectionHeader}"/>
+                        <ComboBox x:Name="ActionCombo" Style="{StaticResource LightCombo}"
                                   SelectionChanged="ActionCombo_SelectionChanged"/>
 
-                        <TextBlock x:Name="NpcLabel" Text="Персонаж:" Foreground="#aaa"
-                                   FontSize="12" Margin="0,0,0,3" Visibility="Collapsed"/>
-                        <ComboBox x:Name="NpcCombo"
-                                  Style="{StaticResource LightCombo}"
-                                  Margin="0,0,0,8"
+                        <TextBlock x:Name="NpcLabel" Text="НПС" Style="{StaticResource SectionHeader}"
+                                   Visibility="Collapsed"/>
+                        <ComboBox x:Name="NpcCombo" Style="{StaticResource LightCombo}"
                                   Visibility="Collapsed"/>
 
-                        <!-- Передать ресурс -->
-                        <TextBlock x:Name="ResLabel" Text="Ресурс:" Foreground="#aaa"
-                                   FontSize="12" Margin="0,0,0,3" Visibility="Collapsed"/>
-                        <ComboBox x:Name="ResourceCombo"
-                                  Style="{StaticResource LightCombo}"
-                                  Margin="0,0,0,6"
+                        <TextBlock x:Name="ResLabel" Text="РЕСУРС" Style="{StaticResource SectionHeader}"
+                                   Visibility="Collapsed"/>
+                        <ComboBox x:Name="ResourceCombo" Style="{StaticResource LightCombo}"
                                   Visibility="Collapsed"/>
-
-                        <Grid x:Name="AmountRow" Visibility="Collapsed" Margin="0,0,0,8">
+                        <Grid x:Name="AmountRow" Visibility="Collapsed" Margin="0,2,0,4">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="80"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Кол-во: " Foreground="#aaa"
-                                       FontSize="12" VerticalAlignment="Center"/>
-                            <TextBox x:Name="AmountBox"
-                                     Grid.Column="1"
-                                     Background="White" Foreground="#111"
-                                     BorderBrush="#2a3a60" Height="28"
-                                     FontSize="13" VerticalContentAlignment="Center"
-                                     Padding="4,0" Text="1"/>
+                            <TextBlock Grid.Column="0" Text="КОЛИЧЕСТВО" VerticalAlignment="Center"
+                                       Foreground="#8b949e" FontSize="11"/>
+                            <TextBox Grid.Column="1" x:Name="AmountBox" Text="10"
+                                     Background="#21262d" Foreground="#c9d1d9"
+                                     BorderBrush="#30363d" Padding="4,2" TextAlignment="Right"/>
                         </Grid>
 
-                        <!-- Задание -->
-                        <TextBlock x:Name="TaskLabel" Text="Задание:" Foreground="#aaa"
-                                   FontSize="12" Margin="0,0,0,3" Visibility="Collapsed"/>
-                        <ComboBox x:Name="TaskCombo"
-                                  Style="{StaticResource LightCombo}"
-                                  Margin="0,0,0,8"
+                        <TextBlock x:Name="TaskLabel" Text="ЗАДАНИЕ" Style="{StaticResource SectionHeader}"
+                                   Visibility="Collapsed"/>
+                        <ComboBox x:Name="TaskCombo" Style="{StaticResource LightCombo}"
                                   Visibility="Collapsed"/>
 
-                        <Button x:Name="ActionButton"
-                                Style="{StaticResource ActionBtn}"
-                                Visibility="Collapsed"
-                                Click="ActionButton_Click"/>
+                        <Button Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}"
+                                Background="#1a3a1a" Foreground="#56d364"
+                                Margin="0,8,0,0" Click="ExecuteAction_Click"/>
+
+                        <Separator Background="#30363d" Margin="0,12,0,6"/>
+                        <TextBlock Text="ТЕХНИКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="TechniquePanel"/>
                     </StackPanel>
-                </Border>
+                </ScrollViewer>
+
+                <!-- ── QUESTS TAB ──────────────────────────────────────────── -->
+                <ScrollViewer x:Name="PanelQuests" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="ДОСТУПНЫЕ КВЕСТЫ" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="QuestAvailPanel"/>
+                        <Separator Background="#30363d" Margin="0,10,0,6"/>
+                        <TextBlock Text="АКТИВНЫЕ КВЕСТЫ" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="QuestActivePanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ── ALTAR TAB ───────────────────────────────────────────── -->
+                <ScrollViewer x:Name="PanelAltar" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="АЛТАРЬ" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock x:Name="AltarInfoLabel" Foreground="#c9d1d9"
+                                   Margin="0,0,0,6" TextWrapping="Wrap"/>
+                        <Button x:Name="UpgradeAltarBtn" Content="УЛУЧШИТЬ АЛТАРЬ"
+                                Style="{StaticResource ActionBtn}"
+                                Background="#2d1b69" Foreground="#d2a8ff"
+                                Click="UpgradeAltarBtn_Click"/>
+
+                        <Separator Background="#30363d" Margin="0,12,0,6"/>
+                        <TextBlock Text="БАРЬЕР" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock x:Name="BarrierLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
+                        <Button Content="УКРЕПИТЬ БАРЬЕР (-20 веры)"
+                                Style="{StaticResource ActionBtn}"
+                                Background="#1a2a3a" Foreground="#79c0ff"
+                                Margin="0,4" Click="BarrierBtn_Click"/>
+
+                        <Separator Background="#30363d" Margin="0,12,0,6"/>
+                        <TextBlock Text="ПОСЛЕДОВАТЕЛИ" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock x:Name="FollowerLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
+
+                        <Separator Background="#30363d" Margin="0,12,0,6"/>
+                        <TextBlock Text="ТЕХНИКИ" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="AltarTechPanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ── MAP TAB ─────────────────────────────────────────────── -->
+                <ScrollViewer x:Name="PanelMap" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="КАРТА МИРА" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="MapPanel"/>
+                    </StackPanel>
+                </ScrollViewer>
 
             </DockPanel>
         </Border>
 
-        <!-- ===== ЦЕНТР: ЛОГ СОБЫТИЙ ===== -->
-        <Border Background="#0a0f1e" CornerRadius="4">
-            <ListBox x:Name="EventLog"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     Padding="6"
+        <!-- ── CENTER: LOG ────────────────────────────────────────────────── -->
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Background="#161b22"
+                    BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="10,6">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="ЖУРНАЛ" Foreground="#8b949e" FontSize="11"
+                               VerticalAlignment="Center"/>
+                    <Button Content="Очистить" Style="{StaticResource ActionBtn}"
+                            Width="80" Margin="12,0,0,0" FontSize="11"
+                            Click="ClearLog_Click"/>
+                </StackPanel>
+            </Border>
+            <ListBox x:Name="LogList" Background="#0d1117" BorderThickness="0"
+                     Foreground="#c9d1d9" Padding="10"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ItemTemplate="{StaticResource LogTemplate}"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     VirtualizingPanel.ScrollUnit="Pixel"
-                     HorizontalContentAlignment="Stretch"/>
-        </Border>
-
+                     VirtualizingPanel.ScrollUnit="Pixel"/>
+        </DockPanel>
     </DockPanel>
 </Window>
