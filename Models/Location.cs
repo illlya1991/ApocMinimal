@@ -10,6 +10,12 @@ public enum LocationType
     City,       // город
 }
 
+public enum LocationStatus
+{
+    Dangerous, // есть монстры
+    Cleared,   // зачищено
+}
+
 public class Location
 {
     public int          Id       { get; set; }
@@ -25,6 +31,11 @@ public class Location
 
     /// <summary>Is this location explored/visible to the player?</summary>
     public bool IsExplored { get; set; }
+
+    /// <summary>Whether the location has been cleared of monsters.</summary>
+    public LocationStatus Status         { get; set; } = LocationStatus.Dangerous;
+    /// <summary>Type of monsters present (empty when Cleared).</summary>
+    public string         MonsterTypeName { get; set; } = "";
 
     public string TypeLabel => Type switch
     {

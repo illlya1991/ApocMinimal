@@ -108,17 +108,34 @@ public class DatabaseManager
 
         ExecuteNQ(conn, @"
             CREATE TABLE IF NOT EXISTS Locations (
-                Id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name          TEXT    NOT NULL,
-                Type          TEXT    DEFAULT 'Apartment',
-                ParentId      INTEGER DEFAULT 0,
-                ResourceNodes TEXT    DEFAULT '{}',
-                DangerLevel   REAL    DEFAULT 0,
-                IsExplored    INTEGER DEFAULT 0
+                Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name            TEXT    NOT NULL,
+                Type            TEXT    DEFAULT 'Apartment',
+                ParentId        INTEGER DEFAULT 0,
+                ResourceNodes   TEXT    DEFAULT '{}',
+                DangerLevel     REAL    DEFAULT 0,
+                IsExplored      INTEGER DEFAULT 0,
+                Status          TEXT    DEFAULT 'Dangerous',
+                MonsterTypeName TEXT    DEFAULT ''
+            )");
+
+        ExecuteNQ(conn, @"
+            CREATE TABLE IF NOT EXISTS Techniques (
+                Id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name         TEXT    NOT NULL,
+                Description  TEXT    DEFAULT '',
+                AltarLevel   INTEGER DEFAULT 1,
+                TechLevel    TEXT    DEFAULT 'Genin',
+                TechType     TEXT    DEFAULT 'Energy',
+                FaithCost    REAL    DEFAULT 0,
+                ChakraCost   REAL    DEFAULT 0,
+                StaminaCost  REAL    DEFAULT 0,
+                RequiredStats TEXT   DEFAULT '{}'
             )");
 
         MigrateColumns(conn);
         SeedIfEmpty(conn);
+        SeedTechniquesIfEmpty(conn);
     }
 
     private void MigrateColumns(SQLiteConnection conn)
@@ -152,7 +169,10 @@ public class DatabaseManager
             ("Npcs",   "TaskRewardResId",  "INTEGER DEFAULT 0"),
             ("Npcs",   "TaskRewardAmt",    "REAL DEFAULT 0"),
             ("Npcs",   "Stats",            "TEXT DEFAULT '{}'"),
-            ("Player", "CurrentDay",       "INTEGER DEFAULT 0"),
+            ("Player",     "CurrentDay",       "INTEGER DEFAULT 0"),
+            ("Npcs",       "CombatInitiative", "REAL DEFAULT 50"),
+            ("Locations",  "Status",           "TEXT DEFAULT 'Dangerous'"),
+            ("Locations",  "MonsterTypeName",  "TEXT DEFAULT ''"),
         };
         foreach (var (table, col, def) in cols)
         {
@@ -205,8 +225,9 @@ public class DatabaseManager
                 Chakra      = rnd.Next(30, 70),
                 Fear        = rnd.Next(5, 30),
                 Trust       = rnd.Next(40, 70),
-                Initiative  = rnd.Next(35, 75),
-                Trait       = trait,
+                Initiative       = rnd.Next(35, 75),
+                CombatInitiative = rnd.Next(30, 80),
+                Trait            = trait,
                 FollowerLevel = 0,
                 Description = NpcDescriptions.All[rnd.Next(NpcDescriptions.All.Length)],
                 Goal        = NpcGoals.Goals[rnd.Next(NpcGoals.Goals.Length)],
@@ -254,12 +275,12 @@ public class DatabaseManager
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Npcs
               (Name,Age,Gender,Profession,Description,Health,Faith,Stamina,Chakra,
-               Fear,Trust,Initiative,Trait,FollowerLevel,CharTraits,Specializations,
+               Fear,Trust,Initiative,CombatInitiative,Trait,FollowerLevel,CharTraits,Specializations,
                Emotions,Goal,Dream,Desire,Needs,Stats,
                ActiveTask,TaskDaysLeft,TaskRewardResId,TaskRewardAmt,Memory)
             VALUES
               (@nm,@ag,@gn,@pr,@ds,@hp,@fa,@st,@ck,
-               @fr,@tr,@in,@tt,@fl,@ct,@sp,
+               @fr,@tr,@in,@ci,@tt,@fl,@ct,@sp,
                @em,@gl,@dr,@de,@nd,@ss,
                @at,@tdl,@trr,@tra,@me)", conn);
 
@@ -275,6 +296,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@fr",  npc.Fear);
         cmd.Parameters.AddWithValue("@tr",  npc.Trust);
         cmd.Parameters.AddWithValue("@in",  npc.Initiative);
+        cmd.Parameters.AddWithValue("@ci",  npc.CombatInitiative);
         cmd.Parameters.AddWithValue("@tt",  npc.Trait.ToString());
         cmd.Parameters.AddWithValue("@fl",  npc.FollowerLevel);
         cmd.Parameters.AddWithValue("@ct",  JsonSerializer.Serialize(npc.CharTraits.Select(c => c.ToString()).ToList(), JsonOpts));
@@ -360,6 +382,68 @@ public class DatabaseManager
         }
     }
 
+    public void SaveLocation(Location loc)
+    {
+        using var conn = OpenConnection();
+        using var cmd  = new SQLiteCommand(
+            "UPDATE Locations SET Status=@st, MonsterTypeName=@mt WHERE Id=@id", conn);
+        cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
+        cmd.Parameters.AddWithValue("@mt", loc.MonsterTypeName);
+        cmd.Parameters.AddWithValue("@id", loc.Id);
+        cmd.ExecuteNonQuery();
+    }
+
+    // ── Techniques ────────────────────────────────────────────────────
+
+    public List<Technique> GetAllTechniques()
+    {
+        var list = new List<Technique>();
+        using var conn = OpenConnection();
+        using var cmd  = new SQLiteCommand("SELECT * FROM Techniques ORDER BY AltarLevel, Id", conn);
+        using var rdr  = cmd.ExecuteReader();
+        while (rdr.Read()) list.Add(ReadTechnique(rdr));
+        return list;
+    }
+
+    public void InsertTechnique(Technique t)
+    {
+        using var conn = OpenConnection();
+        using var cmd  = new SQLiteCommand(@"
+            INSERT INTO Techniques
+              (Name,Description,AltarLevel,TechLevel,TechType,FaithCost,ChakraCost,StaminaCost,RequiredStats)
+            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs)", conn);
+        cmd.Parameters.AddWithValue("@nm", t.Name);
+        cmd.Parameters.AddWithValue("@ds", t.Description);
+        cmd.Parameters.AddWithValue("@al", t.AltarLevel);
+        cmd.Parameters.AddWithValue("@tl", t.TechLevel.ToString());
+        cmd.Parameters.AddWithValue("@tt", t.TechType.ToString());
+        cmd.Parameters.AddWithValue("@fc", t.FaithCost);
+        cmd.Parameters.AddWithValue("@cc", t.ChakraCost);
+        cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
+        cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
+        cmd.ExecuteNonQuery();
+        t.Id = (int)conn.LastInsertRowId;
+    }
+
+    public void SaveTechnique(Technique t)
+    {
+        using var conn = OpenConnection();
+        using var cmd  = new SQLiteCommand(
+            "UPDATE Techniques SET Name=@nm,Description=@ds,AltarLevel=@al,TechLevel=@tl," +
+            "TechType=@tt,FaithCost=@fc,ChakraCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", conn);
+        cmd.Parameters.AddWithValue("@nm", t.Name);
+        cmd.Parameters.AddWithValue("@ds", t.Description);
+        cmd.Parameters.AddWithValue("@al", t.AltarLevel);
+        cmd.Parameters.AddWithValue("@tl", t.TechLevel.ToString());
+        cmd.Parameters.AddWithValue("@tt", t.TechType.ToString());
+        cmd.Parameters.AddWithValue("@fc", t.FaithCost);
+        cmd.Parameters.AddWithValue("@cc", t.ChakraCost);
+        cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
+        cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
+        cmd.Parameters.AddWithValue("@id", t.Id);
+        cmd.ExecuteNonQuery();
+    }
+
     // =========================================================
     // Reset
     // =========================================================
@@ -372,8 +456,10 @@ public class DatabaseManager
         ExecuteNQ(conn, "DELETE FROM Resources");
         ExecuteNQ(conn, "DELETE FROM Quests");
         ExecuteNQ(conn, "DELETE FROM Locations");
+        ExecuteNQ(conn, "DELETE FROM Techniques");
         try { ExecuteNQ(conn, "DELETE FROM sqlite_sequence"); } catch { }
         SeedIfEmpty(conn);
+        SeedTechniquesIfEmpty(conn);
     }
 
     // =========================================================
@@ -462,8 +548,10 @@ public class DatabaseManager
                 Type          = Enum.TryParse<LocationType>(rdr.GetString(rdr.GetOrdinal("Type")), out var lt) ? lt : LocationType.Apartment,
                 ParentId      = rdr.GetInt32(rdr.GetOrdinal("ParentId")),
                 ResourceNodes = nodes,
-                DangerLevel   = rdr.GetDouble(rdr.GetOrdinal("DangerLevel")),
-                IsExplored    = rdr.GetInt32(rdr.GetOrdinal("IsExplored")) == 1,
+                DangerLevel     = rdr.GetDouble(rdr.GetOrdinal("DangerLevel")),
+                IsExplored      = rdr.GetInt32(rdr.GetOrdinal("IsExplored")) == 1,
+                Status          = Enum.TryParse<LocationStatus>(GetStringOrDefault(rdr, "Status", "Dangerous"), out var ls) ? ls : LocationStatus.Dangerous,
+                MonsterTypeName = GetStringOrDefault(rdr, "MonsterTypeName"),
             });
         }
         return list;
@@ -493,7 +581,7 @@ public class DatabaseManager
         using var cmd  = new SQLiteCommand(@"
             UPDATE Npcs SET
                 Health=@hp, Faith=@fa, Stamina=@st, Chakra=@ck,
-                Fear=@fr, Trust=@tr, Initiative=@in, FollowerLevel=@fl,
+                Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
                 CharTraits=@ct, Specializations=@sp, Emotions=@em,
                 Goal=@gl, Dream=@dr, Desire=@de,
                 Needs=@nd, Stats=@ss,
@@ -508,6 +596,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@fr",  n.Fear);
         cmd.Parameters.AddWithValue("@tr",  n.Trust);
         cmd.Parameters.AddWithValue("@in",  n.Initiative);
+        cmd.Parameters.AddWithValue("@ci",  n.CombatInitiative);
         cmd.Parameters.AddWithValue("@fl",  n.FollowerLevel);
         cmd.Parameters.AddWithValue("@ct",  JsonSerializer.Serialize(n.CharTraits.Select(c => c.ToString()).ToList(), JsonOpts));
         cmd.Parameters.AddWithValue("@sp",  JsonSerializer.Serialize(n.Specializations, JsonOpts));
@@ -571,6 +660,62 @@ public class DatabaseManager
         q.Id = (int)conn.LastInsertRowId;
     }
 
+    private void SeedTechniquesIfEmpty(SQLiteConnection conn)
+    {
+        var count = (long)(ExecuteScalar(conn, "SELECT COUNT(*) FROM Techniques") ?? 0L);
+        if (count > 0) return;
+
+        var seeds = new[]
+        {
+            // (Name, Desc, AltarLevel, TechLevel, TechType, FaithCost, ChakraCost, StaminaCost)
+            ("Удар силы",         "Базовый физический удар.",              1, TechniqueLevel.Genin,       TechniqueType.Physical, 5.0,  5.0,  10.0),
+            ("Волна чакры",       "Слабый выброс энергии.",                1, TechniqueLevel.Genin,       TechniqueType.Energy,   5.0, 10.0,   5.0),
+            ("Острый ум",         "Кратковременное усиление концентрации.",1, TechniqueLevel.Genin,       TechniqueType.Mental,   5.0,  8.0,   3.0),
+            ("Огненный шар",      "Техника огненной чакры.",               2, TechniqueLevel.EliteGenin,  TechniqueType.Energy,  10.0, 20.0,  10.0),
+            ("Железный кулак",    "Усиленный физический удар.",            2, TechniqueLevel.EliteGenin,  TechniqueType.Physical,10.0, 15.0,  20.0),
+            ("Иллюзия страха",    "Ментальная атака, вызывает панику.",    3, TechniqueLevel.Chunin,      TechniqueType.Mental,  20.0, 25.0,  15.0),
+            ("Водяной хлыст",     "Техника воды — дальняя атака.",         3, TechniqueLevel.Chunin,      TechniqueType.Energy,  20.0, 30.0,  15.0),
+            ("Каменная кожа",     "Защитное физическое укрепление тела.",  4, TechniqueLevel.EliteChunin, TechniqueType.Physical,30.0, 35.0,  30.0),
+            ("Молниеносный удар", "Сверхбыстрая атака с разряды молнии.", 4, TechniqueLevel.EliteChunin, TechniqueType.Physical,30.0, 30.0,  25.0),
+            ("Взрыв чакры",       "Мощный выброс чакры во все стороны.",  5, TechniqueLevel.Jonin,       TechniqueType.Energy,  50.0, 60.0,  30.0),
+            ("Контроль разума",   "Высшая ментальная техника подавления.", 5, TechniqueLevel.Jonin,       TechniqueType.Mental,  50.0, 50.0,  25.0),
+            ("Совершенная форма", "Тело достигает пика физических возм.",  6, TechniqueLevel.EliteJonin,  TechniqueType.Physical,70.0, 60.0,  50.0),
+            ("Клон чакры",        "Создание нескольких энергетических копий.",7,TechniqueLevel.Anbu,      TechniqueType.Energy, 100.0, 80.0,  40.0),
+            ("Природная сила",    "Слияние с природной энергией.",         8, TechniqueLevel.Sannin,      TechniqueType.Energy, 150.0,100.0,  60.0),
+            ("Бездна",            "Абсолютная ментальная пустота.",        10, TechniqueLevel.Kage,       TechniqueType.Mental, 300.0,150.0, 100.0),
+        };
+
+        foreach (var (nm, ds, al, tl, tt, fc, cc, sc) in seeds)
+        {
+            using var cmd = new SQLiteCommand(@"
+                INSERT INTO Techniques (Name,Description,AltarLevel,TechLevel,TechType,FaithCost,ChakraCost,StaminaCost,RequiredStats)
+                VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,'{}')", conn);
+            cmd.Parameters.AddWithValue("@nm", nm);
+            cmd.Parameters.AddWithValue("@ds", ds);
+            cmd.Parameters.AddWithValue("@al", al);
+            cmd.Parameters.AddWithValue("@tl", tl.ToString());
+            cmd.Parameters.AddWithValue("@tt", tt.ToString());
+            cmd.Parameters.AddWithValue("@fc", fc);
+            cmd.Parameters.AddWithValue("@cc", cc);
+            cmd.Parameters.AddWithValue("@sc", sc);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    private static Technique ReadTechnique(SQLiteDataReader rdr) => new()
+    {
+        Id          = rdr.GetInt32(rdr.GetOrdinal("Id")),
+        Name        = rdr.GetString(rdr.GetOrdinal("Name")),
+        Description = GetStringOrDefault(rdr, "Description"),
+        AltarLevel  = rdr.GetInt32(rdr.GetOrdinal("AltarLevel")),
+        TechLevel   = Enum.TryParse<TechniqueLevel>(GetStringOrDefault(rdr, "TechLevel", "Genin"), out var tl) ? tl : TechniqueLevel.Genin,
+        TechType    = Enum.TryParse<TechniqueType>(GetStringOrDefault(rdr, "TechType", "Energy"), out var tt) ? tt : TechniqueType.Energy,
+        FaithCost   = GetDoubleOrDefault(rdr, "FaithCost"),
+        ChakraCost  = GetDoubleOrDefault(rdr, "ChakraCost"),
+        StaminaCost = GetDoubleOrDefault(rdr, "StaminaCost"),
+        RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new(),
+    };
+
     // =========================================================
     // Private helpers
     // =========================================================
@@ -602,7 +747,8 @@ public class DatabaseManager
             Chakra       = GetDoubleOrDefault(rdr, "Chakra",  50),
             Fear         = GetDoubleOrDefault(rdr, "Fear",    10),
             Trust        = GetDoubleOrDefault(rdr, "Trust",   50),
-            Initiative   = GetDoubleOrDefault(rdr, "Initiative", 50),
+            Initiative       = GetDoubleOrDefault(rdr, "Initiative", 50),
+            CombatInitiative = GetDoubleOrDefault(rdr, "CombatInitiative", 50),
             Trait        = Enum.TryParse<NpcTrait>(GetStringOrDefault(rdr, "Trait", "None"), out var t) ? t : NpcTrait.None,
             FollowerLevel= GetIntOrDefault(rdr, "FollowerLevel"),
             Goal         = GetStringOrDefault(rdr, "Goal"),

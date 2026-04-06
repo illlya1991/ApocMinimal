@@ -1,12 +1,21 @@
 namespace ApocMinimal.Models;
 
-/// <summary>Stage F technique (unlocked every 2 altar levels).</summary>
+/// <summary>A technique grantable to NPCs or usable by the player via the altar.</summary>
 public class Technique
 {
+    public int    Id          { get; set; }
     public string Name        { get; set; } = "";
     public string Description { get; set; } = "";
-    public int    AltarLevel  { get; set; }   // unlocked at this altar level
+    public int    AltarLevel  { get; set; }   // min altar level to grant/use
     public double FaithCost   { get; set; }
+
+    // ── Ninja system ──────────────────────────────────────────────────
+    public TechniqueLevel TechLevel   { get; set; } = TechniqueLevel.Genin;
+    public TechniqueType  TechType    { get; set; } = TechniqueType.Energy;
+    public double         ChakraCost  { get; set; }
+    public double         StaminaCost { get; set; }
+    /// <summary>Required minimum stat values (StatId → minValue).</summary>
+    public Dictionary<int, double> RequiredStats { get; set; } = new();
 }
 
 public class Player
@@ -79,15 +88,25 @@ public class Player
     // ── Techniques (unlocked every 2 levels) ──────────────────────────
     public static readonly Technique[] AllTechniques =
     {
-        new() { Name="Благословение",       AltarLevel=2, FaithCost=10,
+        new() { Name="Благословение",        AltarLevel=2,  FaithCost=10,
+                TechLevel=TechniqueLevel.Genin,       TechType=TechniqueType.Energy,
+                ChakraCost=10,  StaminaCost=5,
                 Description="Даёт +20 здоровья одному НПС." },
-        new() { Name="Исцеление",           AltarLevel=4, FaithCost=20,
+        new() { Name="Исцеление",            AltarLevel=4,  FaithCost=20,
+                TechLevel=TechniqueLevel.EliteGenin,  TechType=TechniqueType.Energy,
+                ChakraCost=20,  StaminaCost=10,
                 Description="Полностью восстанавливает здоровье одного НПС." },
-        new() { Name="Щит веры",            AltarLevel=6, FaithCost=30,
+        new() { Name="Щит веры",             AltarLevel=6,  FaithCost=30,
+                TechLevel=TechniqueLevel.Chunin,      TechType=TechniqueType.Energy,
+                ChakraCost=30,  StaminaCost=15,
                 Description="Создаёт барьер вокруг алтаря на 3 дня." },
-        new() { Name="Откровение",          AltarLevel=8, FaithCost=40,
+        new() { Name="Откровение",           AltarLevel=8,  FaithCost=40,
+                TechLevel=TechniqueLevel.Jonin,       TechType=TechniqueType.Mental,
+                ChakraCost=40,  StaminaCost=20,
                 Description="Вскрывает все соседние локации на карте." },
-        new() { Name="Апокалиптический удар",AltarLevel=10,FaithCost=100,
+        new() { Name="Апокалиптический удар",AltarLevel=10, FaithCost=100,
+                TechLevel=TechniqueLevel.Kage,        TechType=TechniqueType.Physical,
+                ChakraCost=80,  StaminaCost=50,
                 Description="Мгновенно уничтожает одну враждебную группу." },
     };
 

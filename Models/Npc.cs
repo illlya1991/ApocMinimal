@@ -37,6 +37,8 @@ public class Npc
     public double Trust   { get; set; } = 50;
     /// <summary>0–100: initiative (chance to act first, take quests proactively).</summary>
     public double Initiative { get; set; } = 50;
+    /// <summary>0–100: combat initiative (determines attack order in battle).</summary>
+    public double CombatInitiative { get; set; } = 50;
 
     // ── ROLE & PROGRESSION ──────────────────────────────────────────────────
     public NpcTrait Trait          { get; set; }
