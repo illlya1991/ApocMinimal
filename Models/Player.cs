@@ -22,13 +22,59 @@ public class Player
     public double BarrierSize      { get; set; }
     /// <summary>Number of controlled location IDs.</summary>
     public int    TerritoryControl { get; set; }
-    /// <summary>Max simultaneous followers (grows with altar level).</summary>
-    public int    MaxFollowers     => 2 + AltarLevel * 2;
 
     // ── Derived ────────────────────────────────────────────────────────
-    public double DailyFaithLimit => 10 + AltarLevel * 8;
-    public int    UpgradeCost     => AltarLevel * 75;
-    public bool   CanUpgrade      => AltarLevel < 10 && FaithPoints >= UpgradeCost;
+    /// <summary>200 × 5^(level-1). Level 1=200, 2=1000, 3=5000 … 10=390 625 000.</summary>
+    public long   UpgradeCost => (long)(200 * Math.Pow(5, AltarLevel - 1));
+    public bool   CanUpgrade  => AltarLevel < 10 && FaithPoints >= UpgradeCost;
+
+    /// <summary>Max ОВ any single NPC can generate per day (reached at follower level 5).</summary>
+    public const double MaxFaithPerNpcPerDay = 10.0;
+
+    // ── Follower limits per altar level ───────────────────────────────
+    // [altarLevel 1..10, followerLevel 0..5]; -1 = unlimited
+    private static readonly int[,] _followerLimits =
+    {
+        //           lvl0   lvl1   lvl2   lvl3   lvl4   lvl5
+        {              0,     0,     0,     0,     0,     0 }, // altar 0 (unused)
+        {             10,     5,     3,     1,     0,     0 }, // altar 1
+        {             30,    10,     5,     3,     1,     0 }, // altar 2
+        {            100,    30,    15,    10,     3,     1 }, // altar 3
+        {            500,   100,    50,    25,    10,     2 }, // altar 4
+        {             -1,   300,   150,    50,    25,     3 }, // altar 5
+        {             -1,    -1,  1000,   300,   100,    10 }, // altar 6
+        {             -1,    -1,    -1,  1000,   300,    30 }, // altar 7
+        {             -1,    -1,    -1,    -1,  1000,   100 }, // altar 8
+        {             -1,    -1,    -1,    -1,    -1,   300 }, // altar 9
+        {             -1,    -1,    -1,    -1,    -1,    -1 }, // altar 10
+    };
+
+    /// <summary>
+    /// How many followers of <paramref name="followerLevel"/> are allowed at current altar level.
+    /// Returns -1 for unlimited, 0 if the level is not unlocked yet.
+    /// </summary>
+    public int GetFollowerLimit(int followerLevel)
+    {
+        int al = Math.Clamp(AltarLevel, 0, 10);
+        int fl = Math.Clamp(followerLevel, 0, 5);
+        return _followerLimits[al, fl];
+    }
+
+    /// <summary>Total non-zero-level followers allowed (sum of lvl1–5 limits).</summary>
+    public int MaxActiveFollowers
+    {
+        get
+        {
+            int sum = 0;
+            for (int fl = 1; fl <= 5; fl++)
+            {
+                int lim = GetFollowerLimit(fl);
+                if (lim == -1) return int.MaxValue;
+                sum += lim;
+            }
+            return sum;
+        }
+    }
 
     // ── Techniques (unlocked every 2 levels) ──────────────────────────
     public static readonly Technique[] AllTechniques =

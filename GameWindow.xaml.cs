@@ -228,20 +228,39 @@ public partial class GameWindow : Window
 
     private void RefreshAltarTab()
     {
+        // Строка лимитов последователей по уровням
+        var limParts = new System.Text.StringBuilder();
+        for (int fl = 0; fl <= 5; fl++)
+        {
+            int lim = _player.GetFollowerLimit(fl);
+            if (lim == 0) continue;
+            limParts.Append($"  lvl{fl}: {(lim == -1 ? "∞" : lim.ToString())}");
+        }
+
         AltarInfoLabel.Text =
             $"Уровень: {_player.AltarLevel} / 10\n" +
             $"Вера: {_player.FaithPoints:F0}\n" +
-            $"Лимит в день: {_player.DailyFaithLimit:F0}\n" +
-            $"Стоимость улучшения: {_player.UpgradeCost} ОВ";
+            $"Макс. ОВ/NPC/день: {Player.MaxFaithPerNpcPerDay:F0}\n" +
+            $"Стоимость улучшения: {_player.UpgradeCost:N0} ОВ";
 
         UpgradeAltarBtn.IsEnabled = _player.CanUpgrade;
         UpgradeAltarBtn.Opacity = _player.CanUpgrade ? 1.0 : 0.5;
         UpgradeAltarBtn.Content = _player.AltarLevel >= 10
             ? "Максимальный уровень"
-            : $"Улучшить ({_player.UpgradeCost} ОВ)";
+            : $"Улучшить ({_player.UpgradeCost:N0} ОВ)";
 
         BarrierLabel.Text = $"Размер барьера: {_player.BarrierSize:F0} м";
-        FollowerLabel.Text = $"Последователей: {_npcs.Count(n => n.FollowerLevel > 0)} / {_player.MaxFollowers}";
+
+        // Детальные лимиты последователей
+        var sb = new System.Text.StringBuilder("Последователи: ");
+        for (int fl = 0; fl <= 5; fl++)
+        {
+            int lim = _player.GetFollowerLimit(fl);
+            if (lim == 0) continue;
+            int cur = _npcs.Count(n => n.IsAlive && n.FollowerLevel == fl);
+            sb.Append($"lvl{fl}: {cur}/{(lim == -1 ? "∞" : lim.ToString())}  ");
+        }
+        FollowerLabel.Text = sb.ToString().TrimEnd();
 
         AltarTechPanel.Children.Clear();
         foreach (var tech in Player.AllTechniques)
@@ -632,19 +651,21 @@ public partial class GameWindow : Window
         double total = 0;
         foreach (var npc in _npcs.Where(n => n.IsAlive && n.FollowerLevel > 0))
         {
-            double maxDay = npc.FollowerLevel * 2.0;
+            // Макс. ОВ/день для этого NPC: FollowerLevel × 2 (10 на уровне 5)
+            double maxDay = npc.FollowerLevel * (Player.MaxFaithPerNpcPerDay / 5.0);
             double avgSat = npc.Needs.Count > 0
                 ? npc.Needs.Average(n => n.Satisfaction) / 100.0
                 : 0.5;
             double trustMod = 0.3 + npc.Trust / 100.0 * 0.7;
             double posSum = npc.Emotions.Where(em => positive.Contains(em.Name)).Sum(em => em.Percentage);
             double emoMod = 0.5 + posSum / 200.0;
-            total += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
+            double npcGain = Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
+            total += npcGain;
         }
 
-        double gained = Math.Min(total, _player.DailyFaithLimit);
-        _player.FaithPoints += gained;
-        Log($"Получено ОВ: +{gained:F1}  (лимит {_player.DailyFaithLimit:F0})", LogEntry.ColorAltarColor);
+        _player.FaithPoints += total;
+        int followers = _npcs.Count(n => n.IsAlive && n.FollowerLevel > 0);
+        Log($"Получено ОВ: +{total:F1}  (последователей: {followers}, макс. {Player.MaxFaithPerNpcPerDay:F0}/NPC)", LogEntry.ColorAltarColor);
     }
 
     private void AutoConsumeResources()
@@ -682,8 +703,8 @@ public partial class GameWindow : Window
         _player.FaithPoints -= cost;
         _player.AltarLevel++;
         _db.SavePlayer(_player);
-        Log($"Алтарь улучшен до уровня {_player.AltarLevel}! (потрачено {cost} ОВ)", LogEntry.ColorAltarColor);
-        Log($"  Новый лимит ОВ в день: {_player.DailyFaithLimit:F0}  Макс. последователей: {_player.MaxFollowers}", LogEntry.ColorAltarColor);
+        Log($"Алтарь улучшен до уровня {_player.AltarLevel}! (потрачено {cost:N0} ОВ)", LogEntry.ColorAltarColor);
+        Log($"  Макс. ОВ/NPC/день: {Player.MaxFaithPerNpcPerDay:F0}  Активных последователей: {_player.MaxActiveFollowers}", LogEntry.ColorAltarColor);
         RefreshAll();
     }
 
