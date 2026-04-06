@@ -8,6 +8,7 @@ public enum MemoryType
     Social,    // interaction with another NPC
     Discovery, // found a location or resource
     Divine,    // received a divine intervention from the player
+    StatChange, // a stat value changed significantly
 }
 
 /// <summary>
@@ -34,6 +35,7 @@ public class MemoryEntry
         MemoryType.Social    => "💬",
         MemoryType.Discovery => "🔍",
         MemoryType.Divine    => "✦",
+        MemoryType.StatChange => "📈",
         _                    => "•",
     };
 }

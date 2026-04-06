@@ -78,9 +78,12 @@ public partial class GameWindow : Window
 
     private void RefreshHeader()
     {
-        DayLabel.Text = $"  |  День {_player.CurrentDay}";
-        FaithLabel.Text = $"  {_player.FaithPoints:F0} веры";
-        AltarLabel.Text = $"  Алтарь: ур.{_player.AltarLevel}";
+        DayLabel.Text    = $"  |  День {_player.CurrentDay}";
+        FaithLabel.Text  = $"  {_player.FaithPoints:F0} веры";
+        AltarLabel.Text  = $"  Алтарь: ур.{_player.AltarLevel}";
+        bool actionsLeft = _player.PlayerActionsToday < Player.MaxPlayerActionsPerDay;
+        ActionsLabel.Text      = $"  Действий: {_player.PlayerActionsToday}/{Player.MaxPlayerActionsPerDay}";
+        ActionsLabel.Foreground = actionsLeft ? HexBrush("#56d364") : HexBrush("#f87171");
     }
 
     private void RefreshNpcCombo()
@@ -412,8 +415,18 @@ public partial class GameWindow : Window
     {
         if (NpcCombo.SelectedIndex < 0) { Log("Выберите персонажа.", LogEntry.ColorWarning); return; }
 
-        var npc = _npcs[NpcCombo.SelectedIndex];
         var action = ActionCombo.SelectedItem?.ToString() ?? "";
+        if (string.IsNullOrEmpty(action)) { Log("Выберите действие.", LogEntry.ColorWarning); return; }
+
+        // "Посмотреть информацию" — не тратит действие игрока
+        bool consumesAction = action != "Посмотреть информацию";
+        if (consumesAction && _player.PlayerActionsToday >= Player.MaxPlayerActionsPerDay)
+        {
+            Log($"Час игрока исчерпан ({Player.MaxPlayerActionsPerDay} действий/день). Ждите следующего дня.", LogEntry.ColorWarning);
+            return;
+        }
+
+        var npc = _npcs[NpcCombo.SelectedIndex];
 
         switch (action)
         {
@@ -421,7 +434,14 @@ public partial class GameWindow : Window
             case "Передать ресурс": DoTransfer(npc); break;
             case "Разговор": DoChat(npc); break;
             case "Дать квест": DoAssignQuest(npc); break;
-            default: Log("Выберите действие.", LogEntry.ColorWarning); break;
+            default: Log("Выберите действие.", LogEntry.ColorWarning); return;
+        }
+
+        if (consumesAction)
+        {
+            _player.PlayerActionsToday++;
+            _db.SavePlayer(_player);
+            RefreshHeader();
         }
     }
 
@@ -565,6 +585,7 @@ public partial class GameWindow : Window
     private void EndDayBtn_Click(object sender, RoutedEventArgs e)
     {
         _player.CurrentDay++;
+        _player.PlayerActionsToday = 0;
         LogDay($"═══ ДЕНЬ {_player.CurrentDay} ══════════════════════");
 
         // 1. НПС выполняют свои ежедневные действия
@@ -765,6 +786,31 @@ public partial class GameWindow : Window
     {
         LogStack.Children.Clear();
         _currentDayPanel = null;
+    }
+
+    private void FilterLog7Days_Click(object sender, RoutedEventArgs e)
+    {
+        int minDay = _player.CurrentDay - 6; // show last 7 days inclusive
+        foreach (var exp in LogStack.Children.OfType<Expander>())
+        {
+            // Headers like "═══ ДЕНЬ 5 ══..." or "=== День 5 ==="
+            string hdr = exp.Header?.ToString() ?? "";
+            int day = ParseDayFromHeader(hdr);
+            exp.Visibility = (day == 0 || day >= minDay) ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void ShowAllLog_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var exp in LogStack.Children.OfType<Expander>())
+            exp.Visibility = Visibility.Visible;
+    }
+
+    private static int ParseDayFromHeader(string header)
+    {
+        // Matches "ДЕНЬ 5" or "День 5"
+        var match = System.Text.RegularExpressions.Regex.Match(header, @"[Дд]ень\s+(\d+)");
+        return match.Success && int.TryParse(match.Groups[1].Value, out int d) ? d : 0;
     }
 
     private void CollapseAll_Click(object sender, RoutedEventArgs e)

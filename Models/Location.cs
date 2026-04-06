@@ -16,6 +16,13 @@ public enum LocationStatus
     Cleared,   // зачищено
 }
 
+public enum MapState
+{
+    Template,  // шаблон мира (не активен)
+    ApocStart, // состояние на начало апокалипсиса
+    Current,   // текущее состояние мира
+}
+
 public class Location
 {
     public int          Id       { get; set; }
@@ -36,6 +43,9 @@ public class Location
     public LocationStatus Status         { get; set; } = LocationStatus.Dangerous;
     /// <summary>Type of monsters present (empty when Cleared).</summary>
     public string         MonsterTypeName { get; set; } = "";
+
+    /// <summary>Which map snapshot this location belongs to.</summary>
+    public MapState MapState { get; set; } = MapState.Current;
 
     public string TypeLabel => Type switch
     {

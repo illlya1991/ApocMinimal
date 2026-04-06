@@ -42,13 +42,14 @@ public class DatabaseManager
 
         ExecuteNQ(conn, @"
             CREATE TABLE IF NOT EXISTS Player (
-                Id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name             TEXT    NOT NULL,
-                FaithPoints      REAL    DEFAULT 0,
-                AltarLevel       INTEGER DEFAULT 1,
-                CurrentDay       INTEGER DEFAULT 0,
-                BarrierSize      REAL    DEFAULT 0,
-                TerritoryControl INTEGER DEFAULT 0
+                Id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name                 TEXT    NOT NULL,
+                FaithPoints          REAL    DEFAULT 0,
+                AltarLevel           INTEGER DEFAULT 1,
+                CurrentDay           INTEGER DEFAULT 0,
+                BarrierSize          REAL    DEFAULT 0,
+                TerritoryControl     INTEGER DEFAULT 0,
+                PlayerActionsToday   INTEGER DEFAULT 0
             )");
 
         ExecuteNQ(conn, @"
@@ -169,10 +170,12 @@ public class DatabaseManager
             ("Npcs",   "TaskRewardResId",  "INTEGER DEFAULT 0"),
             ("Npcs",   "TaskRewardAmt",    "REAL DEFAULT 0"),
             ("Npcs",   "Stats",            "TEXT DEFAULT '{}'"),
-            ("Player",     "CurrentDay",       "INTEGER DEFAULT 0"),
-            ("Npcs",       "CombatInitiative", "REAL DEFAULT 50"),
-            ("Locations",  "Status",           "TEXT DEFAULT 'Dangerous'"),
-            ("Locations",  "MonsterTypeName",  "TEXT DEFAULT ''"),
+            ("Player",     "CurrentDay",         "INTEGER DEFAULT 0"),
+            ("Player",     "PlayerActionsToday", "INTEGER DEFAULT 0"),
+            ("Npcs",       "CombatInitiative",   "REAL DEFAULT 50"),
+            ("Locations",  "Status",             "TEXT DEFAULT 'Dangerous'"),
+            ("Locations",  "MonsterTypeName",    "TEXT DEFAULT ''"),
+            ("Locations",  "MapState",           "TEXT DEFAULT 'Current'"),
         };
         foreach (var (table, col, def) in cols)
         {
@@ -386,9 +389,10 @@ public class DatabaseManager
     {
         using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(
-            "UPDATE Locations SET Status=@st, MonsterTypeName=@mt WHERE Id=@id", conn);
+            "UPDATE Locations SET Status=@st, MonsterTypeName=@mt, MapState=@ms WHERE Id=@id", conn);
         cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
         cmd.Parameters.AddWithValue("@mt", loc.MonsterTypeName);
+        cmd.Parameters.AddWithValue("@ms", loc.MapState.ToString());
         cmd.Parameters.AddWithValue("@id", loc.Id);
         cmd.ExecuteNonQuery();
     }
@@ -552,6 +556,7 @@ public class DatabaseManager
                 IsExplored      = rdr.GetInt32(rdr.GetOrdinal("IsExplored")) == 1,
                 Status          = Enum.TryParse<LocationStatus>(GetStringOrDefault(rdr, "Status", "Dangerous"), out var ls) ? ls : LocationStatus.Dangerous,
                 MonsterTypeName = GetStringOrDefault(rdr, "MonsterTypeName"),
+                MapState        = Enum.TryParse<MapState>(GetStringOrDefault(rdr, "MapState", "Current"), out var ms) ? ms : MapState.Current,
             });
         }
         return list;
@@ -565,12 +570,13 @@ public class DatabaseManager
     {
         using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(
-            "UPDATE Player SET FaithPoints=@fp,AltarLevel=@al,CurrentDay=@cd,BarrierSize=@bs,TerritoryControl=@tc WHERE Id=@id", conn);
+            "UPDATE Player SET FaithPoints=@fp,AltarLevel=@al,CurrentDay=@cd,BarrierSize=@bs,TerritoryControl=@tc,PlayerActionsToday=@pa WHERE Id=@id", conn);
         cmd.Parameters.AddWithValue("@fp", p.FaithPoints);
         cmd.Parameters.AddWithValue("@al", p.AltarLevel);
         cmd.Parameters.AddWithValue("@cd", p.CurrentDay);
         cmd.Parameters.AddWithValue("@bs", p.BarrierSize);
         cmd.Parameters.AddWithValue("@tc", p.TerritoryControl);
+        cmd.Parameters.AddWithValue("@pa", p.PlayerActionsToday);
         cmd.Parameters.AddWithValue("@id", p.Id);
         cmd.ExecuteNonQuery();
     }
@@ -722,13 +728,14 @@ public class DatabaseManager
 
     private static Player ReadPlayer(SQLiteDataReader rdr) => new()
     {
-        Id               = rdr.GetInt32(rdr.GetOrdinal("Id")),
-        Name             = rdr.GetString(rdr.GetOrdinal("Name")),
-        FaithPoints      = rdr.GetDouble(rdr.GetOrdinal("FaithPoints")),
-        AltarLevel       = rdr.GetInt32(rdr.GetOrdinal("AltarLevel")),
-        CurrentDay       = rdr.GetInt32(rdr.GetOrdinal("CurrentDay")),
-        BarrierSize      = GetDoubleOrDefault(rdr, "BarrierSize"),
-        TerritoryControl = GetIntOrDefault(rdr, "TerritoryControl"),
+        Id                   = rdr.GetInt32(rdr.GetOrdinal("Id")),
+        Name                 = rdr.GetString(rdr.GetOrdinal("Name")),
+        FaithPoints          = rdr.GetDouble(rdr.GetOrdinal("FaithPoints")),
+        AltarLevel           = rdr.GetInt32(rdr.GetOrdinal("AltarLevel")),
+        CurrentDay           = rdr.GetInt32(rdr.GetOrdinal("CurrentDay")),
+        BarrierSize          = GetDoubleOrDefault(rdr, "BarrierSize"),
+        TerritoryControl     = GetIntOrDefault(rdr, "TerritoryControl"),
+        PlayerActionsToday   = GetIntOrDefault(rdr, "PlayerActionsToday"),
     };
 
     private static Npc ReadNpc(SQLiteDataReader rdr)

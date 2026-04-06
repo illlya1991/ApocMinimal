@@ -32,6 +32,12 @@ public class Player
     /// <summary>Number of controlled location IDs.</summary>
     public int    TerritoryControl { get; set; }
 
+    // ── Player action hour ────────────────────────────────────────────
+    /// <summary>How many direct player actions were taken today.</summary>
+    public int    PlayerActionsToday    { get; set; }
+    /// <summary>Maximum player direct actions per day (1 "player hour").</summary>
+    public const int MaxPlayerActionsPerDay = 10;
+
     // ── Derived ────────────────────────────────────────────────────────
     /// <summary>200 × 5^(level-1). Level 1=200, 2=1000, 3=5000 … 10=390 625 000.</summary>
     public long   UpgradeCost => (long)(200 * Math.Pow(5, AltarLevel - 1));

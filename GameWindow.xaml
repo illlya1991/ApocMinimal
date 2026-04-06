@@ -103,6 +103,8 @@
                                Foreground="#d29922" VerticalAlignment="Center"/>
                     <TextBlock x:Name="AltarLabel" Text="  Алтарь: ур.1"
                                Foreground="#58a6ff" VerticalAlignment="Center" Margin="8,0"/>
+                    <TextBlock x:Name="ActionsLabel" Text="  Действий: 0/10"
+                               Foreground="#56d364" VerticalAlignment="Center" Margin="8,0"/>
                 </StackPanel>
                 <Button Grid.Column="1" x:Name="EndDayBtn" Content="КОНЕЦ ДНЯ"
                         Style="{StaticResource ActionBtn}"
@@ -244,6 +246,12 @@
                     <Button Content="Развернуть" Style="{StaticResource ActionBtn}"
                             Width="100" Margin="6,0,0,0" FontSize="11"
                             Click="ExpandAll_Click"/>
+                    <Button Content="7 дней" Style="{StaticResource ActionBtn}"
+                            Width="70" Margin="6,0,0,0" FontSize="11"
+                            Click="FilterLog7Days_Click"/>
+                    <Button Content="Все дни" Style="{StaticResource ActionBtn}"
+                            Width="70" Margin="4,0,0,0" FontSize="11"
+                            Click="ShowAllLog_Click"/>
                 </StackPanel>
             </Border>
             <ScrollViewer x:Name="LogScroll"
