@@ -60,7 +60,7 @@ public class NeedSystemTests
 
         NeedSystem.SatisfyNeed(npc, BasicNeedId.Food, 20);
 
-        Assert.Equal(40, food.Value, precision: 1);
+        Assert.Equal(40.0, food.Value, 1);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class NeedSystemTests
 
         NeedSystem.SatisfyNeed(npc, "Вода", 15);
 
-        Assert.Equal(35, water.Value, precision: 1);
+        Assert.Equal(35.0, water.Value, 1);
     }
 
     [Fact]
