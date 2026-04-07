@@ -14,11 +14,4 @@
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
   </ItemGroup>
 
-  <!-- Exclude test project files from main compilation -->
-  <ItemGroup>
-    <Compile Remove="ApocMinimal.Tests\**" />
-    <EmbeddedResource Remove="ApocMinimal.Tests\**" />
-    <None Remove="ApocMinimal.Tests\**" />
-  </ItemGroup>
-
 </Project>
