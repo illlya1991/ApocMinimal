@@ -28,6 +28,24 @@ public class Need
     }
 }
 
+/// <summary>
+/// Stable IDs for the 10 basic needs.
+/// Value matches the 1-based index in BasicNeeds.Names and the Need.Id assigned in InitialiseNeeds.
+/// </summary>
+public enum BasicNeedId
+{
+    Food    = 1,
+    Water   = 2,
+    Sleep   = 3,
+    Heat    = 4,
+    Hygiene = 5,
+    Toilet  = 6,
+    Safety  = 7,
+    Rest    = 8,
+    Health  = 9,
+    Social  = 10,
+}
+
 public static class BasicNeeds
 {
     public static readonly string[] Names =
@@ -35,6 +53,9 @@ public static class BasicNeeds
         "Еда", "Вода", "Сон", "Тепло", "Гигиена",
         "Туалет", "Безопасность", "Отдых", "Здоровье", "Социальность"
     };
+
+    /// <summary>Display name for a known basic need ID.</summary>
+    public static string NameOf(BasicNeedId id) => Names[(int)id - 1];
 }
 
 public static class SpecialNeeds

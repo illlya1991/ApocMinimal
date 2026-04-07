@@ -588,60 +588,59 @@ public partial class GameWindow : Window
         _player.PlayerActionsToday = 0;
         LogDay($"═══ ДЕНЬ {_player.CurrentDay} ══════════════════════");
 
-        // 1. НПС выполняют свои ежедневные действия
-        foreach (var npc in _npcs.Where(n => n.IsAlive))
+        var day = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd);
+
+        // ── Render NPC action logs ────────────────────────────────────────────
+        foreach (var nr in day.NpcResults)
         {
-            var entries = ActionSystem.ProcessDayActions(npc, _rnd, _player.CurrentDay);
             var npcExp = new Expander
             {
-                Header = $"{npc.Name} — {entries.Count(x => !x.IsAlert)} действий",
-                Style = (Style)Resources["DayExpander"],
+                Header = $"{nr.Npc.Name} — {nr.Actions.Count(x => !x.IsAlert)} действий",
+                Style  = (Style)Resources["DayExpander"],
                 IsExpanded = false,
             };
             var npcPanel = new StackPanel { Margin = new Thickness(10, 2, 0, 2) };
-            foreach (var entry in entries)
+            foreach (var entry in nr.Actions)
                 npcPanel.Children.Add(new TextBlock
                 {
-                    Text = $"[{entry.Time}] {entry.Text}",
-                    Foreground = HexBrush(entry.Color),
+                    Text         = $"[{entry.Time}] {entry.Text}",
+                    Foreground   = HexBrush(entry.Color),
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 1, 0, 0),
-                    FontWeight = entry.IsAlert ? FontWeights.Bold : FontWeights.Normal,
+                    Margin       = new Thickness(0, 1, 0, 0),
+                    FontWeight   = entry.IsAlert ? FontWeights.Bold : FontWeights.Normal,
                 });
             npcExp.Content = npcPanel;
             _currentDayPanel?.Children.Add(npcExp);
         }
 
-        // 2. Продвижение квестов
-        var rewards = QuestSystem.AdvanceDay(_quests, _npcs, _rnd);
-        foreach (var (npc, q) in rewards)
+        // ── Quest rewards ─────────────────────────────────────────────────────
+        foreach (var (npc, q) in day.QuestRewards)
         {
             var res = _resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
-            if (res != null) { res.Amount += q.RewardAmount; Log($"Квест выполнен: «{q.Title}» ({npc.Name}) → +{q.RewardAmount:F0} ед. «{res.Name}»", LogEntry.ColorSuccess); }
+            if (res != null)
+            {
+                res.Amount += q.RewardAmount;
+                Log($"Квест выполнен: «{q.Title}» ({npc.Name}) → +{q.RewardAmount:F0} ед. «{res.Name}»", LogEntry.ColorSuccess);
+            }
             else Log($"Квест выполнен: «{q.Title}» ({npc.Name})", LogEntry.ColorSuccess);
         }
 
-        // 3. Авто-назначение квестов
-        foreach (var l in QuestSystem.AutoAssign(_quests, _npcs, _rnd))
-            Log(l, LogEntry.ColorNormal);
-
-        // 4. Новые квесты
-        foreach (var q in QuestSystem.GenerateDailyQuests(_resources, _rnd))
+        // ── New quests ────────────────────────────────────────────────────────
+        foreach (var q in day.NewQuests)
         {
-            _quests.Add(q);
             _db.InsertQuest(q);
             Log($"Новый квест: «{q.Title}»", LogEntry.ColorDay);
         }
 
-        // 5. Лидерский бонус
-        ApplyLeaderBonus();
+        // ── General logs (leader bonus, resources, auto-assign) ───────────────
+        foreach (var (text, isAlert) in day.Logs)
+            Log(text, isAlert ? LogEntry.ColorDanger : LogEntry.ColorNormal);
 
-        // 6. Генерация ОВ
-        GenerateFaith();
+        // ── Faith summary ─────────────────────────────────────────────────────
+        Log($"Получено ОВ: +{day.FaithGained:F1}  (последователей: {day.FollowerCount}, макс. {Player.MaxFaithPerNpcPerDay:F0}/NPC)",
+            LogEntry.ColorAltarColor);
 
-        // 7. Авто-потребление ресурсов
-        AutoConsumeResources();
-
+        // ── Persist ───────────────────────────────────────────────────────────
         _db.SavePlayer(_player);
         foreach (var n in _npcs) _db.SaveNpc(n);
         foreach (var r in _resources) _db.SaveResource(r);
@@ -649,68 +648,6 @@ public partial class GameWindow : Window
 
         Log($"Выживших: {_npcs.Count(n => n.IsAlive)}/{_npcs.Count}  |  Вера: {_player.FaithPoints:F0}", LogEntry.ColorDay);
         RefreshAll();
-    }
-
-    private void ApplyLeaderBonus()
-    {
-        foreach (var leader in _npcs.Where(n => n.IsAlive && n.Trait == NpcTrait.Leader))
-        {
-            var targets = _npcs.Where(n => n.IsAlive && n.Id != leader.Id && n.Trait != NpcTrait.Loner).ToList();
-            foreach (var t in targets) t.Faith = Math.Min(100, t.Faith + 3);
-            if (targets.Any()) Log($"{leader.Name} (Лидер) поднял Веру {targets.Count} выжившим +3", LogEntry.ColorAltarColor);
-        }
-    }
-
-    private void GenerateFaith()
-    {
-        var positive = new HashSet<string>
-        {
-            "Радость", "Спокойствие", "Надежда", "Любовь",
-            "Воодушевление", "Гордость", "Благодарность",
-        };
-
-        double total = 0;
-        foreach (var npc in _npcs.Where(n => n.IsAlive && n.FollowerLevel > 0))
-        {
-            // Макс. ОВ/день для этого NPC: FollowerLevel × 2 (10 на уровне 5)
-            double maxDay = npc.FollowerLevel * (Player.MaxFaithPerNpcPerDay / 5.0);
-            double avgSat = npc.Needs.Count > 0
-                ? npc.Needs.Average(n => n.Satisfaction) / 100.0
-                : 0.5;
-            double trustMod = 0.3 + npc.Trust / 100.0 * 0.7;
-            double posSum = npc.Emotions.Where(em => positive.Contains(em.Name)).Sum(em => em.Percentage);
-            double emoMod = 0.5 + posSum / 200.0;
-            double npcGain = Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
-            total += npcGain;
-        }
-
-        _player.FaithPoints += total;
-        int followers = _npcs.Count(n => n.IsAlive && n.FollowerLevel > 0);
-        Log($"Получено ОВ: +{total:F1}  (последователей: {followers}, макс. {Player.MaxFaithPerNpcPerDay:F0}/NPC)", LogEntry.ColorAltarColor);
-    }
-
-    private void AutoConsumeResources()
-    {
-        int alive = _npcs.Count(n => n.IsAlive);
-        if (alive == 0) return;
-        var food = _resources.FirstOrDefault(r => r.Name == "Еда");
-        var water = _resources.FirstOrDefault(r => r.Name == "Вода");
-        if (food != null)
-        {
-            double eat = Math.Min(food.Amount, alive * 1.0);
-            food.Amount -= eat;
-            foreach (var n in _npcs.Where(n => n.IsAlive).Take((int)eat))
-                NeedSystem.SatisfyNeed(n, "Еда", 30);
-            Log($"Еда: -{eat:F0} ед.  Осталось: {food.Amount:F0}", LogEntry.ColorNormal);
-        }
-        if (water != null)
-        {
-            double drink = Math.Min(water.Amount, alive * 1.0);
-            water.Amount -= drink;
-            foreach (var n in _npcs.Where(n => n.IsAlive).Take((int)drink))
-                NeedSystem.SatisfyNeed(n, "Вода", 35);
-            Log($"Вода: -{drink:F0} ед.  Осталось: {water.Amount:F0}", LogEntry.ColorNormal);
-        }
     }
 
     // =========================================================
@@ -744,20 +681,30 @@ public partial class GameWindow : Window
     {
         if (sender is not Button btn || btn.Tag is not Technique tech) return;
         if (_player.FaithPoints < tech.FaithCost) { Log($"Недостаточно ОВ для «{tech.Name}».", LogEntry.ColorWarning); return; }
+
         _player.FaithPoints -= tech.FaithCost;
         _db.SavePlayer(_player);
-        Log($"Применена техника «{tech.Name}»: {tech.Description}", LogEntry.ColorAltarColor);
 
-        if (tech.Name == "Благословение" || tech.Name == "Исцеление")
+        // Pick best target (lowest HP for healing, otherwise random alive NPC)
+        var target = tech.HealAmount > 0
+            ? _npcs.Where(n => n.IsAlive).OrderBy(n => n.Health).FirstOrDefault()
+            : _npcs.Where(n => n.IsAlive).OrderByDescending(n => n.Initiative).FirstOrDefault();
+
+        if (target == null)
         {
-            var target = _npcs.Where(n => n.IsAlive).OrderBy(n => n.Health).FirstOrDefault();
-            if (target != null)
-            {
-                double heal = tech.Name == "Исцеление" ? 100 : 20;
-                target.Health = Math.Min(100, target.Health + heal);
-                _db.SaveNpc(target);
-                Log($"  {target.Name}: здоровье +{heal:F0} → {target.Health:F0}", LogEntry.ColorSuccess);
-            }
+            Log($"«{tech.Name}»: нет живых целей.", LogEntry.ColorWarning);
+            RefreshAll();
+            return;
+        }
+
+        if (TechniqueSystem.Apply(tech, target, out string techLog))
+        {
+            _db.SaveNpc(target);
+            Log($"  {techLog}", LogEntry.ColorSuccess);
+        }
+        else
+        {
+            Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);
         }
         RefreshAll();
     }

@@ -38,6 +38,15 @@ public static class TechniqueSystem
         npc.Chakra  = Math.Max(0, npc.Chakra  - tech.ChakraCost);
         npc.Stamina = Math.Max(0, npc.Stamina - tech.StaminaCost);
 
+        // Healing techniques restore HP instead of boosting stats
+        if (tech.HealAmount > 0)
+        {
+            double actual = Math.Min(tech.HealAmount, 100 - npc.Health);
+            npc.Health = Math.Min(100, npc.Health + tech.HealAmount);
+            log = $"{tech.Name} применена → {npc.Name}: здоровье +{actual:F0} → {npc.Health:F0}";
+            return true;
+        }
+
         double mult  = tech.TechLevel.GetMultiplier();
         double bonus = mult * 3.0;
 

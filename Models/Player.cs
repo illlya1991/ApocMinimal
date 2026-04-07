@@ -16,6 +16,10 @@ public class Technique
     public double         StaminaCost { get; set; }
     /// <summary>Required minimum stat values (StatId → minValue).</summary>
     public Dictionary<int, double> RequiredStats { get; set; } = new();
+    /// <summary>
+    /// If > 0, Apply() heals the target NPC by this amount instead of boosting stats.
+    /// </summary>
+    public double HealAmount { get; set; }
 }
 
 public class Player
@@ -96,11 +100,11 @@ public class Player
     {
         new() { Name="Благословение",        AltarLevel=2,  FaithCost=10,
                 TechLevel=TechniqueLevel.Genin,       TechType=TechniqueType.Energy,
-                ChakraCost=10,  StaminaCost=5,
+                ChakraCost=10,  StaminaCost=5,  HealAmount=20,
                 Description="Даёт +20 здоровья одному НПС." },
         new() { Name="Исцеление",            AltarLevel=4,  FaithCost=20,
                 TechLevel=TechniqueLevel.EliteGenin,  TechType=TechniqueType.Energy,
-                ChakraCost=20,  StaminaCost=10,
+                ChakraCost=20,  StaminaCost=10, HealAmount=100,
                 Description="Полностью восстанавливает здоровье одного НПС." },
         new() { Name="Щит веры",             AltarLevel=6,  FaithCost=30,
                 TechLevel=TechniqueLevel.Chunin,      TechType=TechniqueType.Energy,
