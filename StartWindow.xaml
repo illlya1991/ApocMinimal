@@ -31,7 +31,7 @@
                     Click="NewGame_Click"/>
 
             <Button x:Name="ContinueButton"
-                    Content="Продолжить"
+                    Content="Загрузить игру"
                     Height="42" FontSize="14"
                     Background="#2a6040" Foreground="White"
                     BorderThickness="0" Cursor="Hand"

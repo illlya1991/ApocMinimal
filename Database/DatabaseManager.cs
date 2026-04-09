@@ -1,6 +1,10 @@
+using System;
+using System.Data;
+using System.Data.Common;
 using System.Data.SQLite;
 using System.IO;
 using System.Text.Json;
+using System.Windows;
 using ApocMinimal.Models;
 using ApocMinimal.Systems;
 
@@ -8,39 +12,62 @@ namespace ApocMinimal.Database;
 
 public class DatabaseManager
 {
-    private readonly string _connectionString;
+    private readonly int _maxSavesCount;
+    private OneSave _thisSave;
+    private OneSave _templateSave;
+    private List<OneSave> _ListSaves;
+    private static SQLiteConnection _conn = new SQLiteConnection();
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
 
     public DatabaseManager()
     {
-        var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apoc_minimal.db");
-        _connectionString = $"Data Source={dbPath};Version=3;";
+        _maxSavesCount = 3;
+        _ListSaves = new List<OneSave>();
+        string NameTemplate = "apoc_minimal_template.db", NameSave = $"Saves\\apocSave_";
+        string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataBase\\");
+        _templateSave = new OneSave(dbPath + NameTemplate, true);
+
+        for (int i = 1; i <= _maxSavesCount; i++)
+        {
+            _ListSaves.Add(new OneSave(dbPath + NameSave + i.ToString() + ".db"));
+        }
+        _thisSave = _ListSaves[0];
         InitializeDatabase();
     }
 
-    public bool SaveExists
-    {
-        get
-        {
-            try
-            {
-                using var conn = OpenConnection();
-                return (long)(ExecuteScalar(conn, "SELECT COUNT(*) FROM Player") ?? 0L) > 0;
-            }
-            catch { return false; }
-        }
-    }
+    public List<OneSave> ListSaves{ get { return _ListSaves; } }
+
+    public int MaxSaves { get { return _maxSavesCount; } }
+    public OneSave ThisSave { get { return _thisSave; } set { _thisSave = value; } }
 
     // =========================================================
     // Schema
     // =========================================================
 
     private void InitializeDatabase()
+    {     
+        foreach (var item in _ListSaves)
+        {
+            item._active = false;
+            try
+            {
+                OpenConnection(item._connectionString);
+                if (IsTableExistsSafe())
+                {
+                    object? result = ExecuteScalar("SELECT CurrentDay FROM Player Limit 1");
+                    long currentDay = (result != null) ? (long)result : 0;
+                    item._active = currentDay > 1;
+                }
+            }
+            catch { }   
+        }
+        OpenConnection("");
+    }
+    private void InitializeDatabase_Old()
     {
-        using var conn = OpenConnection();
 
-        ExecuteNQ(conn, @"
+        ExecuteNQ(@"
             CREATE TABLE IF NOT EXISTS Player (
                 Id                   INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name                 TEXT    NOT NULL,
@@ -52,7 +79,7 @@ public class DatabaseManager
                 PlayerActionsToday   INTEGER DEFAULT 0
             )");
 
-        ExecuteNQ(conn, @"
+        ExecuteNQ(@"
             CREATE TABLE IF NOT EXISTS Npcs (
                 Id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name            TEXT    NOT NULL,
@@ -84,7 +111,7 @@ public class DatabaseManager
                 Memory          TEXT    DEFAULT '[]'
             )");
 
-        ExecuteNQ(conn, @"
+        ExecuteNQ(@"
             CREATE TABLE IF NOT EXISTS Resources (
                 Id       INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name     TEXT NOT NULL,
@@ -92,7 +119,7 @@ public class DatabaseManager
                 Category TEXT DEFAULT ''
             )");
 
-        ExecuteNQ(conn, @"
+        ExecuteNQ(@"
             CREATE TABLE IF NOT EXISTS Quests (
                 Id               INTEGER PRIMARY KEY AUTOINCREMENT,
                 Title            TEXT    NOT NULL,
@@ -107,7 +134,7 @@ public class DatabaseManager
                 FaithCost        REAL    DEFAULT 0
             )");
 
-        ExecuteNQ(conn, @"
+        ExecuteNQ(@"
             CREATE TABLE IF NOT EXISTS Locations (
                 Id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name            TEXT    NOT NULL,
@@ -120,7 +147,7 @@ public class DatabaseManager
                 MonsterTypeName TEXT    DEFAULT ''
             )");
 
-        ExecuteNQ(conn, @"
+        ExecuteNQ(@"
             CREATE TABLE IF NOT EXISTS Techniques (
                 Id           INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name         TEXT    NOT NULL,
@@ -134,12 +161,17 @@ public class DatabaseManager
                 RequiredStats TEXT   DEFAULT '{}'
             )");
 
-        MigrateColumns(conn);
-        SeedIfEmpty(conn);
-        SeedTechniquesIfEmpty(conn);
+        MigrateColumns();
+        SeedIfEmpty();
+        SeedTechniquesIfEmpty();
     }
 
-    private void MigrateColumns(SQLiteConnection conn)
+    public bool HasAnyActiveSave()
+    {
+        return _ListSaves != null && _ListSaves.Any(save => save._active);
+    }
+
+    private void MigrateColumns()
     {
         var cols = new[]
         {
@@ -179,20 +211,20 @@ public class DatabaseManager
         };
         foreach (var (table, col, def) in cols)
         {
-            try { ExecuteNQ(conn, $"ALTER TABLE {table} ADD COLUMN {col} {def}"); }
+            try { ExecuteNQ($"ALTER TABLE {table} ADD COLUMN {col} {def}"); }
             catch { }
         }
     }
 
-    private void SeedIfEmpty(SQLiteConnection conn)
+    private void SeedIfEmpty()
     {
-        var count = (long)(ExecuteScalar(conn, "SELECT COUNT(*) FROM Player") ?? 0L);
+        var count = (long)(ExecuteScalar("SELECT COUNT(*) FROM Player") ?? 0L);
         if (count > 0) return;
 
         // Player
         using (var cmd = new SQLiteCommand(
             "INSERT INTO Player (Name,FaithPoints,AltarLevel,CurrentDay,BarrierSize,TerritoryControl) " +
-            "VALUES (@n,@fp,@al,@cd,@bs,@tc)", conn))
+            "VALUES (@n,@fp,@al,@cd,@bs,@tc)", _conn))
         {
             cmd.Parameters.AddWithValue("@n",  "Божество");
             cmd.Parameters.AddWithValue("@fp", 0.0);
@@ -244,7 +276,7 @@ public class DatabaseManager
             npc.Needs          = NeedSystem.InitialiseNeeds(npc, rnd);
             npc.Specializations = GenerateSpecializations(prof, rnd);
 
-            InsertNpc(conn, npc);
+            InsertNpc(npc);
         }
 
         // Resources
@@ -259,7 +291,7 @@ public class DatabaseManager
         foreach (var (rname, amt, cat) in resources)
         {
             using var cmd = new SQLiteCommand(
-                "INSERT INTO Resources (Name,Amount,Category) VALUES (@n,@a,@c)", conn);
+                "INSERT INTO Resources (Name,Amount,Category) VALUES (@n,@a,@c)", _conn);
             cmd.Parameters.AddWithValue("@n", rname);
             cmd.Parameters.AddWithValue("@a", amt);
             cmd.Parameters.AddWithValue("@c", cat);
@@ -267,13 +299,13 @@ public class DatabaseManager
         }
 
         // Seed map (City → District → Building → Floor → Apartments)
-        SeedLocations(conn, rnd);
+        SeedLocations(rnd);
 
         // Seed quests
-        SeedQuests(conn, rnd);
+        SeedQuests(rnd);
     }
 
-    private static void InsertNpc(SQLiteConnection conn, Npc npc)
+    private static void InsertNpc(Npc npc)
     {
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Npcs
@@ -285,7 +317,7 @@ public class DatabaseManager
               (@nm,@ag,@gn,@pr,@ds,@hp,@fa,@st,@ck,
                @fr,@tr,@in,@ci,@tt,@fl,@ct,@sp,
                @em,@gl,@dr,@de,@nd,@ss,
-               @at,@tdl,@trr,@tra,@me)", conn);
+               @at,@tdl,@trr,@tra,@me)", _conn);
 
         cmd.Parameters.AddWithValue("@nm",  npc.Name);
         cmd.Parameters.AddWithValue("@ag",  npc.Age);
@@ -318,21 +350,21 @@ public class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
-    private static void SeedLocations(SQLiteConnection conn, Random rnd)
+    private static void SeedLocations(Random rnd)
     {
         // City
-        long cityId = InsertLocation(conn, "Новый Харьков", LocationType.City, 0, new(), 10, true);
+        long cityId = InsertLocation("Новый Харьков", LocationType.City, 0, new(), 10, true);
         // District
-        long distId = InsertLocation(conn, "Центральный район", LocationType.District, (int)cityId, new(), 20, true);
+        long distId = InsertLocation("Центральный район", LocationType.District, (int)cityId, new(), 20, true);
         // Street
-        long streetId = InsertLocation(conn, "ул. Выживших", LocationType.Street, (int)distId, new(), 25, true);
+        long streetId = InsertLocation("ул. Выживших", LocationType.Street, (int)distId, new(), 25, true);
         // Building
-        long bldId = InsertLocation(conn, "Жилой дом №1", LocationType.Building, (int)streetId,
+        long bldId = InsertLocation("Жилой дом №1", LocationType.Building, (int)streetId,
             new() { ["Дерево"] = 15, ["Металлолом"] = 10 }, 20, true);
         // Floors
         for (int floor = 1; floor <= 5; floor++)
         {
-            long floorId = InsertLocation(conn, $"Этаж {floor}", LocationType.Floor, (int)bldId,
+            long floorId = InsertLocation($"Этаж {floor}", LocationType.Floor, (int)bldId,
                 new(), 15 + rnd.Next(0, 20), floor <= 2);
             // Apartments on each floor
             for (int apt = 1; apt <= 4; apt++)
@@ -340,18 +372,18 @@ public class DatabaseManager
                 var nodes = new Dictionary<string, double>();
                 var resNames = ResourceTypes.All.OrderBy(_ => rnd.Next()).Take(rnd.Next(1, 4));
                 foreach (var r in resNames) nodes[r] = rnd.Next(5, 30);
-                InsertLocation(conn, $"Квартира {floor}{apt:00}", LocationType.Apartment, (int)floorId,
+                InsertLocation($"Квартира {floor}{apt:00}", LocationType.Apartment, (int)floorId,
                     nodes, rnd.Next(10, 40), false);
             }
         }
     }
 
-    private static long InsertLocation(SQLiteConnection conn, string name, LocationType type,
+    private static long InsertLocation(string name, LocationType type,
         int parentId, Dictionary<string, double> nodes, double danger, bool explored)
     {
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Locations (Name,Type,ParentId,ResourceNodes,DangerLevel,IsExplored)
-            VALUES (@n,@t,@p,@r,@d,@e)", conn);
+            VALUES (@n,@t,@p,@r,@d,@e)", _conn);
         cmd.Parameters.AddWithValue("@n", name);
         cmd.Parameters.AddWithValue("@t", type.ToString());
         cmd.Parameters.AddWithValue("@p", parentId);
@@ -359,10 +391,10 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@d", danger);
         cmd.Parameters.AddWithValue("@e", explored ? 1 : 0);
         cmd.ExecuteNonQuery();
-        return conn.LastInsertRowId;
+        return _conn.LastInsertRowId;
     }
 
-    private static void SeedQuests(SQLiteConnection conn, Random rnd)
+    private static void SeedQuests(Random rnd)
     {
         var templates = QuestTemplates.All.OrderBy(_ => rnd.Next()).Take(3);
         foreach (var t in templates)
@@ -371,7 +403,7 @@ public class DatabaseManager
                 INSERT INTO Quests
                   (Title,Description,Source,Status,AssignedNpcId,
                    DaysRequired,DaysRemaining,RewardResourceId,RewardAmount,FaithCost)
-                VALUES (@ti,@de,@so,@st,0,@dr,@drr,@rr,@ra,@fc)", conn);
+                VALUES (@ti,@de,@so,@st,0,@dr,@drr,@rr,@ra,@fc)", _conn);
             cmd.Parameters.AddWithValue("@ti",  t.Title);
             cmd.Parameters.AddWithValue("@de",  t.Desc);
             cmd.Parameters.AddWithValue("@so",  "AI");
@@ -387,9 +419,8 @@ public class DatabaseManager
 
     public void SaveLocation(Location loc)
     {
-        using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(
-            "UPDATE Locations SET Status=@st, MonsterTypeName=@mt, MapState=@ms WHERE Id=@id", conn);
+            "UPDATE Locations SET Status=@st, MonsterTypeName=@mt, MapState=@ms WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
         cmd.Parameters.AddWithValue("@mt", loc.MonsterTypeName);
         cmd.Parameters.AddWithValue("@ms", loc.MapState.ToString());
@@ -402,8 +433,7 @@ public class DatabaseManager
     public List<Technique> GetAllTechniques()
     {
         var list = new List<Technique>();
-        using var conn = OpenConnection();
-        using var cmd  = new SQLiteCommand("SELECT * FROM Techniques ORDER BY AltarLevel, Id", conn);
+        using var cmd  = new SQLiteCommand("SELECT * FROM Techniques ORDER BY AltarLevel, Id", _conn);
         using var rdr  = cmd.ExecuteReader();
         while (rdr.Read()) list.Add(ReadTechnique(rdr));
         return list;
@@ -411,11 +441,10 @@ public class DatabaseManager
 
     public void InsertTechnique(Technique t)
     {
-        using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(@"
             INSERT INTO Techniques
               (Name,Description,AltarLevel,TechLevel,TechType,FaithCost,ChakraCost,StaminaCost,RequiredStats)
-            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs)", conn);
+            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs)", _conn);
         cmd.Parameters.AddWithValue("@nm", t.Name);
         cmd.Parameters.AddWithValue("@ds", t.Description);
         cmd.Parameters.AddWithValue("@al", t.AltarLevel);
@@ -426,15 +455,14 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
         cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
         cmd.ExecuteNonQuery();
-        t.Id = (int)conn.LastInsertRowId;
+        t.Id = (int)_conn.LastInsertRowId;
     }
 
     public void SaveTechnique(Technique t)
     {
-        using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(
             "UPDATE Techniques SET Name=@nm,Description=@ds,AltarLevel=@al,TechLevel=@tl," +
-            "TechType=@tt,FaithCost=@fc,ChakraCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", conn);
+            "TechType=@tt,FaithCost=@fc,ChakraCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@nm", t.Name);
         cmd.Parameters.AddWithValue("@ds", t.Description);
         cmd.Parameters.AddWithValue("@al", t.AltarLevel);
@@ -454,16 +482,75 @@ public class DatabaseManager
 
     public void ResetDatabase()
     {
-        using var conn = OpenConnection();
-        ExecuteNQ(conn, "DELETE FROM Player");
-        ExecuteNQ(conn, "DELETE FROM Npcs");
-        ExecuteNQ(conn, "DELETE FROM Resources");
-        ExecuteNQ(conn, "DELETE FROM Quests");
-        ExecuteNQ(conn, "DELETE FROM Locations");
-        ExecuteNQ(conn, "DELETE FROM Techniques");
-        try { ExecuteNQ(conn, "DELETE FROM sqlite_sequence"); } catch { }
-        SeedIfEmpty(conn);
-        SeedTechniquesIfEmpty(conn);
+        // Перевіряємо, чи існує файл шаблону
+        if (!File.Exists(_templateSave._fileName))
+        {
+            throw new FileNotFoundException($"Файл шаблону не знайдено: {_templateSave._fileName}");
+        }
+
+        // Закриваємо всі підключення до БД (якщо відкриті)
+        CloseDatabaseConnections();
+
+        // Якщо файл БД існує - видаляємо
+        if (File.Exists(_thisSave._fileName))
+        {
+            File.Delete(_thisSave._fileName);
+        }
+
+        // Копіюємо файл шаблону
+        File.Copy(_templateSave._fileName, _thisSave._fileName);
+
+        OpenConnection(_thisSave._connectionString);
+
+
+        //ExecuteNQ("DELETE FROM Player");
+        //ExecuteNQ("DELETE FROM Npcs");
+        //ExecuteNQ("DELETE FROM Resources");
+        //ExecuteNQ("DELETE FROM Quests");
+        //ExecuteNQ("DELETE FROM Locations");
+        //ExecuteNQ("DELETE FROM Techniques");
+        //try { ExecuteNQ("DELETE FROM sqlite_sequence"); } catch { }
+        //SeedIfEmpty();
+        //SeedTechniquesIfEmpty();
+    }
+
+    public void DeleteSave(OneSave value)
+    {
+        // Закриваємо всі підключення до БД (якщо відкриті)
+        CloseDatabaseConnections();
+
+        // Якщо файл БД існує - видаляємо
+        if (File.Exists(value._fileName))
+        {
+            File.Delete(value._fileName);
+        }
+        InitializeDatabase();
+    }
+
+    private void CloseDatabaseConnections()
+    {
+        // Закриваємо старе підключення, якщо воно існує
+        if (_conn != null)
+        {
+            if (_conn.State == ConnectionState.Open)
+                _conn.Close();
+            _conn.Dispose();
+        }
+        _conn = new SQLiteConnection();
+        // Примусовий збір сміття для звільнення файлу
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
+    public bool IsTableExistsSafe(string tableName = "Player")
+    {
+        string sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=@name";
+        using (var command = new SQLiteCommand(sql, _conn))
+        {
+            command.Parameters.AddWithValue("@name", tableName);
+            long count = (long)command.ExecuteScalar();
+            return count > 0;
+        }
     }
 
     // =========================================================
@@ -472,8 +559,7 @@ public class DatabaseManager
 
     public Player? GetPlayer()
     {
-        using var conn = OpenConnection();
-        using var cmd  = new SQLiteCommand("SELECT * FROM Player LIMIT 1", conn);
+        using var cmd  = new SQLiteCommand("SELECT * FROM Player LIMIT 1", _conn);
         using var rdr  = cmd.ExecuteReader();
         return rdr.Read() ? ReadPlayer(rdr) : null;
     }
@@ -481,8 +567,7 @@ public class DatabaseManager
     public List<Npc> GetAllNpcs()
     {
         var list = new List<Npc>();
-        using var conn = OpenConnection();
-        using var cmd  = new SQLiteCommand("SELECT * FROM Npcs ORDER BY Id", conn);
+        using var cmd  = new SQLiteCommand("SELECT * FROM Npcs ORDER BY Id", _conn);
         using var rdr  = cmd.ExecuteReader();
         while (rdr.Read()) list.Add(ReadNpc(rdr));
         return list;
@@ -491,8 +576,7 @@ public class DatabaseManager
     public List<Resource> GetAllResources()
     {
         var list = new List<Resource>();
-        using var conn = OpenConnection();
-        using var cmd  = new SQLiteCommand("SELECT * FROM Resources ORDER BY Id", conn);
+        using var cmd  = new SQLiteCommand("SELECT * FROM Resources ORDER BY Id", _conn);
         using var rdr  = cmd.ExecuteReader();
         while (rdr.Read())
             list.Add(new Resource
@@ -508,8 +592,7 @@ public class DatabaseManager
     public List<Quest> GetAllQuests()
     {
         var list = new List<Quest>();
-        using var conn = OpenConnection();
-        using var cmd  = new SQLiteCommand("SELECT * FROM Quests ORDER BY Id", conn);
+        using var cmd  = new SQLiteCommand("SELECT * FROM Quests ORDER BY Id", _conn);
         using var rdr  = cmd.ExecuteReader();
         while (rdr.Read())
         {
@@ -534,8 +617,7 @@ public class DatabaseManager
     public List<Location> GetAllLocations()
     {
         var list = new List<Location>();
-        using var conn = OpenConnection();
-        using var cmd  = new SQLiteCommand("SELECT * FROM Locations ORDER BY Id", conn);
+        using var cmd  = new SQLiteCommand("SELECT * FROM Locations ORDER BY Id", _conn);
         using var rdr  = cmd.ExecuteReader();
         while (rdr.Read())
         {
@@ -568,9 +650,8 @@ public class DatabaseManager
 
     public void SavePlayer(Player p)
     {
-        using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(
-            "UPDATE Player SET FaithPoints=@fp,AltarLevel=@al,CurrentDay=@cd,BarrierSize=@bs,TerritoryControl=@tc,PlayerActionsToday=@pa WHERE Id=@id", conn);
+            "UPDATE Player SET FaithPoints=@fp,AltarLevel=@al,CurrentDay=@cd,BarrierSize=@bs,TerritoryControl=@tc,PlayerActionsToday=@pa WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@fp", p.FaithPoints);
         cmd.Parameters.AddWithValue("@al", p.AltarLevel);
         cmd.Parameters.AddWithValue("@cd", p.CurrentDay);
@@ -583,7 +664,6 @@ public class DatabaseManager
 
     public void SaveNpc(Npc n)
     {
-        using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(@"
             UPDATE Npcs SET
                 Health=@hp, Faith=@fa, Stamina=@st, Chakra=@ck,
@@ -593,7 +673,7 @@ public class DatabaseManager
                 Needs=@nd, Stats=@ss,
                 ActiveTask=@at, TaskDaysLeft=@tdl, TaskRewardResId=@trr, TaskRewardAmt=@tra,
                 Memory=@me
-            WHERE Id=@id", conn);
+            WHERE Id=@id", _conn);
 
         cmd.Parameters.AddWithValue("@hp",  n.Health);
         cmd.Parameters.AddWithValue("@fa",  n.Faith);
@@ -623,8 +703,7 @@ public class DatabaseManager
 
     public void SaveResource(Resource r)
     {
-        using var conn = OpenConnection();
-        using var cmd  = new SQLiteCommand("UPDATE Resources SET Amount=@a WHERE Id=@id", conn);
+        using var cmd  = new SQLiteCommand("UPDATE Resources SET Amount=@a WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@a",  r.Amount);
         cmd.Parameters.AddWithValue("@id", r.Id);
         cmd.ExecuteNonQuery();
@@ -632,11 +711,10 @@ public class DatabaseManager
 
     public void SaveQuest(Quest q)
     {
-        using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(@"
             UPDATE Quests SET
                 Status=@st, AssignedNpcId=@an, DaysRemaining=@dr
-            WHERE Id=@id", conn);
+            WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@st", q.Status.ToString());
         cmd.Parameters.AddWithValue("@an", q.AssignedNpcId);
         cmd.Parameters.AddWithValue("@dr", q.DaysRemaining);
@@ -646,12 +724,11 @@ public class DatabaseManager
 
     public void InsertQuest(Quest q)
     {
-        using var conn = OpenConnection();
         using var cmd  = new SQLiteCommand(@"
             INSERT INTO Quests
               (Title,Description,Source,Status,AssignedNpcId,
                DaysRequired,DaysRemaining,RewardResourceId,RewardAmount,FaithCost)
-            VALUES (@ti,@de,@so,@st,@an,@dq,@dr,@rr,@ra,@fc)", conn);
+            VALUES (@ti,@de,@so,@st,@an,@dq,@dr,@rr,@ra,@fc)", _conn);
         cmd.Parameters.AddWithValue("@ti", q.Title);
         cmd.Parameters.AddWithValue("@de", q.Description);
         cmd.Parameters.AddWithValue("@so", q.Source.ToString());
@@ -663,12 +740,12 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@ra", q.RewardAmount);
         cmd.Parameters.AddWithValue("@fc", q.FaithCost);
         cmd.ExecuteNonQuery();
-        q.Id = (int)conn.LastInsertRowId;
+        q.Id = (int)_conn.LastInsertRowId;
     }
 
-    private void SeedTechniquesIfEmpty(SQLiteConnection conn)
+    private void SeedTechniquesIfEmpty()
     {
-        var count = (long)(ExecuteScalar(conn, "SELECT COUNT(*) FROM Techniques") ?? 0L);
+        var count = (long)(ExecuteScalar("SELECT COUNT(*) FROM Techniques") ?? 0L);
         if (count > 0) return;
 
         var seeds = new[]
@@ -695,7 +772,7 @@ public class DatabaseManager
         {
             using var cmd = new SQLiteCommand(@"
                 INSERT INTO Techniques (Name,Description,AltarLevel,TechLevel,TechType,FaithCost,ChakraCost,StaminaCost,RequiredStats)
-                VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,'{}')", conn);
+                VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,'{}')", _conn);
             cmd.Parameters.AddWithValue("@nm", nm);
             cmd.Parameters.AddWithValue("@ds", ds);
             cmd.Parameters.AddWithValue("@al", al);
@@ -833,22 +910,55 @@ public class DatabaseManager
         catch { return def; }
     }
 
-    private SQLiteConnection OpenConnection()
+    private void OpenConnection(string ThisConn)
     {
-        var conn = new SQLiteConnection(_connectionString);
-        conn.Open();
-        return conn;
+        if (ThisConn == "")
+        {
+            // Закриваємо старе підключення, якщо воно існує
+            if (_conn != null)
+            {
+                if (_conn.State == ConnectionState.Open)
+                    _conn.Close();
+                _conn.Dispose();
+            }
+            _conn = new SQLiteConnection();
+            return;
+        }
+        // Перевіряємо, чи змінився рядок підключення
+        bool connectionStringChanged = _conn != null && _conn.ConnectionString != ThisConn;
+
+        // Якщо підключення не існує або рядок змінився
+        if (_conn == null || connectionStringChanged)
+        {
+            // Закриваємо старе підключення, якщо воно існує
+            if (_conn != null)
+            {
+                if (_conn.State == ConnectionState.Open)
+                    _conn.Close();
+                _conn.Dispose();
+            }
+
+            // Створюємо та відкриваємо нове підключення
+            _conn = new SQLiteConnection(ThisConn);
+            _conn.Open();
+        }
+        // Якщо рядок не змінився, але підключення закрите
+        else if (_conn.State != ConnectionState.Open)
+        {
+            _conn.Open();
+        }
+        // Інакше - підключення вже відкрите з правильним рядком - нічого не робимо
     }
 
-    private static void ExecuteNQ(SQLiteConnection conn, string sql)
+    private static void ExecuteNQ(string sql)
     {
-        using var cmd = new SQLiteCommand(sql, conn);
+        using var cmd = new SQLiteCommand(sql, _conn);
         cmd.ExecuteNonQuery();
     }
 
-    private static object? ExecuteScalar(SQLiteConnection conn, string sql)
+    private static object? ExecuteScalar(string sql)
     {
-        using var cmd = new SQLiteCommand(sql, conn);
+        using var cmd = new SQLiteCommand(sql, _conn);
         return cmd.ExecuteScalar();
     }
 
@@ -885,5 +995,23 @@ public class DatabaseManager
         };
         int count = rnd.Next(2, 8);
         return all.OrderBy(_ => rnd.Next()).Take(count).ToList();
+    }
+}
+
+public class OneSave
+{
+    public string _connectionString = "";
+    public string _fileName = "";
+    public bool _active = false;
+
+    public OneSave() { }
+    public OneSave(string fileName)
+        { _fileName = fileName; LoadConnectionString(); }
+    public OneSave(string fileName, bool active)
+    { _fileName = fileName; _active = active; LoadConnectionString(); }
+
+    public void LoadConnectionString()
+    {
+        _connectionString = $"Data Source={_fileName};Version=3;";
     }
 }
