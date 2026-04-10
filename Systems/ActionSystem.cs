@@ -122,8 +122,11 @@ public static class ActionSystem
     private static bool MeetsStatRequirements(Npc npc, GameAction action)
     {
         foreach (var (statId, minVal) in action.RequiredStats)
-            if (!npc.Stats.TryGetValue(statId, out var val) || val < minVal)
+        {
+            int currentValue = npc.Stats.GetStatValue(statId);
+            if (currentValue < minVal)
                 return false;
+        }
         return true;
     }
 }

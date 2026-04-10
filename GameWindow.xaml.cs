@@ -78,11 +78,11 @@ public partial class GameWindow : Window
 
     private void RefreshHeader()
     {
-        DayLabel.Text    = $"  |  День {_player.CurrentDay}";
-        FaithLabel.Text  = $"  {_player.FaithPoints:F0} веры";
-        AltarLabel.Text  = $"  Алтарь: ур.{_player.AltarLevel}";
+        DayLabel.Text = $"  |  День {_player.CurrentDay}";
+        FaithLabel.Text = $"  {_player.FaithPoints:F0} веры";
+        AltarLabel.Text = $"  Алтарь: ур.{_player.AltarLevel}";
         bool actionsLeft = _player.PlayerActionsToday < Player.MaxPlayerActionsPerDay;
-        ActionsLabel.Text      = $"  Действий: {_player.PlayerActionsToday}/{Player.MaxPlayerActionsPerDay}";
+        ActionsLabel.Text = $"  Действий: {_player.PlayerActionsToday}/{Player.MaxPlayerActionsPerDay}";
         ActionsLabel.Foreground = actionsLeft ? HexBrush("#56d364") : HexBrush("#f87171");
     }
 
@@ -162,6 +162,15 @@ public partial class GameWindow : Window
             FontSize = 10,
             Margin = new Thickness(0, 2, 0, 0)
         });
+
+        // Ключевые характеристики из новой системы
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"Сил:{npc.Stats.Strength.FinalValue}  Лов:{npc.Stats.Agility.FinalValue}  Инт:{npc.Stats.Intelligence.FinalValue}",
+            Foreground = HexBrush("#8b949e"),
+            FontSize = 10,
+        });
+
         panel.Children.Add(new TextBlock
         {
             Text = $"{npc.Profession}  [{npc.FollowerLabel}]",
@@ -476,24 +485,42 @@ public partial class GameWindow : Window
             Log($"    {need.Name} [{need.Level}]: {need.Value:F0}% {(need.IsCritical ? "КРИТИЧНО" : "")}",
                 need.IsCritical ? LogEntry.ColorDanger : LogEntry.ColorWarning);
 
-        foreach (var (catName, ids) in StatDefs.Categories)
-        {
-            Log($"  {catName}", LogEntry.ColorDay);
-            for (int i = 0; i < ids.Length; i += 2)
-            {
-                int id1 = ids[i];
-                double val1 = npc.Stats.GetValueOrDefault(id1);
-                string line = $"    {StatDefs.Names[id1],-24} {val1,3:F0}";
-                if (i + 1 < ids.Length)
-                {
-                    int id2 = ids[i + 1];
-                    double val2 = npc.Stats.GetValueOrDefault(id2);
-                    Log($"{line}    {StatDefs.Names[id2],-24} {val2,3:F0}", StatColor(Math.Max(val1, val2)));
-                }
-                else
-                    Log(line, StatColor(val1));
-            }
-        }
+        // Новая система характеристик
+        Log($"  ФИЗИЧЕСКИЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
+        Log($"    Выносливость:          {npc.Stats.Endurance.FinalValue,3}  (база: {npc.Stats.Endurance.FullBase})", StatColor(npc.Stats.Endurance.FinalValue));
+        Log($"    Стойкость:             {npc.Stats.Toughness.FinalValue,3}  (база: {npc.Stats.Toughness.FullBase})", StatColor(npc.Stats.Toughness.FinalValue));
+        Log($"    Сила:                  {npc.Stats.Strength.FinalValue,3}  (база: {npc.Stats.Strength.FullBase})", StatColor(npc.Stats.Strength.FinalValue));
+        Log($"    Восстановление (физ):  {npc.Stats.RecoveryPhys.FinalValue,3}  (база: {npc.Stats.RecoveryPhys.FullBase})", StatColor(npc.Stats.RecoveryPhys.FinalValue));
+        Log($"    Рефлексы:              {npc.Stats.Reflexes.FinalValue,3}  (база: {npc.Stats.Reflexes.FullBase})", StatColor(npc.Stats.Reflexes.FinalValue));
+        Log($"    Ловкость:              {npc.Stats.Agility.FinalValue,3}  (база: {npc.Stats.Agility.FullBase})", StatColor(npc.Stats.Agility.FinalValue));
+        Log($"    Адаптация:             {npc.Stats.Adaptation.FinalValue,3}  (база: {npc.Stats.Adaptation.FullBase})", StatColor(npc.Stats.Adaptation.FinalValue));
+        Log($"    Регенерация:           {npc.Stats.Regeneration.FinalValue,3}  (база: {npc.Stats.Regeneration.FullBase})", StatColor(npc.Stats.Regeneration.FinalValue));
+        Log($"    Сенсорика:             {npc.Stats.Sensorics.FinalValue,3}  (база: {npc.Stats.Sensorics.FullBase})", StatColor(npc.Stats.Sensorics.FinalValue));
+        Log($"    Долголетие:            {npc.Stats.Longevity.FinalValue,3}  (база: {npc.Stats.Longevity.FullBase})", StatColor(npc.Stats.Longevity.FinalValue));
+
+        Log($"  МЕНТАЛЬНЫЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
+        Log($"    Фокус:                 {npc.Stats.Focus.FinalValue,3}  (база: {npc.Stats.Focus.FullBase})", StatColor(npc.Stats.Focus.FinalValue));
+        Log($"    Память:                {npc.Stats.Memory.FinalValue,3}  (база: {npc.Stats.Memory.FullBase})", StatColor(npc.Stats.Memory.FinalValue));
+        Log($"    Логика:                {npc.Stats.Logic.FinalValue,3}  (база: {npc.Stats.Logic.FullBase})", StatColor(npc.Stats.Logic.FinalValue));
+        Log($"    Дедукция:              {npc.Stats.Deduction.FinalValue,3}  (база: {npc.Stats.Deduction.FullBase})", StatColor(npc.Stats.Deduction.FinalValue));
+        Log($"    Интеллект:             {npc.Stats.Intelligence.FinalValue,3}  (база: {npc.Stats.Intelligence.FullBase})", StatColor(npc.Stats.Intelligence.FinalValue));
+        Log($"    Воля:                  {npc.Stats.Will.FinalValue,3}  (база: {npc.Stats.Will.FullBase})", StatColor(npc.Stats.Will.FinalValue));
+        Log($"    Обучение:              {npc.Stats.Learning.FinalValue,3}  (база: {npc.Stats.Learning.FullBase})", StatColor(npc.Stats.Learning.FinalValue));
+        Log($"    Гибкость:              {npc.Stats.Flexibility.FinalValue,3}  (база: {npc.Stats.Flexibility.FullBase})", StatColor(npc.Stats.Flexibility.FinalValue));
+        Log($"    Интуиция:              {npc.Stats.Intuition.FinalValue,3}  (база: {npc.Stats.Intuition.FullBase})", StatColor(npc.Stats.Intuition.FinalValue));
+        Log($"    Соц. интеллект:        {npc.Stats.SocialIntel.FinalValue,3}  (база: {npc.Stats.SocialIntel.FullBase})", StatColor(npc.Stats.SocialIntel.FinalValue));
+        Log($"    Творчество:            {npc.Stats.Creativity.FinalValue,3}  (база: {npc.Stats.Creativity.FullBase})", StatColor(npc.Stats.Creativity.FinalValue));
+        Log($"    Математика:            {npc.Stats.Mathematics.FinalValue,3}  (база: {npc.Stats.Mathematics.FullBase})", StatColor(npc.Stats.Mathematics.FinalValue));
+
+        Log($"  ЭНЕРГЕТИЧЕСКИЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
+        Log($"    Запас энергии:         {npc.Stats.EnergyReserve.FinalValue,3}  (база: {npc.Stats.EnergyReserve.FullBase})", StatColor(npc.Stats.EnergyReserve.FinalValue));
+        Log($"    Восстановление (энерг):{npc.Stats.EnergyRecovery.FinalValue,3}  (база: {npc.Stats.EnergyRecovery.FullBase})", StatColor(npc.Stats.EnergyRecovery.FinalValue));
+        Log($"    Контроль:              {npc.Stats.Control.FinalValue,3}  (база: {npc.Stats.Control.FullBase})", StatColor(npc.Stats.Control.FinalValue));
+        Log($"    Концентрация:          {npc.Stats.Concentration.FinalValue,3}  (база: {npc.Stats.Concentration.FullBase})", StatColor(npc.Stats.Concentration.FinalValue));
+        Log($"    Выход:                 {npc.Stats.Output.FinalValue,3}  (база: {npc.Stats.Output.FullBase})", StatColor(npc.Stats.Output.FinalValue));
+        Log($"    Тонкость:              {npc.Stats.Precision.FinalValue,3}  (база: {npc.Stats.Precision.FullBase})", StatColor(npc.Stats.Precision.FinalValue));
+        Log($"    Устойчивость (энерг):  {npc.Stats.EnergyResist.FinalValue,3}  (база: {npc.Stats.EnergyResist.FullBase})", StatColor(npc.Stats.EnergyResist.FinalValue));
+        Log($"    Восприятие энергии:    {npc.Stats.EnergySense.FinalValue,3}  (база: {npc.Stats.EnergySense.FullBase})", StatColor(npc.Stats.EnergySense.FinalValue));
 
         if (npc.Memory.Count > 0)
         {
@@ -596,18 +623,18 @@ public partial class GameWindow : Window
             var npcExp = new Expander
             {
                 Header = $"{nr.Npc.Name} — {nr.Actions.Count(x => !x.IsAlert)} действий",
-                Style  = (Style)Resources["DayExpander"],
+                Style = (Style)Resources["DayExpander"],
                 IsExpanded = false,
             };
             var npcPanel = new StackPanel { Margin = new Thickness(10, 2, 0, 2) };
             foreach (var entry in nr.Actions)
                 npcPanel.Children.Add(new TextBlock
                 {
-                    Text         = $"[{entry.Time}] {entry.Text}",
-                    Foreground   = HexBrush(entry.Color),
+                    Text = $"[{entry.Time}] {entry.Text}",
+                    Foreground = HexBrush(entry.Color),
                     TextWrapping = TextWrapping.Wrap,
-                    Margin       = new Thickness(0, 1, 0, 0),
-                    FontWeight   = entry.IsAlert ? FontWeights.Bold : FontWeights.Normal,
+                    Margin = new Thickness(0, 1, 0, 0),
+                    FontWeight = entry.IsAlert ? FontWeights.Bold : FontWeights.Normal,
                 });
             npcExp.Content = npcPanel;
             _currentDayPanel?.Children.Add(npcExp);
@@ -827,6 +854,6 @@ public partial class GameWindow : Window
     private static string HealthColor(double hp) =>
         hp < 30 ? LogEntry.ColorDanger : hp < 60 ? LogEntry.ColorWarning : LogEntry.ColorSuccess;
 
-    private static string StatColor(double v) =>
-        v >= 75 ? LogEntry.ColorSuccess : v >= 50 ? LogEntry.ColorNormal : LogEntry.ColorWarning;
+    private static string StatColor(int value) =>
+        value >= 75 ? LogEntry.ColorSuccess : value >= 50 ? LogEntry.ColorNormal : LogEntry.ColorWarning;
 }

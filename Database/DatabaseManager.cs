@@ -5,6 +5,7 @@ using System.Data.SQLite;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using ApocalypseSimulation.Models.StatisticsData;
 using ApocMinimal.Models;
 using ApocMinimal.Systems;
 
@@ -214,6 +215,29 @@ public class DatabaseManager
             try { ExecuteNQ($"ALTER TABLE {table} ADD COLUMN {col} {def}"); }
             catch { }
         }
+
+        // НОВЫЕ колонки для Statistics
+        try { ExecuteNQ("ALTER TABLE Npcs ADD COLUMN StatsBaseValues TEXT DEFAULT '[]'"); } catch { }
+        try { ExecuteNQ("ALTER TABLE Npcs ADD COLUMN StatsDeviations TEXT DEFAULT '[]'"); } catch { }
+
+        // НОВАЯ таблица для модификаторов
+        ExecuteNQ(@"
+        CREATE TABLE IF NOT EXISTS NpcModifiers (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            NpcId INTEGER NOT NULL,
+            StatId TEXT NOT NULL,
+            ModifierId TEXT NOT NULL,
+            Name TEXT NOT NULL,
+            Source TEXT NOT NULL,
+            Type INTEGER NOT NULL,
+            Value REAL NOT NULL,
+            ModifierClass TEXT NOT NULL,
+            IsActive INTEGER DEFAULT 1,
+            TimeUnit INTEGER DEFAULT 0,
+            Duration INTEGER DEFAULT 0,
+            Remaining INTEGER DEFAULT 0,
+            ConditionJson TEXT DEFAULT '{}'
+        )");
     }
 
     private void SeedIfEmpty()
@@ -268,7 +292,7 @@ public class DatabaseManager
                 Goal        = NpcGoals.Goals[rnd.Next(NpcGoals.Goals.Length)],
                 Dream       = NpcGoals.Dreams[rnd.Next(NpcGoals.Dreams.Length)],
                 Desire      = NpcGoals.Desires[rnd.Next(NpcGoals.Desires.Length)],
-                Stats       = GenerateStats(prof, rnd),
+                Stats       = GenerateStatistics(prof, rnd),
             };
 
             npc.CharTraits     = CharacterTraitExtensions.GeneratePair(rnd).ToList();
@@ -664,16 +688,17 @@ public class DatabaseManager
 
     public void SaveNpc(Npc n)
     {
-        using var cmd  = new SQLiteCommand(@"
-            UPDATE Npcs SET
-                Health=@hp, Faith=@fa, Stamina=@st, Chakra=@ck,
-                Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
-                CharTraits=@ct, Specializations=@sp, Emotions=@em,
-                Goal=@gl, Dream=@dr, Desire=@de,
-                Needs=@nd, Stats=@ss,
-                ActiveTask=@at, TaskDaysLeft=@tdl, TaskRewardResId=@trr, TaskRewardAmt=@tra,
-                Memory=@me
-            WHERE Id=@id", _conn);
+        using var cmd = new SQLiteCommand(@"
+        UPDATE Npcs SET
+            Health=@hp, Faith=@fa, Stamina=@st, Chakra=@ck,
+            Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
+            CharTraits=@ct, Specializations=@sp, Emotions=@em,
+            Goal=@gl, Dream=@dr, Desire=@de,
+            Needs=@nd,
+            StatsBaseValues=@sbv, StatsDeviations=@sdv,  -- НОВЫЕ ПОЛЯ
+            ActiveTask=@at, TaskDaysLeft=@tdl, TaskRewardResId=@trr, TaskRewardAmt=@tra,
+            Memory=@me
+        WHERE Id=@id", _conn);
 
         cmd.Parameters.AddWithValue("@hp",  n.Health);
         cmd.Parameters.AddWithValue("@fa",  n.Faith);
@@ -691,14 +716,98 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@dr",  n.Dream);
         cmd.Parameters.AddWithValue("@de",  n.Desire);
         cmd.Parameters.AddWithValue("@nd",  JsonSerializer.Serialize(n.Needs, JsonOpts));
-        cmd.Parameters.AddWithValue("@ss",  JsonSerializer.Serialize(n.Stats, JsonOpts));
         cmd.Parameters.AddWithValue("@at",  n.ActiveTask);
         cmd.Parameters.AddWithValue("@tdl", n.TaskDaysLeft);
         cmd.Parameters.AddWithValue("@trr", n.TaskRewardResId);
         cmd.Parameters.AddWithValue("@tra", n.TaskRewardAmt);
         cmd.Parameters.AddWithValue("@me",  JsonSerializer.Serialize(n.Memory, JsonOpts));
         cmd.Parameters.AddWithValue("@id",  n.Id);
+
+        // === НОВЫЕ параметры для Statistics ===
+        cmd.Parameters.AddWithValue("@sbv", JsonSerializer.Serialize(n.Stats.GetBaseValuesArray(), JsonOpts));
+        cmd.Parameters.AddWithValue("@sdv", JsonSerializer.Serialize(n.Stats.GetDeviationsArray(), JsonOpts));
+
+        // Сохранить модификаторы в отдельную таблицу
+        SaveModifiersForNpc(n.Id, n.Stats);
+
         cmd.ExecuteNonQuery();
+    }
+
+    // Сохранение модификаторов NPC
+    private void SaveModifiersForNpc(int npcId, Statistics stats)
+    {
+        // Удалить старые модификаторы
+        ExecuteNQ($"DELETE FROM NpcModifiers WHERE NpcId = {npcId}");
+
+        foreach (var stat in stats.AllStats)
+        {
+            foreach (var mod in stat.GetModifiersByType<PermanentModifier>())
+            {
+                ExecuteNQ($@"
+                INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, Type, Value, ModifierClass, IsActive)
+                VALUES ({npcId}, '{stat.Id}', '{mod.Id}', '{mod.Name}', '{mod.Source}', 
+                       '{(int)mod.Type}', {mod.Value}, 'Permanent', {(mod.IsActive() ? 1 : 0)})");
+            }
+
+            foreach (var mod in stat.GetModifiersByType<IndependentModifier>())
+            {
+                ExecuteNQ($@"
+                INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, Type, Value, ModifierClass, 
+                       TimeUnit, Duration, Remaining)
+                VALUES ({npcId}, '{stat.Id}', '{mod.Id}', '{mod.Name}', '{mod.Source}', 
+                       '{(int)mod.Type}', {mod.Value}, 'Independent', 
+                       '{(int)mod.TimeUnit}', {mod.Duration}, {mod.Remaining})");
+            }
+
+            // DependentModifier требует сохранения условия (сложнее, можно пока пропустить)
+        }
+    }
+
+    // Загрузка модификаторов NPC
+    private Statistics LoadModifiersForNpc(int npcId, Statistics stats)
+    {
+        using var cmd = new SQLiteCommand($"SELECT * FROM NpcModifiers WHERE NpcId = {npcId}", _conn);
+        using var rdr = cmd.ExecuteReader();
+
+        while (rdr.Read())
+        {
+            string statId = rdr.GetString(rdr.GetOrdinal("StatId"));
+            var stat = stats.GetById(statId);
+            if (stat == null) continue;
+
+            string modifierClass = rdr.GetString(rdr.GetOrdinal("ModifierClass"));
+
+            if (modifierClass == "Permanent")
+            {
+                var mod = new PermanentModifier(
+                    rdr.GetString(rdr.GetOrdinal("ModifierId")),
+                    rdr.GetString(rdr.GetOrdinal("Name")),
+                    rdr.GetString(rdr.GetOrdinal("Source")),
+                    (ModifierType)rdr.GetInt32(rdr.GetOrdinal("Type")),
+                    rdr.GetDouble(rdr.GetOrdinal("Value"))
+                );
+                if (rdr.GetInt32(rdr.GetOrdinal("IsActive")) == 0)
+                    mod.Deactivate();
+                stat.AddModifier(mod);
+            }
+            else if (modifierClass == "Independent")
+            {
+                var mod = new IndependentModifier(
+                    rdr.GetString(rdr.GetOrdinal("ModifierId")),
+                    rdr.GetString(rdr.GetOrdinal("Name")),
+                    rdr.GetString(rdr.GetOrdinal("Source")),
+                    (ModifierType)rdr.GetInt32(rdr.GetOrdinal("Type")),
+                    rdr.GetDouble(rdr.GetOrdinal("Value")),
+                    (TimeUnit)rdr.GetInt32(rdr.GetOrdinal("TimeUnit")),
+                    rdr.GetInt32(rdr.GetOrdinal("Duration"))
+                );
+                // Восстановить оставшееся время
+                // (нужно добавить поле Remaining в таблицу)
+                stat.AddModifier(mod);
+            }
+        }
+
+        return stats;
     }
 
     public void SaveResource(Resource r)
@@ -815,7 +924,7 @@ public class DatabaseManager
         PlayerActionsToday   = GetIntOrDefault(rdr, "PlayerActionsToday"),
     };
 
-    private static Npc ReadNpc(SQLiteDataReader rdr)
+    private Npc ReadNpc(SQLiteDataReader rdr)
     {
         var npc = new Npc
         {
@@ -844,7 +953,18 @@ public class DatabaseManager
             TaskRewardAmt   = GetDoubleOrDefault(rdr, "TaskRewardAmt"),
         };
 
-        npc.Stats           = DeserializeOrDefault<Dictionary<int, double>>(rdr, "Stats")   ?? new();
+        // === ДОБАВИТЬ новую загрузку Statistics ===
+        var baseValues = DeserializeOrDefault<int[]>(rdr, "StatsBaseValues");
+        var deviations = DeserializeOrDefault<int[]>(rdr, "StatsDeviations");
+
+        if (baseValues != null && deviations != null)
+        {
+            npc.Stats.LoadFromArrays(baseValues, deviations);
+        }
+
+        // Также загрузить модификаторы (отдельная таблица)
+        npc.Stats = LoadModifiersForNpc(npc.Id, npc.Stats);
+
         npc.Needs           = DeserializeOrDefault<List<Need>>(rdr, "Needs")                ?? new();
         npc.Emotions        = DeserializeOrDefault<List<Emotion>>(rdr, "Emotions")          ?? new();
         npc.Specializations = DeserializeOrDefault<List<string>>(rdr, "Specializations")   ?? new();
@@ -964,23 +1084,86 @@ public class DatabaseManager
 
     // ── NPC generation helpers ──────────────────────────────────────────────
 
-    private static Dictionary<int, double> GenerateStats(string profession, Random rnd)
+    /// <summary>
+    /// Генерация характеристик NPC для новой модели Statistics
+    /// </summary>
+    private static Statistics GenerateStatistics(string profession, Random rnd)
     {
-        var stats = new Dictionary<int, double>();
-        for (int i = 1; i <= 30; i++)
-            stats[i] = rnd.Next(15, 55);
+        // Создаём новый контейнер статистик с базовым значением 100
+        var stats = new Statistics(defaultBaseValue: 100);
 
-        int[] bonuses = profession switch
+        // === 1. Базовые значения (70-120 для взрослого человека) ===
+        // Физические характеристики (10 шт.) - индексы 0-9 в AllStats
+        for (int i = 0; i < 10; i++)
         {
-            "Механик"  => new[] { 1, 2, 3, 7, 11, 12, 26 },
-            "Медик"    => new[] { 2, 4, 5, 12, 13, 14, 17, 28 },
-            "Охотник"  => new[] { 1, 2, 3, 7, 9, 17, 19, 29 },
-            "Инженер"  => new[] { 2, 6, 11, 12, 15, 18, 20, 25 },
-            _          => new[] { 1, 3, 6, 12, 17, 23 },
+            int baseValue = rnd.Next(70, 121);  // 70-120
+            stats.AllStats[i].BaseValue = baseValue;
+        }
+
+        // Ментальные характеристики (12 шт.) - индексы 10-21 в AllStats
+        for (int i = 10; i < 22; i++)
+        {
+            int baseValue = rnd.Next(70, 121);  // 70-120
+            stats.AllStats[i].BaseValue = baseValue;
+        }
+
+        // Энергетические характеристики (8 шт.) - индексы 22-29 в AllStats
+        // По концепции: база ВСЕГДА 100, отклонение от -100 до 100
+        for (int i = 22; i < 30; i++)
+        {
+            stats.AllStats[i].BaseValue = 100;
+            // Начальное отклонение для энергетических (0-50)
+            int deviation = rnd.Next(0, 51);
+            stats.AllStats[i].SetDeviation(deviation);
+        }
+
+        // === 2. Бонусы от профессии ===
+        // Маппинг: индексы характеристик из старой системы (1-30) -> новая система
+        // Физические (1-10): Endurance=1, Toughness=2, Strength=3, RecoveryPhys=4, 
+        //   Reflexes=5, Agility=6, Adaptation=7, Regeneration=8, Sensorics=9, Longevity=10
+        // Ментальные (11-22): Focus=11, Memory=12, Logic=13, Deduction=14, Intelligence=15,
+        //   Will=16, Learning=17, Flexibility=18, Intuition=19, SocialIntel=20, Creativity=21, Mathematics=22
+        // Энергетические (23-30): EnergyReserve=23, EnergyRecovery=24, Control=25,
+        //   Concentration=26, Output=27, Precision=28, EnergyResist=29, EnergySense=30
+
+        var professionBonuses = profession switch
+        {
+            "Механик" => new[] { 1, 2, 3, 7, 11, 12, 26 },      // Выносливость, Стойкость, Сила, Адаптация, Фокус, Память, Концентрация
+            "Медик" => new[] { 2, 4, 5, 12, 13, 14, 17, 28 }, // Стойкость, Восст.(физ), Рефлексы, Память, Логика, Дедукция, Обучение, Тонкость
+            "Охотник" => new[] { 1, 2, 3, 7, 9, 17, 19, 29 },   // Выносливость, Стойкость, Сила, Адаптация, Сенсорика, Обучение, Интуиция, Устойчивость(энерг)
+            "Инженер" => new[] { 2, 6, 11, 12, 15, 18, 20, 25 }, // Стойкость, Ловкость, Фокус, Память, Интеллект, Гибкость, Соц.интеллект, Контроль
+            _ => new[] { 1, 3, 6, 12, 17, 23 }          // Выносливость, Сила, Ловкость, Память, Обучение, Запас энергии
         };
 
-        foreach (var id in bonuses)
-            stats[id] = Math.Min(100, stats[id] + rnd.Next(28, 45));
+        // Применяем бонусы профессии (увеличиваем базовые значения)
+        int bonusAmount = rnd.Next(28, 46);  // +28..+45 к базе
+
+        foreach (var statIndex in professionBonuses)
+        {
+            // Конвертируем индекс из старой системы (1-30) в индекс списка AllStats (0-29)
+            int listIndex = statIndex - 1;
+            if (listIndex >= 0 && listIndex < stats.AllStats.Count)
+            {
+                int newBaseValue = stats.AllStats[listIndex].BaseValue + bonusAmount;
+                stats.AllStats[listIndex].BaseValue = Math.Min(150, newBaseValue); // Ограничиваем 150
+            }
+        }
+
+        // === 3. Случайные отклонения (вариативность) ===
+        // Для физических и ментальных: небольшое отклонение -15..+15
+        for (int i = 0; i < 22; i++)  // первые 22 = физические + ментальные
+        {
+            int deviation = rnd.Next(-15, 16);
+            stats.AllStats[i].AddDeviation(deviation);
+        }
+
+        // Для энергетических: дополнительное отклонение 0..30 (сверх начального)
+        for (int i = 22; i < 30; i++)
+        {
+            int extraDeviation = rnd.Next(0, 31);
+            stats.AllStats[i].AddDeviation(extraDeviation);
+            // Ограничение уже встроено в свойство Deviation (Energy: -100..100)
+        }
 
         return stats;
     }

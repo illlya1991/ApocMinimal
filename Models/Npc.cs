@@ -1,3 +1,4 @@
+using ApocalypseSimulation.Models.StatisticsData;
 using System.Text.Json.Serialization;
 
 namespace ApocMinimal.Models;
@@ -64,7 +65,7 @@ public class Npc
 
     // ── STATS ───────────────────────────────────────────────────────────────
     /// <summary>30 characteristics keyed by StatDefs ID (1–30), values 0–100.</summary>
-    public Dictionary<int, double> Stats { get; set; } = new();
+    public Statistics Stats { get; set; } = new Statistics(100);
 
     // ── TASK (legacy, kept for DB compatibility) ─────────────────────────────
     public string ActiveTask      { get; set; } = "";

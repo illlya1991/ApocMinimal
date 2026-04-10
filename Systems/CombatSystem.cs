@@ -93,8 +93,8 @@ public static class CombatSystem
     public static CombatEvent ResolveMass(
         List<Npc> attackers, List<Npc> defenders, Random rnd, int day)
     {
-        var atkChamp = attackers.OrderByDescending(n => n.Stats.GetValueOrDefault(1)).First();
-        var defChamp = defenders.OrderByDescending(n => n.Stats.GetValueOrDefault(1)).First();
+        var atkChamp = attackers.OrderByDescending(n => n.Stats.GetStatValue(1)).First();
+        var defChamp = defenders.OrderByDescending(n => n.Stats.GetStatValue(1)).First();
 
         var combat = Resolve1v1(atkChamp, defChamp, rnd, day);
         combat.AttackerName = $"Группа ({atkChamp.Name})";
@@ -113,9 +113,9 @@ public static class CombatSystem
     private static double CalcDamage(Npc attacker, Npc defender, Random rnd)
     {
         // Base damage from Сила (stat 1) and Ловкость (stat 2)
-        double atkPower  = (attacker.Stats.GetValueOrDefault(1) + attacker.Stats.GetValueOrDefault(2)) / 2.0;
+        double atkPower  = (attacker.Stats.GetStatValue(1) + attacker.Stats.GetStatValue(2)) / 2.0;
         // Defense from Стойкость (stat 9) and Выносливость (stat 3)
-        double defPower  = (defender.Stats.GetValueOrDefault(9) + defender.Stats.GetValueOrDefault(3)) / 2.0;
+        double defPower  = (defender.Stats.GetStatValue(9) + defender.Stats.GetStatValue(3)) / 2.0;
 
         // Brave trait: +10% damage
         if (attacker.CharTraits.Contains(CharacterTrait.Brave))   atkPower *= 1.1;
@@ -127,7 +127,7 @@ public static class CombatSystem
         double damage = raw * roll * 0.12;           // scale to % of health
 
         // Рефлексы (stat 7) of defender: chance to dodge
-        double dodgeChance = defender.Stats.GetValueOrDefault(7) / 500.0;
+        double dodgeChance = defender.Stats.GetStatValue(7) / 500.0;
         if (rnd.NextDouble() < dodgeChance) damage *= 0.1;
 
         return Math.Round(Math.Clamp(damage, 0, 30), 1);  // cap at 30% per hit
