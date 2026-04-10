@@ -10,7 +10,7 @@ public enum NpcTrait
     Loner    // Одиночка: иммунен к бонусу Лидера
 }
 
-public enum Gender { Male, Female, Other }
+public enum Gender { Male, Female}
 
 /// <summary>
 /// Full NPC model (Stage A+).
@@ -96,14 +96,13 @@ public class Npc
     public string GenderLabel => Gender switch
     {
         Gender.Male   => "М",
-        Gender.Female => "Ж",
-        _             => "—"
+        Gender.Female => "Ж"
     };
 
     public string FollowerLabel => FollowerLevel switch
     {
-        0 => "Чужой",
-        1 => "Знакомый",
+        0 => "Нейтральный",
+        1 => "Послушник",
         2 => "Последователь",
         3 => "Верный",
         4 => "Преданный",
