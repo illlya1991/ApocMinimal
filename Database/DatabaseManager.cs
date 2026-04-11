@@ -1425,6 +1425,164 @@ public class DatabaseManager
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetActionResourceRequirements error: {ex.Message}"); }
         return requirements;
     }
+
+    // =========================================================
+    // НОВА СИСТЕМА ДІЙ
+    // =========================================================
+
+    public List<ActionGroup> GetActionGroups()
+    {
+        var groups = new List<ActionGroup>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, Name, Icon, DisplayOrder, IsActive FROM ActionGroups WHERE IsActive = 1 ORDER BY DisplayOrder", _conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                groups.Add(new ActionGroup
+                {
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    Icon = reader.GetString(2),
+                    DisplayOrder = reader.GetInt32(3),
+                    IsActive = reader.GetBoolean(4)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetActionGroups error: {ex.Message}"); }
+        return groups;
+    }
+
+    public List<GameActionDb> GetAllGameActionsNew()
+    {
+        var actions = new List<GameActionDb>();
+        try
+        {
+            using var cmd = new SQLiteCommand(@"SELECT Id, GroupId, ActionKey, DisplayName, Description, 
+            HandlerMethod, ConsumesAction, DisplayOrder, IsActive 
+            FROM GameActions WHERE IsActive = 1 ORDER BY GroupId, DisplayOrder", _conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                actions.Add(new GameActionDb
+                {
+                    Id = reader.GetInt32(0),
+                    GroupId = reader.GetInt32(1),
+                    ActionKey = reader.GetString(2),
+                    DisplayName = reader.GetString(3),
+                    Description = reader.GetString(4),
+                    HandlerMethod = reader.GetString(5),
+                    ConsumesAction = reader.GetBoolean(6),
+                    DisplayOrder = reader.GetInt32(7),
+                    IsActive = reader.GetBoolean(8)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetAllGameActionsNew error: {ex.Message}"); }
+        return actions;
+    }
+
+    public List<ActionParam> GetActionParams(int actionId)
+    {
+        var parameters = new List<ActionParam>();
+        try
+        {
+            using var cmd = new SQLiteCommand(@"SELECT Id, ActionId, ParamTypeId, ParamKey, DisplayName, 
+            OrderIndex, IsRequired, FilterCondition, DataSource, ValidationRules, DefaultValue 
+            FROM ActionParams WHERE ActionId = @actionId ORDER BY OrderIndex", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                parameters.Add(new ActionParam
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    ParamTypeId = reader.GetInt32(2),
+                    ParamKey = reader.GetString(3),
+                    DisplayName = reader.GetString(4),
+                    OrderIndex = reader.GetInt32(5),
+                    IsRequired = reader.GetBoolean(6),
+                    FilterCondition = reader.GetString(7),
+                    DataSource = reader.GetString(8),
+                    ValidationRules = reader.GetString(9),
+                    DefaultValue = reader.GetString(10)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetActionParams error: {ex.Message}"); }
+        return parameters;
+    }
+
+    public List<HandlerParamMapping> GetHandlerParamMappings(int actionId)
+    {
+        var mappings = new List<HandlerParamMapping>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, HandlerId, HandlerParamName, ActionParamKey FROM HandlerParamMapping WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                mappings.Add(new HandlerParamMapping
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    HandlerId = reader.GetInt32(2),
+                    HandlerParamName = reader.GetString(3),
+                    ActionParamKey = reader.GetString(4)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetHandlerParamMappings error: {ex.Message}"); }
+        return mappings;
+    }
+
+    public ResultTemplate? GetResultTemplate(int actionId)
+    {
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, SuccessTemplate, FailTemplate, Color FROM ResultTemplates WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                return new ResultTemplate
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    SuccessTemplate = reader.GetString(2),
+                    FailTemplate = reader.GetString(3),
+                    Color = reader.GetString(4)
+                };
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetResultTemplate error: {ex.Message}"); }
+        return null;
+    }
+
+    public List<ParamType> GetParamTypes()
+    {
+        var types = new List<ParamType>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, Name, ControlType, ValueType, IsList FROM ParamTypes", _conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                types.Add(new ParamType
+                {
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    ControlType = reader.GetString(2),
+                    ValueType = reader.GetString(3),
+                    IsList = reader.GetBoolean(4)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetParamTypes error: {ex.Message}"); }
+        return types;
+    }
 }
 
 public class OneSave

@@ -1,4 +1,4 @@
-using ApocMinimal.Models.DaysData;
+using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
 

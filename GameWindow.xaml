@@ -145,41 +145,49 @@
                 <!-- ACTIONS TAB -->
                 <ScrollViewer x:Name="PanelActions" VerticalScrollBarVisibility="Auto" Padding="10">
                     <StackPanel>
-                        <TextBlock Text="ДЕЙСТВИЕ" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="КАТЕГОРІЯ" Style="{StaticResource SectionHeader}"/>
                         <ComboBox x:Name="ActionCombo" Style="{StaticResource LightCombo}"
-                                  SelectionChanged="ActionCombo_SelectionChanged"/>
-                        <TextBlock x:Name="NpcLabel" Text="НПС" Style="{StaticResource SectionHeader}"
-                                   Visibility="Collapsed"/>
-                        <ComboBox x:Name="NpcCombo" Style="{StaticResource LightCombo}"
-                                  Visibility="Collapsed"/>
-                        <TextBlock x:Name="ResLabel" Text="РЕСУРС" Style="{StaticResource SectionHeader}"
-                                   Visibility="Collapsed"/>
-                        <ComboBox x:Name="ResourceCombo" Style="{StaticResource LightCombo}"
-                                  Visibility="Collapsed"/>
+                  SelectionChanged="ActionCombo_SelectionChanged"/>
+
+                        <TextBlock x:Name="SubActionLabel" Text="ДІЯ" Style="{StaticResource SectionHeader}"
+                   Visibility="Collapsed"/>
+                        <Grid x:Name="SubActionRow" Visibility="Collapsed">
+                            <ComboBox x:Name="SubActionCombo" Style="{StaticResource LightCombo}"
+                      SelectionChanged="SubActionCombo_SelectionChanged"/>
+                        </Grid>
+
+                        <!-- Динамічна панель для параметрів -->
+                        <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
+
+                        <Button Content="ВИКОНАТИ" Style="{StaticResource ActionBtn}"
+                Background="#1a3a1a" Foreground="#56d364"
+                Margin="0,8,0,0" Click="ExecuteAction_Click"/>
+
+                        <!-- Старі елементи (приховані, для зворотної сумісності) -->
+                        <TextBlock x:Name="NpcLabel" Text="НПС" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
+                        <ComboBox x:Name="NpcCombo" Style="{StaticResource LightCombo}" Visibility="Collapsed"/>
+                        <TextBlock x:Name="ResLabel" Text="РЕСУРС" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
+                        <ComboBox x:Name="ResourceCombo" Style="{StaticResource LightCombo}" Visibility="Collapsed"/>
                         <Grid x:Name="AmountRow" Visibility="Collapsed" Margin="0,2,0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="80"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="КОЛИЧЕСТВО" VerticalAlignment="Center"
-                                       Foreground="#8b949e" FontSize="11"/>
+                       Foreground="#8b949e" FontSize="11"/>
                             <TextBox Grid.Column="1" x:Name="AmountBox" Text="10"
-                                     Background="#21262d" Foreground="#c9d1d9"
-                                     BorderBrush="#30363d" Padding="4,2" TextAlignment="Right"/>
+                     Background="#21262d" Foreground="#c9d1d9"
+                     BorderBrush="#30363d" Padding="4,2" TextAlignment="Right"/>
                         </Grid>
-                        <TextBlock x:Name="TaskLabel" Text="ЗАДАНИЕ" Style="{StaticResource SectionHeader}"
-                                   Visibility="Collapsed"/>
-                        <ComboBox x:Name="TaskCombo" Style="{StaticResource LightCombo}"
-                                  Visibility="Collapsed"/>
-                        <Button Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}"
-                                Background="#1a3a1a" Foreground="#56d364"
-                                Margin="0,8,0,0" Click="ExecuteAction_Click"/>
+                        <TextBlock x:Name="TaskLabel" Text="ЗАДАНИЕ" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
+                        <ComboBox x:Name="TaskCombo" Style="{StaticResource LightCombo}" Visibility="Collapsed"/>
+
                         <Separator Background="#30363d" Margin="0,12,0,6"/>
-                        <TextBlock Text="ТЕХНИКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="ТЕХНІКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>
                         <StackPanel x:Name="TechniquePanel"/>
                     </StackPanel>
                 </ScrollViewer>
-
+                
                 <!-- QUESTS TAB -->
                 <ScrollViewer x:Name="PanelQuests" Visibility="Collapsed"
                               VerticalScrollBarVisibility="Auto" Padding="10">

@@ -1,4 +1,4 @@
-namespace ApocMinimal.Models.DaysData;
+namespace ApocMinimal.Models.GameActions;
 
 
 public enum ActionCategory { Basic, Special }

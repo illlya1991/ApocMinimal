@@ -27,12 +27,16 @@ public partial class GameWindow : Window
     private readonly Random _rnd = new();
     private StackPanel? _currentDayPanel;
 
-    private List<GameActionDb> _gameActions = new();
+    // Нова система дій
+    private ActionManager _actionManager = null!;
+    private GameActionDb? _currentSelectedAction = null;
+    private List<ComboBox> _dynamicComboBoxes = new();
 
     public GameWindow(DatabaseManager db)
     {
         InitializeComponent();
         _db = db;
+        _actionManager = new ActionManager(_db, _rnd);
         LoadData();
         BuildActionCombo();
         BuildQuestTaskCombo();
@@ -48,25 +52,21 @@ public partial class GameWindow : Window
         _resources = _db.GetAllResources();
         _quests = _db.GetAllQuests();
         _locations = _db.GetAllLocations();
-        _gameActions = _db.GetAllGameActions();
-
-        // Завантажити умови, ефекти та вимоги для кожної дії
-        foreach (var action in _gameActions)
-        {
-            action.Conditions = _db.GetActionConditions(action.Id);
-            action.Effects = _db.GetActionEffects(action.Id);
-            action.ResourceRequirements = _db.GetActionResourceRequirements(action.Id);
-        }
     }
 
     private void BuildActionCombo()
     {
         ActionCombo.Items.Clear();
-        foreach (var action in _gameActions)
+        var groups = _actionManager.GetGroups();
+        foreach (var group in groups)
         {
-            ActionCombo.Items.Add(action.DisplayName);
+            ActionCombo.Items.Add(group.Name);
         }
         ActionCombo.SelectedIndex = -1;
+
+        // Приховуємо панель піддії та параметрів спочатку
+        SetVis(SubActionRow, false);
+        SetVis(ParametersPanel, false);
     }
 
     private void BuildQuestTaskCombo()
@@ -180,7 +180,6 @@ public partial class GameWindow : Window
             Margin = new Thickness(0, 2, 0, 0)
         });
 
-        // Ключевые характеристики из новой системы
         panel.Children.Add(new TextBlock
         {
             Text = $"Сил:{npc.Stats.Strength.FinalValue}  Лов:{npc.Stats.Agility.FinalValue}  Инт:{npc.Stats.Intelligence.FinalValue}",
@@ -257,7 +256,6 @@ public partial class GameWindow : Window
 
     private void RefreshAltarTab()
     {
-        // Строка лимитов последователей по уровням
         var limParts = new System.Text.StringBuilder();
         for (int fl = 0; fl <= 5; fl++)
         {
@@ -280,7 +278,6 @@ public partial class GameWindow : Window
 
         BarrierLabel.Text = $"Размер барьера: {_player.BarrierSize:F0} м";
 
-        // Детальные лимиты последователей
         var sb = new System.Text.StringBuilder("Последователи: ");
         for (int fl = 0; fl <= 5; fl++)
         {
@@ -413,173 +410,324 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Выбор действия
+    // Новая система выбора действия (группа → действие → параметры)
     // =========================================================
 
     private void ActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ActionCombo.SelectedIndex < 0) return;
-        var actionName = ActionCombo.SelectedItem?.ToString() ?? "";
-        var action = _gameActions.FirstOrDefault(a => a.DisplayName == actionName);
 
-        if (action == null) return;
+        var groupName = ActionCombo.SelectedItem?.ToString() ?? "";
+        var group = _actionManager.GetGroups().FirstOrDefault(g => g.Name == groupName);
+        if (group == null) return;
 
-        bool showResource = action.ResourceRequirements.Any();
-        bool showTask = action.RequiresQuest;
+        // Показуємо панель піддії
+        SetVis(SubActionRow, true);
+        SetVis(SubActionLabel, true);
 
-        SetVis(NpcLabel, action.RequiresTarget);
-        SetVis(NpcCombo, action.RequiresTarget);
-        SetVis(ResLabel, showResource);
-        SetVis(ResourceCombo, showResource);
-        SetVis(AmountRow, showResource);
-        SetVis(TaskLabel, showTask);
-        SetVis(TaskCombo, showTask);
+        // Заповнюємо другий комбобокс діями
+        SubActionCombo.Items.Clear();
+        var actions = _actionManager.GetActionsByGroup(group.Id);
+        foreach (var action in actions)
+        {
+            SubActionCombo.Items.Add(action.DisplayName);
+        }
+        SubActionCombo.SelectedIndex = -1;
+
+        // Очищаємо панель параметрів
+        ParametersPanel.Children.Clear();
+        SetVis(ParametersPanel, false);
     }
+
+    private void SubActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SubActionCombo.SelectedIndex < 0)
+        {
+            _currentSelectedAction = null;
+            ParametersPanel.Children.Clear();
+            SetVis(ParametersPanel, false);
+            return;
+        }
+
+        var actionName = SubActionCombo.SelectedItem?.ToString() ?? "";
+        _currentSelectedAction = _actionManager.GetAllActions().FirstOrDefault(a => a.DisplayName == actionName);
+
+        if (_currentSelectedAction == null) return;
+
+        // Будуємо UI для параметрів
+        BuildParametersUI(_currentSelectedAction);
+        SetVis(ParametersPanel, true);
+    }
+
+    private void BuildParametersUI(GameActionDb action)
+    {
+        ParametersPanel.Children.Clear();
+        _dynamicComboBoxes.Clear();
+
+        foreach (var param in action.Parameters.OrderBy(p => p.OrderIndex))
+        {
+            // Лейбл
+            var label = new TextBlock
+            {
+                Text = param.DisplayName,
+                Foreground = HexBrush("#8b949e"),
+                FontSize = 11,
+                Margin = new Thickness(0, 8, 0, 4)
+            };
+            ParametersPanel.Children.Add(label);
+
+            // Контрол
+            UIElement control = param.ParamType?.Name switch
+            {
+                "Npc" => BuildNpcComboBox(param),
+                "Resource" => BuildResourceComboBox(param),
+                "Number" => BuildNumberBox(param),
+                "Text" => BuildTextBox(param),
+                _ => new TextBlock { Text = $"Тип: {param.ParamType?.Name}", Foreground = HexBrush("#f87171") }
+            };
+
+            ParametersPanel.Children.Add(control);
+        }
+    }
+
+    private ComboBox BuildNpcComboBox(ActionParam param)
+    {
+        var combo = new ComboBox
+        {
+            Style = (Style)Resources["LightCombo"],
+            Tag = param.ParamKey
+        };
+
+        var npcs = _npcs.AsEnumerable();
+
+        // Фільтрація: тільки живі NPC
+        if (param.FilterCondition.Contains("\"IsAlive\": true") || param.DataSource == "alive_npcs")
+            npcs = npcs.Where(n => n.IsAlive);
+
+        foreach (var npc in npcs)
+            combo.Items.Add(npc.Name);
+
+        if (combo.Items.Count > 0)
+            combo.SelectedIndex = 0;
+
+        _dynamicComboBoxes.Add(combo);
+        return combo;
+    }
+
+    private ComboBox BuildResourceComboBox(ActionParam param)
+    {
+        var combo = new ComboBox
+        {
+            Style = (Style)Resources["LightCombo"],
+            Tag = param.ParamKey
+        };
+
+        var resources = _resources.AsEnumerable();
+
+        // Фільтрація за категорією
+        if (param.FilterCondition.Contains("\"Category\""))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(param.FilterCondition, "\"Category\":\\s*\"([^\"]+)\"");
+            if (match.Success)
+            {
+                string category = match.Groups[1].Value;
+                resources = resources.Where(r => r.Category == category);
+            }
+        }
+
+        foreach (var res in resources)
+            combo.Items.Add(res.Name);
+
+        if (combo.Items.Count > 0)
+            combo.SelectedIndex = 0;
+
+        _dynamicComboBoxes.Add(combo);
+        return combo;
+    }
+
+    private TextBox BuildNumberBox(ActionParam param)
+    {
+        var box = new TextBox
+        {
+            Background = HexBrush("#21262d"),
+            Foreground = HexBrush("#c9d1d9"),
+            BorderBrush = HexBrush("#30363d"),
+            Padding = new Thickness(4, 2),
+            Tag = param.ParamKey,
+            Text = string.IsNullOrEmpty(param.DefaultValue) ? "1" : param.DefaultValue
+        };
+
+        return box;
+    }
+
+    private TextBox BuildTextBox(ActionParam param)
+    {
+        var box = new TextBox
+        {
+            Background = HexBrush("#21262d"),
+            Foreground = HexBrush("#c9d1d9"),
+            BorderBrush = HexBrush("#30363d"),
+            Padding = new Thickness(4, 2),
+            Tag = param.ParamKey,
+            Text = param.DefaultValue
+        };
+
+        return box;
+    }
+
     // =========================================================
     // Выполнение действий
     // =========================================================
 
     private void ExecuteAction_Click(object sender, RoutedEventArgs e)
     {
-        if (NpcCombo.SelectedIndex < 0) { Log("Выберите персонажа.", LogEntry.ColorWarning); return; }
+        if (_currentSelectedAction == null)
+        {
+            Log("Выберите действие.", LogEntry.ColorWarning);
+            return;
+        }
 
-        var selectedActionName = ActionCombo.SelectedItem?.ToString() ?? "";
-        if (string.IsNullOrEmpty(selectedActionName)) { Log("Выберите действие.", LogEntry.ColorWarning); return; }
-
-        var action = _gameActions.FirstOrDefault(a => a.DisplayName == selectedActionName);
-        if (action == null) return;
-
-        bool consumesAction = action.ConsumesAction;
-        if (consumesAction && _player.PlayerActionsToday >= Player.MaxPlayerActionsPerDay)
+        // Перевірка дій гравця
+        if (_currentSelectedAction.ConsumesAction && _player.PlayerActionsToday >= Player.MaxPlayerActionsPerDay)
         {
             Log($"Час игрока исчерпан ({Player.MaxPlayerActionsPerDay} действий/день).", LogEntry.ColorWarning);
             return;
         }
 
-        var npc = _npcs[NpcCombo.SelectedIndex];
+        // Збір значень параметрів
+        var parameters = CollectParameterValues(_currentSelectedAction);
 
-        // Перевірка умов
-        if (!CheckActionConditions(action, npc))
+        // Перевірка обов'язкових параметрів
+        foreach (var param in _currentSelectedAction.Parameters.Where(p => p.IsRequired))
         {
-            var failedCondition = action.Conditions.FirstOrDefault(c => !CheckCondition(c, npc));
-            Log(failedCondition?.ErrorMessage ?? "Умови не виконано", LogEntry.ColorWarning);
-            return;
+            if (!parameters.ContainsKey(param.ParamKey) || parameters[param.ParamKey] == null)
+            {
+                Log($"Не указан параметр: {param.DisplayName}", LogEntry.ColorWarning);
+                return;
+            }
         }
 
-        // Перевірка ресурсів
-        if (!CheckActionResources(action))
-        {
-            Log("Недостатньо ресурсів!", LogEntry.ColorWarning);
-            return;
-        }
+        // Виконання дії через ActionManager
+        var result = _actionManager.ExecuteAction(_currentSelectedAction, parameters, _player, _npcs, _resources, _quests);
+        Log(result, LogEntry.ColorSuccess);
 
-        // Виконання дії
-        ExecuteActionEffects(action, npc);
-
-        if (consumesAction)
+        if (_currentSelectedAction.ConsumesAction)
         {
             _player.PlayerActionsToday++;
             _db.SavePlayer(_player);
         }
 
+        // Оновлення UI після виконання
         RefreshAll();
-    }
 
-    private bool CheckActionConditions(GameActionDb action, Npc npc)
-    {
-        foreach (var condition in action.Conditions)
+        // Оновлюємо комбобокси в параметрах (якщо змінилися ресурси або NPC)
+        foreach (var combo in _dynamicComboBoxes)
         {
-            if (!CheckCondition(condition, npc))
-                return false;
-        }
-        return true;
-    }
-
-    private bool CheckCondition(ActionConditionDb condition, Npc npc)
-    {
-        switch (condition.ConditionType)
-        {
-            case "NpcAlive":
-                bool isAlive = npc.IsAlive;
-                bool expected = bool.Parse(condition.Value);
-                return isAlive == expected;
-
-            case "HasTask":
-                bool hasTask = npc.HasTask;
-                bool expectedTask = bool.Parse(condition.Value);
-                return hasTask == expectedTask;
-
-            case "PlayerActionLeft":
-                int actionsLeft = Player.MaxPlayerActionsPerDay - _player.PlayerActionsToday;
-                int required = int.Parse(condition.Value);
-                return actionsLeft > required;
-
-            default:
-                return true;
-        }
-    }
-
-    private bool CheckActionResources(GameActionDb action)
-    {
-        foreach (var req in action.ResourceRequirements)
-        {
-            var resource = _resources.FirstOrDefault(r => r.Name == req.ResourceName);
-            if (resource == null || resource.Amount < req.Amount)
-                return false;
-        }
-        return true;
-    }
-
-    private void ExecuteActionEffects(GameActionDb action, Npc npc)
-    {
-        foreach (var effect in action.Effects)
-        {
-            double value = effect.Value ?? 0;
-
-            // Обчислення за формулою
-            if (!string.IsNullOrEmpty(effect.Formula))
+            var paramKey = combo.Tag?.ToString();
+            var param = _currentSelectedAction.Parameters.FirstOrDefault(p => p.ParamKey == paramKey);
+            if (param != null)
             {
-                value = EvaluateFormula(effect.Formula, npc);
+                var selected = combo.SelectedItem?.ToString();
+                combo.Items.Clear();
+
+                if (param.ParamType?.Name == "Npc")
+                {
+                    var npcs = _npcs.Where(n => n.IsAlive);
+                    foreach (var npc in npcs)
+                        combo.Items.Add(npc.Name);
+                }
+                else if (param.ParamType?.Name == "Resource")
+                {
+                    foreach (var res in _resources)
+                        combo.Items.Add(res.Name);
+                }
+
+                if (combo.Items.Contains(selected))
+                    combo.SelectedItem = selected;
+                else if (combo.Items.Count > 0)
+                    combo.SelectedIndex = 0;
             }
+        }
+    }
 
-            switch (effect.EffectType)
+    private Dictionary<string, object> CollectParameterValues(GameActionDb action)
+    {
+        var values = new Dictionary<string, object>();
+
+        foreach (var param in action.Parameters)
+        {
+            var control = FindControlByTag(ParametersPanel, param.ParamKey);
+            if (control == null) continue;
+
+            object? value = param.ParamType?.Name switch
             {
-                case "ChangeTrust":
-                    npc.Trust = Math.Min(100, Math.Max(0, npc.Trust + value));
-                    Log($"Довіра {npc.Name}: {(value > 0 ? "+" : "")}{value:F0}", LogEntry.ColorSuccess);
-                    break;
+                "Npc" => GetSelectedNpc(control),
+                "Resource" => GetSelectedResource(control),
+                "Number" => GetNumberValue(control),
+                "Text" => GetTextValue(control),
+                _ => null
+            };
 
-                case "AddMemory":
-                    npc.Remember(new MemoryEntry(_player.CurrentDay, MemoryType.Social, effect.Formula ?? "Взаємодія"));
-                    Log($"Додано спогад для {npc.Name}", LogEntry.ColorNormal);
-                    break;
+            if (value != null)
+                values[param.ParamKey] = value;
+        }
+
+        return values;
+    }
+
+    private FrameworkElement? FindControlByTag(UIElement parent, string tag)
+    {
+        if (parent is FrameworkElement element && element.Tag?.ToString() == tag)
+            return element;
+
+        if (parent is Panel panel)
+        {
+            foreach (var child in panel.Children)
+            {
+                var found = FindControlByTag(child, tag);
+                if (found != null) return found;
             }
         }
 
-        // Витрачання ресурсів
-        foreach (var req in action.ResourceRequirements)
-        {
-            var resource = _resources.First(r => r.Name == req.ResourceName);
-            resource.Amount -= req.Amount;
-            _db.SaveResource(resource);
-            Log($"Витрачено {req.Amount} {req.ResourceName}", LogEntry.ColorNormal);
-        }
-
-        _db.SaveNpc(npc);
-        Log($"Виконано дію: {action.DisplayName}", LogEntry.ColorSuccess);
+        return null;
     }
 
-    private double EvaluateFormula(string formula, Npc npc)
+    private Npc? GetSelectedNpc(FrameworkElement control)
     {
-        var result = formula
-            .Replace("trust", npc.Trust.ToString())
-            .Replace("health", npc.Health.ToString())
-            .Replace("fear", npc.Fear.ToString());
+        if (control is ComboBox combo && combo.SelectedItem != null)
+        {
+            var name = combo.SelectedItem.ToString();
+            return _npcs.FirstOrDefault(n => n.Name == name);
+        }
+        return null;
+    }
 
-        if (double.TryParse(result, out double value))
+    private Resource? GetSelectedResource(FrameworkElement control)
+    {
+        if (control is ComboBox combo && combo.SelectedItem != null)
+        {
+            var name = combo.SelectedItem.ToString();
+            return _resources.FirstOrDefault(r => r.Name == name);
+        }
+        return null;
+    }
+
+    private double GetNumberValue(FrameworkElement control)
+    {
+        if (control is TextBox box && double.TryParse(box.Text, out double value))
             return value;
-        return 0;
+        return 1;
     }
+
+    private string GetTextValue(FrameworkElement control)
+    {
+        return control is TextBox box ? box.Text : "";
+    }
+
+    // =========================================================
+    // Старые методы (оставлены для совместимости)
+    // =========================================================
+
     private void DoViewInfo(Npc npc)
     {
         var npcExp = new Expander
@@ -611,7 +759,6 @@ public partial class GameWindow : Window
             Log($"    {need.Name} [{need.Level}]: {need.Value:F0}% {(need.IsCritical ? "КРИТИЧНО" : "")}",
                 need.IsCritical ? LogEntry.ColorDanger : LogEntry.ColorWarning);
 
-        // Новая система характеристик
         Log($"  ФИЗИЧЕСКИЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
         Log($"    Выносливость:          {npc.Stats.Endurance.FinalValue,3}  (база: {npc.Stats.Endurance.FullBase})", StatColor(npc.Stats.Endurance.FinalValue));
         Log($"    Стойкость:             {npc.Stats.Toughness.FinalValue,3}  (база: {npc.Stats.Toughness.FullBase})", StatColor(npc.Stats.Toughness.FinalValue));
@@ -743,7 +890,6 @@ public partial class GameWindow : Window
 
         var day = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd);
 
-        // ── Render NPC action logs ────────────────────────────────────────────
         foreach (var nr in day.NpcResults)
         {
             var npcExp = new Expander
@@ -766,7 +912,6 @@ public partial class GameWindow : Window
             _currentDayPanel?.Children.Add(npcExp);
         }
 
-        // ── Quest rewards ─────────────────────────────────────────────────────
         foreach (var (npc, q) in day.QuestRewards)
         {
             var res = _resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
@@ -778,22 +923,18 @@ public partial class GameWindow : Window
             else Log($"Квест выполнен: «{q.Title}» ({npc.Name})", LogEntry.ColorSuccess);
         }
 
-        // ── New quests ────────────────────────────────────────────────────────
         foreach (var q in day.NewQuests)
         {
             _db.InsertQuest(q);
             Log($"Новый квест: «{q.Title}»", LogEntry.ColorDay);
         }
 
-        // ── General logs (leader bonus, resources, auto-assign) ───────────────
         foreach (var (text, isAlert) in day.Logs)
             Log(text, isAlert ? LogEntry.ColorDanger : LogEntry.ColorNormal);
 
-        // ── Faith summary ─────────────────────────────────────────────────────
         Log($"Получено ОВ: +{day.FaithGained:F1}  (последователей: {day.FollowerCount}, макс. {Player.MaxFaithPerNpcPerDay:F0}/NPC)",
             LogEntry.ColorAltarColor);
 
-        // ── Persist ───────────────────────────────────────────────────────────
         _db.SavePlayer(_player);
         foreach (var n in _npcs) _db.SaveNpc(n);
         foreach (var r in _resources) _db.SaveResource(r);
@@ -838,7 +979,6 @@ public partial class GameWindow : Window
         _player.FaithPoints -= tech.FaithCost;
         _db.SavePlayer(_player);
 
-        // Pick best target (lowest HP for healing, otherwise random alive NPC)
         var target = tech.HealAmount > 0
             ? _npcs.Where(n => n.IsAlive).OrderBy(n => n.Health).FirstOrDefault()
             : _npcs.Where(n => n.IsAlive).OrderByDescending(n => n.Initiative).FirstOrDefault();
@@ -890,10 +1030,9 @@ public partial class GameWindow : Window
 
     private void FilterLog7Days_Click(object sender, RoutedEventArgs e)
     {
-        int minDay = _player.CurrentDay - 6; // show last 7 days inclusive
+        int minDay = _player.CurrentDay - 6;
         foreach (var exp in LogStack.Children.OfType<Expander>())
         {
-            // Headers like "═══ ДЕНЬ 5 ══..." or "=== День 5 ==="
             string hdr = exp.Header?.ToString() ?? "";
             int day = ParseDayFromHeader(hdr);
             exp.Visibility = (day == 0 || day >= minDay) ? Visibility.Visible : Visibility.Collapsed;
@@ -908,7 +1047,6 @@ public partial class GameWindow : Window
 
     private static int ParseDayFromHeader(string header)
     {
-        // Matches "ДЕНЬ 5" or "День 5"
         var match = System.Text.RegularExpressions.Regex.Match(header, @"[Дд]ень\s+(\d+)");
         return match.Success && int.TryParse(match.Groups[1].Value, out int d) ? d : 0;
     }
