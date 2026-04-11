@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using ApocMinimal.Database;
+using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
@@ -26,6 +27,8 @@ public partial class GameWindow : Window
     private readonly Random _rnd = new();
     private StackPanel? _currentDayPanel;
 
+    private List<GameActionDb> _gameActions = new();
+
     public GameWindow(DatabaseManager db)
     {
         InitializeComponent();
@@ -45,15 +48,24 @@ public partial class GameWindow : Window
         _resources = _db.GetAllResources();
         _quests = _db.GetAllQuests();
         _locations = _db.GetAllLocations();
+        _gameActions = _db.GetAllGameActions();
+
+        // Завантажити умови, ефекти та вимоги для кожної дії
+        foreach (var action in _gameActions)
+        {
+            action.Conditions = _db.GetActionConditions(action.Id);
+            action.Effects = _db.GetActionEffects(action.Id);
+            action.ResourceRequirements = _db.GetActionResourceRequirements(action.Id);
+        }
     }
 
     private void BuildActionCombo()
     {
         ActionCombo.Items.Clear();
-        ActionCombo.Items.Add("Посмотреть информацию");
-        ActionCombo.Items.Add("Передать ресурс");
-        ActionCombo.Items.Add("Разговор");
-        ActionCombo.Items.Add("Дать квест");
+        foreach (var action in _gameActions)
+        {
+            ActionCombo.Items.Add(action.DisplayName);
+        }
         ActionCombo.SelectedIndex = -1;
     }
 
@@ -407,20 +419,22 @@ public partial class GameWindow : Window
     private void ActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ActionCombo.SelectedIndex < 0) return;
-        var action = ActionCombo.SelectedItem?.ToString() ?? "";
+        var actionName = ActionCombo.SelectedItem?.ToString() ?? "";
+        var action = _gameActions.FirstOrDefault(a => a.DisplayName == actionName);
 
-        bool showResource = action == "Передать ресурс";
-        bool showTask = action == "Дать квест";
+        if (action == null) return;
 
-        SetVis(NpcLabel, true);
-        SetVis(NpcCombo, true);
+        bool showResource = action.ResourceRequirements.Any();
+        bool showTask = action.RequiresQuest;
+
+        SetVis(NpcLabel, action.RequiresTarget);
+        SetVis(NpcCombo, action.RequiresTarget);
         SetVis(ResLabel, showResource);
         SetVis(ResourceCombo, showResource);
         SetVis(AmountRow, showResource);
         SetVis(TaskLabel, showTask);
         SetVis(TaskCombo, showTask);
     }
-
     // =========================================================
     // Выполнение действий
     // =========================================================
@@ -429,36 +443,143 @@ public partial class GameWindow : Window
     {
         if (NpcCombo.SelectedIndex < 0) { Log("Выберите персонажа.", LogEntry.ColorWarning); return; }
 
-        var action = ActionCombo.SelectedItem?.ToString() ?? "";
-        if (string.IsNullOrEmpty(action)) { Log("Выберите действие.", LogEntry.ColorWarning); return; }
+        var selectedActionName = ActionCombo.SelectedItem?.ToString() ?? "";
+        if (string.IsNullOrEmpty(selectedActionName)) { Log("Выберите действие.", LogEntry.ColorWarning); return; }
 
-        // "Посмотреть информацию" — не тратит действие игрока
-        bool consumesAction = action != "Посмотреть информацию";
+        var action = _gameActions.FirstOrDefault(a => a.DisplayName == selectedActionName);
+        if (action == null) return;
+
+        bool consumesAction = action.ConsumesAction;
         if (consumesAction && _player.PlayerActionsToday >= Player.MaxPlayerActionsPerDay)
         {
-            Log($"Час игрока исчерпан ({Player.MaxPlayerActionsPerDay} действий/день). Ждите следующего дня.", LogEntry.ColorWarning);
+            Log($"Час игрока исчерпан ({Player.MaxPlayerActionsPerDay} действий/день).", LogEntry.ColorWarning);
             return;
         }
 
         var npc = _npcs[NpcCombo.SelectedIndex];
 
-        switch (action)
+        // Перевірка умов
+        if (!CheckActionConditions(action, npc))
         {
-            case "Посмотреть информацию": DoViewInfo(npc); break;
-            case "Передать ресурс": DoTransfer(npc); break;
-            case "Разговор": DoChat(npc); break;
-            case "Дать квест": DoAssignQuest(npc); break;
-            default: Log("Выберите действие.", LogEntry.ColorWarning); return;
+            var failedCondition = action.Conditions.FirstOrDefault(c => !CheckCondition(c, npc));
+            Log(failedCondition?.ErrorMessage ?? "Умови не виконано", LogEntry.ColorWarning);
+            return;
         }
+
+        // Перевірка ресурсів
+        if (!CheckActionResources(action))
+        {
+            Log("Недостатньо ресурсів!", LogEntry.ColorWarning);
+            return;
+        }
+
+        // Виконання дії
+        ExecuteActionEffects(action, npc);
 
         if (consumesAction)
         {
             _player.PlayerActionsToday++;
             _db.SavePlayer(_player);
-            RefreshHeader();
+        }
+
+        RefreshAll();
+    }
+
+    private bool CheckActionConditions(GameActionDb action, Npc npc)
+    {
+        foreach (var condition in action.Conditions)
+        {
+            if (!CheckCondition(condition, npc))
+                return false;
+        }
+        return true;
+    }
+
+    private bool CheckCondition(ActionConditionDb condition, Npc npc)
+    {
+        switch (condition.ConditionType)
+        {
+            case "NpcAlive":
+                bool isAlive = npc.IsAlive;
+                bool expected = bool.Parse(condition.Value);
+                return isAlive == expected;
+
+            case "HasTask":
+                bool hasTask = npc.HasTask;
+                bool expectedTask = bool.Parse(condition.Value);
+                return hasTask == expectedTask;
+
+            case "PlayerActionLeft":
+                int actionsLeft = Player.MaxPlayerActionsPerDay - _player.PlayerActionsToday;
+                int required = int.Parse(condition.Value);
+                return actionsLeft > required;
+
+            default:
+                return true;
         }
     }
 
+    private bool CheckActionResources(GameActionDb action)
+    {
+        foreach (var req in action.ResourceRequirements)
+        {
+            var resource = _resources.FirstOrDefault(r => r.Name == req.ResourceName);
+            if (resource == null || resource.Amount < req.Amount)
+                return false;
+        }
+        return true;
+    }
+
+    private void ExecuteActionEffects(GameActionDb action, Npc npc)
+    {
+        foreach (var effect in action.Effects)
+        {
+            double value = effect.Value ?? 0;
+
+            // Обчислення за формулою
+            if (!string.IsNullOrEmpty(effect.Formula))
+            {
+                value = EvaluateFormula(effect.Formula, npc);
+            }
+
+            switch (effect.EffectType)
+            {
+                case "ChangeTrust":
+                    npc.Trust = Math.Min(100, Math.Max(0, npc.Trust + value));
+                    Log($"Довіра {npc.Name}: {(value > 0 ? "+" : "")}{value:F0}", LogEntry.ColorSuccess);
+                    break;
+
+                case "AddMemory":
+                    npc.Remember(new MemoryEntry(_player.CurrentDay, MemoryType.Social, effect.Formula ?? "Взаємодія"));
+                    Log($"Додано спогад для {npc.Name}", LogEntry.ColorNormal);
+                    break;
+            }
+        }
+
+        // Витрачання ресурсів
+        foreach (var req in action.ResourceRequirements)
+        {
+            var resource = _resources.First(r => r.Name == req.ResourceName);
+            resource.Amount -= req.Amount;
+            _db.SaveResource(resource);
+            Log($"Витрачено {req.Amount} {req.ResourceName}", LogEntry.ColorNormal);
+        }
+
+        _db.SaveNpc(npc);
+        Log($"Виконано дію: {action.DisplayName}", LogEntry.ColorSuccess);
+    }
+
+    private double EvaluateFormula(string formula, Npc npc)
+    {
+        var result = formula
+            .Replace("trust", npc.Trust.ToString())
+            .Replace("health", npc.Health.ToString())
+            .Replace("fear", npc.Fear.ToString());
+
+        if (double.TryParse(result, out double value))
+            return value;
+        return 0;
+    }
     private void DoViewInfo(Npc npc)
     {
         var npcExp = new Expander

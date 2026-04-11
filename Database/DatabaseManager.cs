@@ -6,6 +6,8 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using ApocalypseSimulation.Models.StatisticsData;
+using ApocMinimal.Models.DaysData;
+using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
@@ -1183,6 +1185,245 @@ public class DatabaseManager
         };
         int count = rnd.Next(2, 8);
         return all.OrderBy(_ => rnd.Next()).Take(count).ToList();
+    }
+
+    // =========================================================
+    // Actions System
+    // =========================================================
+
+    public List<PlayerActionCategory> GetPlayerActionCategories()
+    {
+        var categories = new List<PlayerActionCategory>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, Name, DisplayOrder, IsActive FROM ActionCategories WHERE IsActive = 1 ORDER BY DisplayOrder", _conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                categories.Add(new PlayerActionCategory
+                {
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    DisplayOrder = reader.GetInt32(2),
+                    IsActive = reader.GetBoolean(3)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionCategories error: {ex.Message}"); }
+        return categories;
+    }
+
+    public List<PlayerActionDb> GetAllPlayerActionsDb()
+    {
+        var actions = new List<PlayerActionDb>();
+        try
+        {
+            using var cmd = new SQLiteCommand(@"SELECT Id, CategoryId, ActionKey, DisplayName, Description, 
+            RequiresTarget, RequiresResource, RequiresQuest, ConsumesAction, ExecutionOrder, IsActive 
+            FROM GameActions WHERE IsActive = 1 ORDER BY ExecutionOrder", _conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                actions.Add(new PlayerActionDb
+                {
+                    Id = reader.GetInt32(0),
+                    CategoryId = reader.GetInt32(1),
+                    ActionKey = reader.GetString(2),
+                    DisplayName = reader.GetString(3),
+                    Description = reader.GetString(4),
+                    RequiresTarget = reader.GetBoolean(5),
+                    RequiresResource = reader.GetBoolean(6),
+                    RequiresQuest = reader.GetBoolean(7),
+                    ConsumesAction = reader.GetBoolean(8),
+                    ExecutionOrder = reader.GetInt32(9),
+                    IsActive = reader.GetBoolean(10)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetAllPlayerActionsDb error: {ex.Message}"); }
+        return actions;
+    }
+
+    public List<PlayerActionCondition> GetPlayerActionConditions(int actionId)
+    {
+        var conditions = new List<PlayerActionCondition>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, ConditionType, Operator, Value, ErrorMessage FROM ActionConditions WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                conditions.Add(new PlayerActionCondition
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    ConditionType = reader.GetString(2),
+                    Operator = reader.GetString(3),
+                    Value = reader.GetString(4),
+                    ErrorMessage = reader.GetString(5)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionConditions error: {ex.Message}"); }
+        return conditions;
+    }
+
+    public List<PlayerActionEffect> GetPlayerActionEffects(int actionId)
+    {
+        var effects = new List<PlayerActionEffect>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, EffectType, Target, Value, Formula FROM ActionEffects WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                effects.Add(new PlayerActionEffect
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    EffectType = reader.GetString(2),
+                    Target = reader.GetString(3),
+                    Value = reader.IsDBNull(4) ? null : reader.GetDouble(4),
+                    Formula = reader.IsDBNull(5) ? null : reader.GetString(5)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionEffects error: {ex.Message}"); }
+        return effects;
+    }
+
+    public List<PlayerActionResourceRequirement> GetPlayerActionResourceRequirements(int actionId)
+    {
+        var requirements = new List<PlayerActionResourceRequirement>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, ResourceName, Amount FROM ActionResourceRequirements WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                requirements.Add(new PlayerActionResourceRequirement
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    ResourceName = reader.GetString(2),
+                    Amount = reader.GetDouble(3)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionResourceRequirements error: {ex.Message}"); }
+        return requirements;
+    }
+
+
+    // =========================================================
+    // Actions System - ДОДАТИ ЦІ МЕТОДИ
+    // =========================================================
+
+    public List<GameActionDb> GetAllGameActions()
+    {
+        var actions = new List<GameActionDb>();
+        try
+        {
+            using var cmd = new SQLiteCommand(@"SELECT Id, CategoryId, ActionKey, DisplayName, Description, 
+            RequiresTarget, RequiresResource, RequiresQuest, ConsumesAction, ExecutionOrder, IsActive 
+            FROM GameActions WHERE IsActive = 1 ORDER BY ExecutionOrder", _conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                actions.Add(new GameActionDb
+                {
+                    Id = reader.GetInt32(0),
+                    CategoryId = reader.GetInt32(1),
+                    ActionKey = reader.GetString(2),
+                    DisplayName = reader.GetString(3),
+                    Description = reader.GetString(4),
+                    RequiresTarget = reader.GetBoolean(5),
+                    RequiresResource = reader.GetBoolean(6),
+                    RequiresQuest = reader.GetBoolean(7),
+                    ConsumesAction = reader.GetBoolean(8),
+                    ExecutionOrder = reader.GetInt32(9),
+                    IsActive = reader.GetBoolean(10)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetAllGameActions error: {ex.Message}"); }
+        return actions;
+    }
+
+    public List<ActionConditionDb> GetActionConditions(int actionId)
+    {
+        var conditions = new List<ActionConditionDb>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, ConditionType, Operator, Value, ErrorMessage FROM ActionConditions WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                conditions.Add(new ActionConditionDb
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    ConditionType = reader.GetString(2),
+                    Operator = reader.GetString(3),
+                    Value = reader.GetString(4),
+                    ErrorMessage = reader.GetString(5)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetActionConditions error: {ex.Message}"); }
+        return conditions;
+    }
+
+    public List<ActionEffectDb> GetActionEffects(int actionId)
+    {
+        var effects = new List<ActionEffectDb>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, EffectType, Target, Value, Formula FROM ActionEffects WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                effects.Add(new ActionEffectDb
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    EffectType = reader.GetString(2),
+                    Target = reader.GetString(3),
+                    Value = reader.IsDBNull(4) ? null : reader.GetDouble(4),
+                    Formula = reader.IsDBNull(5) ? null : reader.GetString(5)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetActionEffects error: {ex.Message}"); }
+        return effects;
+    }
+
+    public List<ActionResourceRequirementDb> GetActionResourceRequirements(int actionId)
+    {
+        var requirements = new List<ActionResourceRequirementDb>();
+        try
+        {
+            using var cmd = new SQLiteCommand("SELECT Id, ActionId, ResourceName, Amount FROM ActionResourceRequirements WHERE ActionId = @actionId", _conn);
+            cmd.Parameters.AddWithValue("@actionId", actionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                requirements.Add(new ActionResourceRequirementDb
+                {
+                    Id = reader.GetInt32(0),
+                    ActionId = reader.GetInt32(1),
+                    ResourceName = reader.GetString(2),
+                    Amount = reader.GetDouble(3)
+                });
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetActionResourceRequirements error: {ex.Message}"); }
+        return requirements;
     }
 }
 
