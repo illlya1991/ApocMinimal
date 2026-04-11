@@ -4,7 +4,12 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using ApocMinimal.Database;
-using ApocMinimal.Models;
+using ApocMinimal.Models.LocationData;
+using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Models.PersonData.PlayerData;
+using ApocMinimal.Models.ResourceData;
+using ApocMinimal.Models.UIData;
 using ApocMinimal.Systems;
 
 namespace ApocMinimal;

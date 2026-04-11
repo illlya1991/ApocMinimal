@@ -1,4 +1,5 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.DaysData;
+
 
 public enum ActionCategory { Basic, Special }
 
@@ -8,10 +9,10 @@ public enum ActionCategory { Basic, Special }
 /// </summary>
 public class GameAction
 {
-    public int            Id            { get; set; }
-    public string         Name          { get; set; } = "";
-    public ActionCategory Category      { get; set; }
-    public string         Description   { get; set; } = "";
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public ActionCategory Category { get; set; }
+    public string Description { get; set; } = "";
 
     /// <summary>Stamina cost (0–30).</summary>
     public double StaminaCost { get; set; }

@@ -1,7 +1,8 @@
 using ApocalypseSimulation.Models.StatisticsData;
+using ApocMinimal.Models.PersonData.NpcData;
 using System.Text.Json.Serialization;
 
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.PersonData;
 
 public enum NpcTrait
 {
@@ -11,7 +12,7 @@ public enum NpcTrait
     Loner    // Одиночка: иммунен к бонусу Лидера
 }
 
-public enum Gender { Male, Female}
+public enum Gender { Male, Female }
 
 /// <summary>
 /// Full NPC model (Stage A+).
@@ -19,31 +20,31 @@ public enum Gender { Male, Female}
 public class Npc
 {
     // ── IDENTITY ────────────────────────────────────────────────────────────
-    public int      Id         { get; set; }
-    public string   Name       { get; set; } = "";
-    public int      Age        { get; set; }
-    public Gender   Gender     { get; set; }
-    public string   Profession { get; set; } = "";
-    public string   Description { get; set; } = "";
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public int Age { get; set; }
+    public Gender Gender { get; set; }
+    public string Profession { get; set; } = "";
+    public string Description { get; set; } = "";
 
     // ── VITALS ──────────────────────────────────────────────────────────────
-    public double Health   { get; set; } = 100;
-    public double Faith    { get; set; }
-    public double Stamina  { get; set; } = 100;  // 0–100, restored each day
-    public double Chakra   { get; set; } = 50;   // 0–100, energy resource
+    public double Health { get; set; } = 100;
+    public double Faith { get; set; }
+    public double Stamina { get; set; } = 100;  // 0–100, restored each day
+    public double Chakra { get; set; } = 50;   // 0–100, energy resource
 
     /// <summary>0–100: how much this NPC fears the current situation.</summary>
-    public double Fear    { get; set; } = 10;
+    public double Fear { get; set; } = 10;
     /// <summary>0–100: trust in the player (divine entity).</summary>
-    public double Trust   { get; set; } = 50;
+    public double Trust { get; set; } = 50;
     /// <summary>0–100: initiative (chance to act first, take quests proactively).</summary>
     public double Initiative { get; set; } = 50;
     /// <summary>0–100: combat initiative (determines attack order in battle).</summary>
     public double CombatInitiative { get; set; } = 50;
 
     // ── ROLE & PROGRESSION ──────────────────────────────────────────────────
-    public NpcTrait Trait          { get; set; }
-    public int      FollowerLevel  { get; set; }  // 0–5
+    public NpcTrait Trait { get; set; }
+    public int FollowerLevel { get; set; }  // 0–5
 
     /// <summary>2 character traits.</summary>
     public List<CharacterTrait> CharTraits { get; set; } = new();
@@ -55,8 +56,8 @@ public class Npc
     /// <summary>Exactly 3 emotions summing to 100%.</summary>
     public List<Emotion> Emotions { get; set; } = new();
 
-    public string Goal   { get; set; } = "";  // короткосрочная цель
-    public string Dream  { get; set; } = "";  // долгосрочная мечта
+    public string Goal { get; set; } = "";  // короткосрочная цель
+    public string Dream { get; set; } = "";  // долгосрочная мечта
     public string Desire { get; set; } = "";  // текущее желание
 
     // ── NEEDS ───────────────────────────────────────────────────────────────
@@ -68,10 +69,10 @@ public class Npc
     public Statistics Stats { get; set; } = new Statistics(100);
 
     // ── TASK (legacy, kept for DB compatibility) ─────────────────────────────
-    public string ActiveTask      { get; set; } = "";
-    public int    TaskDaysLeft    { get; set; }
-    public int    TaskRewardResId { get; set; }
-    public double TaskRewardAmt   { get; set; }
+    public string ActiveTask { get; set; } = "";
+    public int TaskDaysLeft { get; set; }
+    public int TaskRewardResId { get; set; }
+    public double TaskRewardAmt { get; set; }
 
     // ── MEMORY ──────────────────────────────────────────────────────────────
     /// <summary>Last 50 memory entries (serialised separately).</summary>
@@ -83,20 +84,20 @@ public class Npc
     public bool HasTask => !string.IsNullOrEmpty(ActiveTask);
 
     // Hunger/Thirst are now Needs; these helpers find them.
-    [JsonIgnore] public double Hunger => Needs.FirstOrDefault(n => n.Name == "Еда")?.Value   ?? 0;
-    [JsonIgnore] public double Thirst => Needs.FirstOrDefault(n => n.Name == "Вода")?.Value  ?? 0;
+    [JsonIgnore] public double Hunger => Needs.FirstOrDefault(n => n.Name == "Еда")?.Value ?? 0;
+    [JsonIgnore] public double Thirst => Needs.FirstOrDefault(n => n.Name == "Вода")?.Value ?? 0;
 
     public string TraitLabel => Trait switch
     {
         NpcTrait.Leader => "Лидер",
         NpcTrait.Coward => "Трус",
-        NpcTrait.Loner  => "Одиночка",
-        _               => ""
+        NpcTrait.Loner => "Одиночка",
+        _ => ""
     };
 
     public string GenderLabel => Gender switch
     {
-        Gender.Male   => "М",
+        Gender.Male => "М",
         Gender.Female => "Ж"
     };
 
@@ -115,8 +116,8 @@ public class Npc
     {
         get
         {
-            if (!IsAlive)              return "#3d1515";
-            if (Health < 30)           return "#3d2200";
+            if (!IsAlive) return "#3d1515";
+            if (Health < 30) return "#3d2200";
             if (Hunger > 80 || Thirst > 80) return "#3d3200";
             return "#16213e";
         }

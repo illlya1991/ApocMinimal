@@ -1,4 +1,4 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.TechniqueData;
 
 public enum TechniqueLevel
 {
@@ -25,32 +25,32 @@ public static class TechniqueLevelExtensions
 {
     public static double GetMultiplier(this TechniqueLevel level) => level switch
     {
-        TechniqueLevel.Genin       => 1.5,
-        TechniqueLevel.EliteGenin  => 2.0,
-        TechniqueLevel.Chunin      => 3.0,
+        TechniqueLevel.Genin => 1.5,
+        TechniqueLevel.EliteGenin => 2.0,
+        TechniqueLevel.Chunin => 3.0,
         TechniqueLevel.EliteChunin => 5.0,
-        TechniqueLevel.Jonin       => 8.0,
-        TechniqueLevel.EliteJonin  => 10.0,
-        TechniqueLevel.Anbu        => 12.0,
-        TechniqueLevel.Sannin      => 15.0,
-        TechniqueLevel.Jinchuriki  => 20.0,
-        TechniqueLevel.Kage        => 30.0,
-        _                          => 1.0,
+        TechniqueLevel.Jonin => 8.0,
+        TechniqueLevel.EliteJonin => 10.0,
+        TechniqueLevel.Anbu => 12.0,
+        TechniqueLevel.Sannin => 15.0,
+        TechniqueLevel.Jinchuriki => 20.0,
+        TechniqueLevel.Kage => 30.0,
+        _ => 1.0,
     };
 
     public static string ToLabel(this TechniqueLevel level) => level switch
     {
-        TechniqueLevel.Genin       => "Генин",
-        TechniqueLevel.EliteGenin  => "Элит-генин",
-        TechniqueLevel.Chunin      => "Чонин",
+        TechniqueLevel.Genin => "Генин",
+        TechniqueLevel.EliteGenin => "Элит-генин",
+        TechniqueLevel.Chunin => "Чонин",
         TechniqueLevel.EliteChunin => "Элит-чонин",
-        TechniqueLevel.Jonin       => "Джонин",
-        TechniqueLevel.EliteJonin  => "Элит-джонин",
-        TechniqueLevel.Anbu        => "АНБУ",
-        TechniqueLevel.Sannin      => "Санин",
-        TechniqueLevel.Jinchuriki  => "Джинчурики",
-        TechniqueLevel.Kage        => "Каге",
-        _                          => level.ToString(),
+        TechniqueLevel.Jonin => "Джонин",
+        TechniqueLevel.EliteJonin => "Элит-джонин",
+        TechniqueLevel.Anbu => "АНБУ",
+        TechniqueLevel.Sannin => "Санин",
+        TechniqueLevel.Jinchuriki => "Джинчурики",
+        TechniqueLevel.Kage => "Каге",
+        _ => level.ToString(),
     };
 
     /// <summary>Minimum altar level required to grant this technique.</summary>

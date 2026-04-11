@@ -1,4 +1,7 @@
-using ApocMinimal.Models;
+using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Models.PersonData.PlayerData;
+using ApocMinimal.Models.ResourceData;
 
 namespace ApocMinimal.Systems;
 

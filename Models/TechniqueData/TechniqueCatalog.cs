@@ -1,4 +1,4 @@
-﻿namespace ApocMinimal.Models;
+﻿namespace ApocMinimal.Models.TechniqueData;
 
 public record TechniqueCatalogEntry(
     string AbilityKey,

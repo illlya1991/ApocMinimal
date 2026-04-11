@@ -1,5 +1,7 @@
-using ApocMinimal.Models;
 using ApocalypseSimulation.Models.StatisticsData;
+using ApocMinimal.Models.TechniqueData;
+using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.LocationData;
 
 namespace ApocMinimal.Systems;
 

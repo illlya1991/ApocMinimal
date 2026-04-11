@@ -1,30 +1,30 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.PersonData;
 
 public enum MonsterType { Zombie, Raider, Mutant, Beast, Boss }
 
 public class Monster
 {
-    public string      Name        { get; set; } = "";
-    public MonsterType Type        { get; set; }
-    public double      Health      { get; set; } = 100;
-    public double      DangerLevel { get; set; }
+    public string Name { get; set; } = "";
+    public MonsterType Type { get; set; }
+    public double Health { get; set; } = 100;
+    public double DangerLevel { get; set; }
 
     /// <summary>Combat stats (same StatDefs IDs 1–10).</summary>
     public Dictionary<int, double> Stats { get; set; } = new();
 
     /// <summary>ОВ awarded on kill.</summary>
-    public double OvReward    { get; set; }
+    public double OvReward { get; set; }
     /// <summary>Probability (0–1) of heart drop (+10 ОВ).</summary>
     public double HeartChance { get; set; }
 
     public string TypeLabel => Type switch
     {
-        MonsterType.Zombie  => "Зомби",
-        MonsterType.Raider  => "Мародёр",
-        MonsterType.Mutant  => "Мутант",
-        MonsterType.Beast   => "Зверь",
-        MonsterType.Boss    => "Босс",
-        _                   => Type.ToString(),
+        MonsterType.Zombie => "Зомби",
+        MonsterType.Raider => "Мародёр",
+        MonsterType.Mutant => "Мутант",
+        MonsterType.Beast => "Зверь",
+        MonsterType.Boss => "Босс",
+        _ => Type.ToString(),
     };
 }
 
@@ -47,11 +47,11 @@ public static class MonsterFactory
             < 40 => (MonsterType)rnd.Next(0, 2),
             < 60 => (MonsterType)rnd.Next(1, 4),
             < 80 => (MonsterType)rnd.Next(2, 5),
-            _    => MonsterType.Boss,
+            _ => MonsterType.Boss,
         };
 
         double power = Math.Clamp(dangerLevel * 0.8 + rnd.Next(-10, 11), 10, 100);
-        var nameArr  = _names[(int)type];
+        var nameArr = _names[(int)type];
 
         var stats = new Dictionary<int, double>();
         for (int i = 1; i <= 10; i++)
@@ -59,12 +59,12 @@ public static class MonsterFactory
 
         return new Monster
         {
-            Name        = nameArr[rnd.Next(nameArr.Length)],
-            Type        = type,
-            Health      = Math.Clamp(power * 1.5 + rnd.Next(-20, 21), 20, 300),
+            Name = nameArr[rnd.Next(nameArr.Length)],
+            Type = type,
+            Health = Math.Clamp(power * 1.5 + rnd.Next(-20, 21), 20, 300),
             DangerLevel = dangerLevel,
-            Stats       = stats,
-            OvReward    = type == MonsterType.Boss
+            Stats = stats,
+            OvReward = type == MonsterType.Boss
                             ? Math.Round(dangerLevel * 0.5)
                             : Math.Round(dangerLevel * 0.2),
             HeartChance = type == MonsterType.Boss ? 0.5 : 0.15,

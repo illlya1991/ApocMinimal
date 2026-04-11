@@ -1,23 +1,23 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.PersonData.PlayerData;
 
 public enum QuestStatus { Available, Active, Completed, Failed }
 public enum QuestSource { Player, AI }
 
 public class Quest
 {
-    public int         Id          { get; set; }
-    public string      Title       { get; set; } = "";
-    public string      Description { get; set; } = "";
-    public QuestSource Source      { get; set; }
-    public QuestStatus Status      { get; set; } = QuestStatus.Available;
+    public int Id { get; set; }
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public QuestSource Source { get; set; }
+    public QuestStatus Status { get; set; } = QuestStatus.Available;
 
     /// <summary>ID of NPC assigned to this quest (0 = unassigned).</summary>
     public int AssignedNpcId { get; set; }
 
-    public int    DaysRequired    { get; set; } = 3;
-    public int    DaysRemaining   { get; set; }
-    public int    RewardResourceId { get; set; }
-    public double RewardAmount    { get; set; }
+    public int DaysRequired { get; set; } = 3;
+    public int DaysRemaining { get; set; }
+    public int RewardResourceId { get; set; }
+    public double RewardAmount { get; set; }
 
     /// <summary>Faith cost for player to unlock this quest (0 = free).</summary>
     public double FaithCost { get; set; }

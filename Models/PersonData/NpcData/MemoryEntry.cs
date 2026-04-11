@@ -1,4 +1,4 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.PersonData.NpcData;
 
 public enum MemoryType
 {
@@ -16,10 +16,10 @@ public enum MemoryType
 /// </summary>
 public class MemoryEntry
 {
-    public int        Day     { get; set; }
-    public MemoryType Type    { get; set; }
-    public string     Text    { get; set; } = "";
-    public int        NpcId   { get; set; }  // 0 = self
+    public int Day { get; set; }
+    public MemoryType Type { get; set; }
+    public string Text { get; set; } = "";
+    public int NpcId { get; set; }  // 0 = self
 
     public MemoryEntry() { }
     public MemoryEntry(int day, MemoryType type, string text, int npcId = 0)
@@ -29,13 +29,13 @@ public class MemoryEntry
 
     public string Icon => Type switch
     {
-        MemoryType.Action    => "⚡",
-        MemoryType.Quest     => "📋",
-        MemoryType.Combat    => "⚔",
-        MemoryType.Social    => "💬",
+        MemoryType.Action => "⚡",
+        MemoryType.Quest => "📋",
+        MemoryType.Combat => "⚔",
+        MemoryType.Social => "💬",
         MemoryType.Discovery => "🔍",
-        MemoryType.Divine    => "✦",
+        MemoryType.Divine => "✦",
         MemoryType.StatChange => "📈",
-        _                    => "•",
+        _ => "•",
     };
 }

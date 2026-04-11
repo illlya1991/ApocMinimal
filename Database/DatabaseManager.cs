@@ -6,7 +6,12 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using ApocalypseSimulation.Models.StatisticsData;
-using ApocMinimal.Models;
+using ApocMinimal.Models.LocationData;
+using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Models.PersonData.PlayerData;
+using ApocMinimal.Models.ResourceData;
+using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Systems;
 
 namespace ApocMinimal.Database;

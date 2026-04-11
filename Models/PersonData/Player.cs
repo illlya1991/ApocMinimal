@@ -1,19 +1,21 @@
-namespace ApocMinimal.Models;
+using ApocMinimal.Models.TechniqueData;
+
+namespace ApocMinimal.Models.PersonData;
 
 /// <summary>A technique grantable to NPCs or usable by the player via the altar.</summary>
 public class Technique
 {
-    public int    Id          { get; set; }
-    public string Name        { get; set; } = "";
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
     public string Description { get; set; } = "";
-    public int    AltarLevel  { get; set; }   // min altar level to grant/use
-    public double FaithCost   { get; set; }
+    public int AltarLevel { get; set; }   // min altar level to grant/use
+    public double FaithCost { get; set; }
 
     // ── Ninja system ──────────────────────────────────────────────────
-    public TechniqueLevel TechLevel   { get; set; } = TechniqueLevel.Genin;
-    public TechniqueType  TechType    { get; set; } = TechniqueType.Energy;
-    public double         ChakraCost  { get; set; }
-    public double         StaminaCost { get; set; }
+    public TechniqueLevel TechLevel { get; set; } = TechniqueLevel.Genin;
+    public TechniqueType TechType { get; set; } = TechniqueType.Energy;
+    public double ChakraCost { get; set; }
+    public double StaminaCost { get; set; }
     /// <summary>Required minimum stat values (StatId → minValue).</summary>
     public Dictionary<int, double> RequiredStats { get; set; } = new();
     /// <summary>
@@ -24,28 +26,28 @@ public class Technique
 
 public class Player
 {
-    public int    Id          { get; set; }
-    public string Name        { get; set; } = "";
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
     public double FaithPoints { get; set; }
-    public int    AltarLevel  { get; set; } = 1;   // 1–10
-    public int    CurrentDay  { get; set; }
+    public int AltarLevel { get; set; } = 1;   // 1–10
+    public int CurrentDay { get; set; }
 
     // ── Stage F fields ────────────────────────────────────────────────
     /// <summary>Altar can project a protective barrier of this radius (0 = none).</summary>
-    public double BarrierSize      { get; set; }
+    public double BarrierSize { get; set; }
     /// <summary>Number of controlled location IDs.</summary>
-    public int    TerritoryControl { get; set; }
+    public int TerritoryControl { get; set; }
 
     // ── Player action hour ────────────────────────────────────────────
     /// <summary>How many direct player actions were taken today.</summary>
-    public int    PlayerActionsToday    { get; set; }
+    public int PlayerActionsToday { get; set; }
     /// <summary>Maximum player direct actions per day (1 "player hour").</summary>
     public const int MaxPlayerActionsPerDay = 10;
 
     // ── Derived ────────────────────────────────────────────────────────
     /// <summary>200 × 5^(level-1). Level 1=200, 2=1000, 3=5000 … 10=390 625 000.</summary>
-    public long   UpgradeCost => (long)(200 * Math.Pow(5, AltarLevel - 1));
-    public bool   CanUpgrade  => AltarLevel < 10 && FaithPoints >= UpgradeCost;
+    public long UpgradeCost => (long)(200 * Math.Pow(5, AltarLevel - 1));
+    public bool CanUpgrade => AltarLevel < 10 && FaithPoints >= UpgradeCost;
 
     /// <summary>Max ОВ any single NPC can generate per day (reached at follower level 5).</summary>
     public const double MaxFaithPerNpcPerDay = 10.0;

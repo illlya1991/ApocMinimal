@@ -1,19 +1,19 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.PersonData.NpcData;
 
 public enum NeedCategory { Basic, Special }
 
 public class Need
 {
-    public int          Id           { get; set; }
-    public string       Name         { get; set; } = "";
-    public NeedCategory Category     { get; set; }
-    public int          Level        { get; set; } = 1;   // 1–5: сила потребности
-    public double       Value        { get; set; }        // 0–100: текущий уровень (выше = острее)
-    public double       Satisfaction { get; set; } = 100; // 0–100
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public NeedCategory Category { get; set; }
+    public int Level { get; set; } = 1;   // 1–5: сила потребности
+    public double Value { get; set; }        // 0–100: текущий уровень (выше = острее)
+    public double Satisfaction { get; set; } = 100; // 0–100
 
-    public bool IsCritical    => Value >= 80;
-    public bool IsUrgent      => Value >= 60;
-    public bool IsSatisfied   => Value <= 20;
+    public bool IsCritical => Value >= 80;
+    public bool IsUrgent => Value >= 60;
+    public bool IsSatisfied => Value <= 20;
 
     public void Decay(double amount)
     {
@@ -34,16 +34,16 @@ public class Need
 /// </summary>
 public enum BasicNeedId
 {
-    Food    = 1,
-    Water   = 2,
-    Sleep   = 3,
-    Heat    = 4,
+    Food = 1,
+    Water = 2,
+    Sleep = 3,
+    Heat = 4,
     Hygiene = 5,
-    Toilet  = 6,
-    Safety  = 7,
-    Rest    = 8,
-    Health  = 9,
-    Social  = 10,
+    Toilet = 6,
+    Safety = 7,
+    Rest = 8,
+    Health = 9,
+    Social = 10,
 }
 
 public static class BasicNeeds

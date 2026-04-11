@@ -1,11 +1,11 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.PersonData.NpcData;
 
 /// <summary>
 /// One emotional state. An NPC has exactly 3 emotions whose Percentage values sum to 100.
 /// </summary>
 public class Emotion
 {
-    public string Name       { get; set; } = "";
+    public string Name { get; set; } = "";
     public double Percentage { get; set; }   // 0–100, all 3 must sum to 100
 
     public Emotion() { }

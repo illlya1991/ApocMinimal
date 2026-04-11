@@ -1,4 +1,6 @@
-using ApocMinimal.Models;
+using ApocMinimal.Models.DaysData;
+using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.PersonData.NpcData;
 
 namespace ApocMinimal.Systems;
 

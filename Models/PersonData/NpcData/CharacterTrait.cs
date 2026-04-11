@@ -1,4 +1,4 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.PersonData.NpcData;
 
 /// <summary>
 /// Personality trait an NPC can have (each NPC gets exactly 2).
@@ -21,23 +21,23 @@ public static class CharacterTraitExtensions
 {
     public static string ToLabel(this CharacterTrait t) => t switch
     {
-        CharacterTrait.Brave       => "Храбрый",
-        CharacterTrait.Cowardly    => "Трусливый",
-        CharacterTrait.Generous    => "Щедрый",
-        CharacterTrait.Greedy      => "Жадный",
-        CharacterTrait.Curious     => "Любопытный",
-        CharacterTrait.Lazy        => "Ленивый",
-        CharacterTrait.Loyal       => "Преданный",
+        CharacterTrait.Brave => "Храбрый",
+        CharacterTrait.Cowardly => "Трусливый",
+        CharacterTrait.Generous => "Щедрый",
+        CharacterTrait.Greedy => "Жадный",
+        CharacterTrait.Curious => "Любопытный",
+        CharacterTrait.Lazy => "Ленивый",
+        CharacterTrait.Loyal => "Преданный",
         CharacterTrait.Treacherous => "Предательский",
-        CharacterTrait.Empathetic  => "Эмпатичный",
-        CharacterTrait.Paranoid    => "Параноидный",
-        _                          => t.ToString(),
+        CharacterTrait.Empathetic => "Эмпатичный",
+        CharacterTrait.Paranoid => "Параноидный",
+        _ => t.ToString(),
     };
 
     public static CharacterTrait[] GeneratePair(Random rnd)
     {
-        var all    = Enum.GetValues<CharacterTrait>();
-        var first  = all[rnd.Next(all.Length)];
+        var all = Enum.GetValues<CharacterTrait>();
+        var first = all[rnd.Next(all.Length)];
         CharacterTrait second;
         do { second = all[rnd.Next(all.Length)]; } while (second == first);
         return new[] { first, second };

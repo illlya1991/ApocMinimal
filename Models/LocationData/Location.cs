@@ -1,4 +1,4 @@
-namespace ApocMinimal.Models;
+namespace ApocMinimal.Models.LocationData;
 
 public enum LocationType
 {
@@ -25,10 +25,10 @@ public enum MapState
 
 public class Location
 {
-    public int          Id       { get; set; }
-    public string       Name     { get; set; } = "";
-    public LocationType Type     { get; set; }
-    public int          ParentId { get; set; }  // 0 = top level (City)
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public LocationType Type { get; set; }
+    public int ParentId { get; set; }  // 0 = top level (City)
 
     /// <summary>Resource nodes available in this location (ResourceName → maxAmount).</summary>
     public Dictionary<string, double> ResourceNodes { get; set; } = new();
@@ -40,9 +40,9 @@ public class Location
     public bool IsExplored { get; set; }
 
     /// <summary>Whether the location has been cleared of monsters.</summary>
-    public LocationStatus Status         { get; set; } = LocationStatus.Dangerous;
+    public LocationStatus Status { get; set; } = LocationStatus.Dangerous;
     /// <summary>Type of monsters present (empty when Cleared).</summary>
-    public string         MonsterTypeName { get; set; } = "";
+    public string MonsterTypeName { get; set; } = "";
 
     /// <summary>Which map snapshot this location belongs to.</summary>
     public MapState MapState { get; set; } = MapState.Current;
@@ -50,12 +50,12 @@ public class Location
     public string TypeLabel => Type switch
     {
         LocationType.Apartment => "Квартира",
-        LocationType.Floor     => "Этаж",
-        LocationType.Building  => "Здание",
-        LocationType.Street    => "Улица",
-        LocationType.District  => "Район",
-        LocationType.City      => "Город",
-        _                      => Type.ToString(),
+        LocationType.Floor => "Этаж",
+        LocationType.Building => "Здание",
+        LocationType.Street => "Улица",
+        LocationType.District => "Район",
+        LocationType.City => "Город",
+        _ => Type.ToString(),
     };
 }
 
