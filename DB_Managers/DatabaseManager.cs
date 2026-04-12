@@ -31,13 +31,19 @@ public class DatabaseManager
     {
         _maxSavesCount = 3;
         _ListSaves = new List<OneSave>();
-        string NameTemplate = "apoc_minimal_template.db", NameSave = $"Saves\\apocSave_";
-        string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataBase\\");
-        _templateSave = new OneSave(dbPath + NameTemplate, true);
+
+        // Путь к шаблону в папке DataBase проекта (копируется при сборке)
+        string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataBase", "apoc_minimal_template.db");
+
+        _templateSave = new OneSave(templatePath, true);
+
+        // Папка для сохранений (создаётся рядом с exe)
+        string savesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves");
+        Directory.CreateDirectory(savesPath);
 
         for (int i = 1; i <= _maxSavesCount; i++)
         {
-            _ListSaves.Add(new OneSave(dbPath + NameSave + i.ToString() + ".db"));
+            _ListSaves.Add(new OneSave(Path.Combine(savesPath, $"apocSave_{i}.db")));
         }
         _thisSave = _ListSaves[0];
         InitializeDatabase();
@@ -70,107 +76,6 @@ public class DatabaseManager
             catch { }   
         }
         OpenConnection("");
-    }
-    private void InitializeDatabase_Old()
-    {
-
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS Player (
-                Id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name                 TEXT    NOT NULL,
-                FaithPoints          REAL    DEFAULT 0,
-                AltarLevel           INTEGER DEFAULT 1,
-                CurrentDay           INTEGER DEFAULT 0,
-                BarrierSize          REAL    DEFAULT 0,
-                TerritoryControl     INTEGER DEFAULT 0,
-                PlayerActionsToday   INTEGER DEFAULT 0
-            )");
-
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS Npcs (
-                Id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name            TEXT    NOT NULL,
-                Age             INTEGER DEFAULT 0,
-                Gender          TEXT    DEFAULT 'Male',
-                Profession      TEXT    DEFAULT '',
-                Description     TEXT    DEFAULT '',
-                Health          REAL    DEFAULT 100,
-                Faith           REAL    DEFAULT 0,
-                Stamina         REAL    DEFAULT 100,
-                Chakra          REAL    DEFAULT 50,
-                Fear            REAL    DEFAULT 10,
-                Trust           REAL    DEFAULT 50,
-                Initiative      REAL    DEFAULT 50,
-                Trait           TEXT    DEFAULT 'None',
-                FollowerLevel   INTEGER DEFAULT 0,
-                CharTraits      TEXT    DEFAULT '[]',
-                Specializations TEXT    DEFAULT '[]',
-                Emotions        TEXT    DEFAULT '[]',
-                Goal            TEXT    DEFAULT '',
-                Dream           TEXT    DEFAULT '',
-                Desire          TEXT    DEFAULT '',
-                Needs           TEXT    DEFAULT '[]',
-                Stats           TEXT    DEFAULT '{}',
-                ActiveTask      TEXT    DEFAULT '',
-                TaskDaysLeft    INTEGER DEFAULT 0,
-                TaskRewardResId INTEGER DEFAULT 0,
-                TaskRewardAmt   REAL    DEFAULT 0,
-                Memory          TEXT    DEFAULT '[]'
-            )");
-
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS Resources (
-                Id       INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name     TEXT NOT NULL,
-                Amount   REAL DEFAULT 0,
-                Category TEXT DEFAULT ''
-            )");
-
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS Quests (
-                Id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                Title            TEXT    NOT NULL,
-                Description      TEXT    DEFAULT '',
-                Source           TEXT    DEFAULT 'AI',
-                Status           TEXT    DEFAULT 'Available',
-                AssignedNpcId    INTEGER DEFAULT 0,
-                DaysRequired     INTEGER DEFAULT 3,
-                DaysRemaining    INTEGER DEFAULT 3,
-                RewardResourceId INTEGER DEFAULT 0,
-                RewardAmount     REAL    DEFAULT 0,
-                FaithCost        REAL    DEFAULT 0
-            )");
-
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS Locations (
-                Id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name            TEXT    NOT NULL,
-                Type            TEXT    DEFAULT 'Apartment',
-                ParentId        INTEGER DEFAULT 0,
-                ResourceNodes   TEXT    DEFAULT '{}',
-                DangerLevel     REAL    DEFAULT 0,
-                IsExplored      INTEGER DEFAULT 0,
-                Status          TEXT    DEFAULT 'Dangerous',
-                MonsterTypeName TEXT    DEFAULT ''
-            )");
-
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS Techniques (
-                Id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name         TEXT    NOT NULL,
-                Description  TEXT    DEFAULT '',
-                AltarLevel   INTEGER DEFAULT 1,
-                TechLevel    TEXT    DEFAULT 'Genin',
-                TechType     TEXT    DEFAULT 'Energy',
-                FaithCost    REAL    DEFAULT 0,
-                ChakraCost   REAL    DEFAULT 0,
-                StaminaCost  REAL    DEFAULT 0,
-                RequiredStats TEXT   DEFAULT '{}'
-            )");
-
-        MigrateColumns();
-        SeedIfEmpty();
-        SeedTechniquesIfEmpty();
     }
 
     public bool HasAnyActiveSave()
