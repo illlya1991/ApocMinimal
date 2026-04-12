@@ -10,7 +10,7 @@ namespace ApocMinimal.Systems.Handlers;
 /// </summary>
 public class EmptyHandler : BaseActionHandler
 {
-    public EmptyHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public EmptyHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction) : base(db, rnd, logAction) { }
 
     public override string Execute(
         Dictionary<string, object> parameters,
@@ -25,7 +25,7 @@ public class EmptyHandler : BaseActionHandler
 
 public class PunishNpcHandler : BaseActionHandler
 {
-    public PunishNpcHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public PunishNpcHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction) : base(db, rnd, logAction) { }
 
     public override string Execute(Dictionary<string, object> parameters, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
     {
@@ -35,7 +35,7 @@ public class PunishNpcHandler : BaseActionHandler
 
 public class RewardNpcHandler : BaseActionHandler
 {
-    public RewardNpcHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public RewardNpcHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction) : base(db, rnd, logAction) { }
 
     public override string Execute(Dictionary<string, object> parameters, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
     {
@@ -43,19 +43,9 @@ public class RewardNpcHandler : BaseActionHandler
     }
 }
 
-public class DonateHandler : BaseActionHandler
-{
-    public DonateHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
-
-    public override string Execute(Dictionary<string, object> parameters, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
-    {
-        return "Отримання пожертви (ще не реалізовано)";
-    }
-}
-
 public class TeachTechniqueHandler : BaseActionHandler
 {
-    public TeachTechniqueHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public TeachTechniqueHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction) : base(db, rnd, logAction) { }
 
     public override string Execute(Dictionary<string, object> parameters, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
     {
@@ -65,7 +55,7 @@ public class TeachTechniqueHandler : BaseActionHandler
 
 public class DemandResourceHandler : BaseActionHandler
 {
-    public DemandResourceHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public DemandResourceHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction) : base(db, rnd, logAction) { }
 
     public override string Execute(Dictionary<string, object> parameters, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
     {
@@ -75,7 +65,7 @@ public class DemandResourceHandler : BaseActionHandler
 
 public class AssignPublicQuestHandler : BaseActionHandler
 {
-    public AssignPublicQuestHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public AssignPublicQuestHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction) : base(db, rnd, logAction) { }
 
     public override string Execute(Dictionary<string, object> parameters, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
     {
@@ -85,7 +75,7 @@ public class AssignPublicQuestHandler : BaseActionHandler
 
 public class CompleteQuestHandler : BaseActionHandler
 {
-    public CompleteQuestHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public CompleteQuestHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction) : base(db, rnd, logAction) { }
 
     public override string Execute(Dictionary<string, object> parameters, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
     {

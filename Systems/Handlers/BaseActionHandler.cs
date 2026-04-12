@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
@@ -14,10 +15,21 @@ public abstract class BaseActionHandler
     protected Database.DatabaseManager _db;
     protected Random _rnd;
 
-    public BaseActionHandler(Database.DatabaseManager db, Random rnd)
+    // Делегат для логирования
+    protected Action<string, string>? _logAction;
+
+    protected BaseActionHandler(Database.DatabaseManager db, Random rnd)
     {
         _db = db;
         _rnd = rnd;
+    }
+
+    // Конструктор с возможностью логирования
+    protected BaseActionHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction)
+    {
+        _db = db;
+        _rnd = rnd;
+        _logAction = logAction;
     }
 
     /// <summary>
@@ -35,6 +47,14 @@ public abstract class BaseActionHandler
         List<Npc> npcs,
         List<Resource> resources,
         List<Quest> quests);
+
+    /// <summary>
+    /// Вивести повідомлення в лог
+    /// </summary>
+    protected void Log(string text, string color)
+    {
+        _logAction?.Invoke(text, color);
+    }
 
     /// <summary>
     /// Отримати NPC за ID

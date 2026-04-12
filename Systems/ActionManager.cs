@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ApocMinimal.Database;
 using ApocMinimal.Models.GameActions;
+using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
@@ -23,18 +24,18 @@ public class ActionManager
     private Dictionary<string, GameActionDb> _actionMap = new();
     private Dictionary<string, BaseActionHandler> _handlers = new();
 
-    public ActionManager(DatabaseManager db, Random rnd)
+    public ActionManager(DatabaseManager db, Random rnd, Action<string, string> logAction)
     {
         _db = db;
         _rnd = rnd;
         LoadActions();
-        InitializeHandlers();
+        InitializeHandlers(logAction);
     }
 
     private void LoadActions()
     {
         _groups = _db.GetActionGroups();
-        _actions = _db.GetAllGameActionsNew();
+        _actions = _db.GetAllGameActions();
         _actionMap = _actions.ToDictionary(a => a.ActionKey, a => a);
 
         foreach (var action in _actions)
@@ -53,22 +54,32 @@ public class ActionManager
         }
     }
 
-    private void InitializeHandlers()
+    private void InitializeHandlers(Action<string, string> logAction)
     {
-        _handlers["ViewInfoHandler"] = new ViewInfoHandler(_db, _rnd);
-        _handlers["TransferResourceHandler"] = new TransferResourceHandler(_db, _rnd);
-        _handlers["ChatHandler"] = new ChatHandler(_db, _rnd);
-        _handlers["GiveQuestHandler"] = new GiveQuestHandler(_db, _rnd);
+        // Группа Информация
+        _handlers["ViewInfoHandler"] = new ViewInfoHandler(_db, _rnd, logAction);
 
-        // Пустишки
-        _handlers["PunishNpcHandler"] = new PunishNpcHandler(_db, _rnd);
-        _handlers["RewardNpcHandler"] = new RewardNpcHandler(_db, _rnd);
-        _handlers["DonateHandler"] = new DonateHandler(_db, _rnd);
-        _handlers["TeachTechniqueHandler"] = new TeachTechniqueHandler(_db, _rnd);
-        _handlers["DemandResourceHandler"] = new DemandResourceHandler(_db, _rnd);
-        _handlers["AssignPublicQuestHandler"] = new AssignPublicQuestHandler(_db, _rnd);
-        _handlers["CompleteQuestHandler"] = new CompleteQuestHandler(_db, _rnd);
-        _handlers["EmptyHandler"] = new EmptyHandler(_db, _rnd);
+        // Группа Взаимодействие - один универсальный хендлер
+        _handlers["InteractionHandler"] = new InteractionHandler(_db, _rnd, logAction);
+
+        // Группа Ресурсы
+        _handlers["TransferResourceHandler"] = new TransferResourceHandler(_db, _rnd, logAction);
+        _handlers["DemandResourceHandler"] = new DemandResourceHandler(_db, _rnd, logAction);
+
+        // Группа Квесты
+        _handlers["GiveQuestHandler"] = new GiveQuestHandler(_db, _rnd, logAction);
+        _handlers["CompleteQuestHandler"] = new CompleteQuestHandler(_db, _rnd, logAction);
+        _handlers["AssignPublicQuestHandler"] = new AssignPublicQuestHandler(_db, _rnd, logAction);
+
+        // Группа Техники
+        _handlers["TeachTechniqueHandler"] = new TeachTechniqueHandler(_db, _rnd, logAction);
+
+        // Группа Управление
+        _handlers["RewardNpcHandler"] = new RewardNpcHandler(_db, _rnd, logAction);
+        _handlers["PunishNpcHandler"] = new PunishNpcHandler(_db, _rnd, logAction);
+
+        // Заглушка
+        _handlers["EmptyHandler"] = new EmptyHandler(_db, _rnd, logAction);
     }
 
     /// <summary>
@@ -101,23 +112,27 @@ public class ActionManager
     /// Виконати дію
     /// </summary>
     public string ExecuteAction(
-        GameActionDb action,
-        Dictionary<string, object> parameterValues,
-        Player player,
-        List<Npc> npcs,
-        List<Resource> resources,
-        List<Quest> quests)
+    GameActionDb action,
+    Dictionary<string, object> parameterValues,
+    Player player,
+    List<Npc> npcs,
+    List<Resource> resources,
+    List<Quest> quests)
     {
-        // Отримуємо обробник
+        // Получаем обработчик
         if (!_handlers.ContainsKey(action.HandlerMethod))
             return $"Обробник '{action.HandlerMethod}' не знайдено";
 
         var handler = _handlers[action.HandlerMethod];
 
-        // Виконуємо
-        var result = handler.Execute(parameterValues, player, npcs, resources, quests);
+        // Добавляем ActionKey в параметры для универсальных хендлеров
+        var extendedParams = new Dictionary<string, object>(parameterValues);
+        extendedParams["_actionKey"] = action.ActionKey;
 
-        // Застосовуємо шаблон якщо є
+        // Выполняем
+        var result = handler.Execute(extendedParams, player, npcs, resources, quests);
+
+        // Применяем шаблон если есть
         if (action.ResultTemplate != null && !string.IsNullOrEmpty(action.ResultTemplate.SuccessTemplate))
         {
             result = FormatWithTemplate(action.ResultTemplate.SuccessTemplate, parameterValues, result);

@@ -72,15 +72,16 @@ public static class PlayerConditionTypes
 /// </summary>
 public static class PlayerConditionOperators
 {
-    public const string Equals = "Equals";
     public const string NotEquals = "NotEquals";
     public const string GreaterThan = "GreaterThan";
     public const string GreaterOrEqual = "GreaterOrEqual";
     public const string LessThan = "LessThan";
     public const string LessOrEqual = "LessOrEqual";
     public const string Contains = "Contains";
-}
 
+    // Добавьте new для скрытия члена object.Equals
+    public new const string Equals = "Equals";
+}
 /// <summary>
 /// Ефект дії
 /// </summary>

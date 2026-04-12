@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Windows.Controls;
+using System.Xml.Linq;
 
 namespace ApocMinimal.Models.GameActions;
 
@@ -12,6 +14,10 @@ public class ActionGroup
     public string Icon { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; }
+    public override string ToString()
+    {
+        return Name;
+    }
 }
 
 /// <summary>
@@ -34,4 +40,9 @@ public class GameActionDb
     public List<ActionParam> Parameters { get; set; } = new();
     public List<HandlerParamMapping> ParamMappings { get; set; } = new();
     public ResultTemplate? ResultTemplate { get; set; }
+
+    public override string ToString()
+    {
+        return DisplayName;
+    }
 }

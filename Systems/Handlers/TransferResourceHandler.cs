@@ -12,7 +12,8 @@ namespace ApocMinimal.Systems.Handlers;
 /// </summary>
 public class TransferResourceHandler : BaseActionHandler
 {
-    public TransferResourceHandler(Database.DatabaseManager db, Random rnd) : base(db, rnd) { }
+    public TransferResourceHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction)
+        : base(db, rnd, logAction) { }
 
     public override string Execute(
         Dictionary<string, object> parameters,

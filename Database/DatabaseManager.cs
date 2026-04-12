@@ -6,7 +6,6 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using ApocalypseSimulation.Models.StatisticsData;
-using ApocMinimal.Models.DaysData;
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
@@ -1191,168 +1190,6 @@ public class DatabaseManager
     // Actions System
     // =========================================================
 
-    public List<PlayerActionCategory> GetPlayerActionCategories()
-    {
-        var categories = new List<PlayerActionCategory>();
-        try
-        {
-            using var cmd = new SQLiteCommand("SELECT Id, Name, DisplayOrder, IsActive FROM ActionCategories WHERE IsActive = 1 ORDER BY DisplayOrder", _conn);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                categories.Add(new PlayerActionCategory
-                {
-                    Id = reader.GetInt32(0),
-                    Name = reader.GetString(1),
-                    DisplayOrder = reader.GetInt32(2),
-                    IsActive = reader.GetBoolean(3)
-                });
-            }
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionCategories error: {ex.Message}"); }
-        return categories;
-    }
-
-    public List<PlayerActionDb> GetAllPlayerActionsDb()
-    {
-        var actions = new List<PlayerActionDb>();
-        try
-        {
-            using var cmd = new SQLiteCommand(@"SELECT Id, CategoryId, ActionKey, DisplayName, Description, 
-            RequiresTarget, RequiresResource, RequiresQuest, ConsumesAction, ExecutionOrder, IsActive 
-            FROM GameActions WHERE IsActive = 1 ORDER BY ExecutionOrder", _conn);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                actions.Add(new PlayerActionDb
-                {
-                    Id = reader.GetInt32(0),
-                    CategoryId = reader.GetInt32(1),
-                    ActionKey = reader.GetString(2),
-                    DisplayName = reader.GetString(3),
-                    Description = reader.GetString(4),
-                    RequiresTarget = reader.GetBoolean(5),
-                    RequiresResource = reader.GetBoolean(6),
-                    RequiresQuest = reader.GetBoolean(7),
-                    ConsumesAction = reader.GetBoolean(8),
-                    ExecutionOrder = reader.GetInt32(9),
-                    IsActive = reader.GetBoolean(10)
-                });
-            }
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetAllPlayerActionsDb error: {ex.Message}"); }
-        return actions;
-    }
-
-    public List<PlayerActionCondition> GetPlayerActionConditions(int actionId)
-    {
-        var conditions = new List<PlayerActionCondition>();
-        try
-        {
-            using var cmd = new SQLiteCommand("SELECT Id, ActionId, ConditionType, Operator, Value, ErrorMessage FROM ActionConditions WHERE ActionId = @actionId", _conn);
-            cmd.Parameters.AddWithValue("@actionId", actionId);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                conditions.Add(new PlayerActionCondition
-                {
-                    Id = reader.GetInt32(0),
-                    ActionId = reader.GetInt32(1),
-                    ConditionType = reader.GetString(2),
-                    Operator = reader.GetString(3),
-                    Value = reader.GetString(4),
-                    ErrorMessage = reader.GetString(5)
-                });
-            }
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionConditions error: {ex.Message}"); }
-        return conditions;
-    }
-
-    public List<PlayerActionEffect> GetPlayerActionEffects(int actionId)
-    {
-        var effects = new List<PlayerActionEffect>();
-        try
-        {
-            using var cmd = new SQLiteCommand("SELECT Id, ActionId, EffectType, Target, Value, Formula FROM ActionEffects WHERE ActionId = @actionId", _conn);
-            cmd.Parameters.AddWithValue("@actionId", actionId);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                effects.Add(new PlayerActionEffect
-                {
-                    Id = reader.GetInt32(0),
-                    ActionId = reader.GetInt32(1),
-                    EffectType = reader.GetString(2),
-                    Target = reader.GetString(3),
-                    Value = reader.IsDBNull(4) ? null : reader.GetDouble(4),
-                    Formula = reader.IsDBNull(5) ? null : reader.GetString(5)
-                });
-            }
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionEffects error: {ex.Message}"); }
-        return effects;
-    }
-
-    public List<PlayerActionResourceRequirement> GetPlayerActionResourceRequirements(int actionId)
-    {
-        var requirements = new List<PlayerActionResourceRequirement>();
-        try
-        {
-            using var cmd = new SQLiteCommand("SELECT Id, ActionId, ResourceName, Amount FROM ActionResourceRequirements WHERE ActionId = @actionId", _conn);
-            cmd.Parameters.AddWithValue("@actionId", actionId);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                requirements.Add(new PlayerActionResourceRequirement
-                {
-                    Id = reader.GetInt32(0),
-                    ActionId = reader.GetInt32(1),
-                    ResourceName = reader.GetString(2),
-                    Amount = reader.GetDouble(3)
-                });
-            }
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPlayerActionResourceRequirements error: {ex.Message}"); }
-        return requirements;
-    }
-
-
-    // =========================================================
-    // Actions System - ДОДАТИ ЦІ МЕТОДИ
-    // =========================================================
-
-    public List<GameActionDb> GetAllGameActions()
-    {
-        var actions = new List<GameActionDb>();
-        try
-        {
-            using var cmd = new SQLiteCommand(@"SELECT Id, CategoryId, ActionKey, DisplayName, Description, 
-            RequiresTarget, RequiresResource, RequiresQuest, ConsumesAction, ExecutionOrder, IsActive 
-            FROM GameActions WHERE IsActive = 1 ORDER BY ExecutionOrder", _conn);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                actions.Add(new GameActionDb
-                {
-                    Id = reader.GetInt32(0),
-                    CategoryId = reader.GetInt32(1),
-                    ActionKey = reader.GetString(2),
-                    DisplayName = reader.GetString(3),
-                    Description = reader.GetString(4),
-                    RequiresTarget = reader.GetBoolean(5),
-                    RequiresResource = reader.GetBoolean(6),
-                    RequiresQuest = reader.GetBoolean(7),
-                    ConsumesAction = reader.GetBoolean(8),
-                    ExecutionOrder = reader.GetInt32(9),
-                    IsActive = reader.GetBoolean(10)
-                });
-            }
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetAllGameActions error: {ex.Message}"); }
-        return actions;
-    }
-
     public List<ActionConditionDb> GetActionConditions(int actionId)
     {
         var conditions = new List<ActionConditionDb>();
@@ -1430,6 +1267,9 @@ public class DatabaseManager
     // НОВА СИСТЕМА ДІЙ
     // =========================================================
 
+    // =========================================================
+    // ActionGroups - ИСПРАВЛЕНО
+    // =========================================================
     public List<ActionGroup> GetActionGroups()
     {
         var groups = new List<ActionGroup>();
@@ -1441,11 +1281,11 @@ public class DatabaseManager
             {
                 groups.Add(new ActionGroup
                 {
-                    Id = reader.GetInt32(0),
-                    Name = reader.GetString(1),
-                    Icon = reader.GetString(2),
-                    DisplayOrder = reader.GetInt32(3),
-                    IsActive = reader.GetBoolean(4)
+                    Id = Convert.ToInt32(reader["Id"]),
+                    Name = reader["Name"]?.ToString() ?? string.Empty,
+                    Icon = reader["Icon"]?.ToString() ?? string.Empty,
+                    DisplayOrder = Convert.ToInt32(reader["DisplayOrder"]),
+                    IsActive = Convert.ToBoolean(reader["IsActive"])
                 });
             }
         }
@@ -1453,60 +1293,66 @@ public class DatabaseManager
         return groups;
     }
 
-    public List<GameActionDb> GetAllGameActionsNew()
+    // =========================================================
+    // GameActions - ИСПРАВЛЕНО
+    // =========================================================
+    public List<GameActionDb> GetAllGameActions()
     {
         var actions = new List<GameActionDb>();
         try
         {
             using var cmd = new SQLiteCommand(@"SELECT Id, GroupId, ActionKey, DisplayName, Description, 
-            HandlerMethod, ConsumesAction, DisplayOrder, IsActive 
-            FROM GameActions WHERE IsActive = 1 ORDER BY GroupId, DisplayOrder", _conn);
+        HandlerMethod, ConsumesAction, DisplayOrder, IsActive 
+        FROM GameActions WHERE IsActive = 1 ORDER BY GroupId, DisplayOrder", _conn);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 actions.Add(new GameActionDb
                 {
-                    Id = reader.GetInt32(0),
-                    GroupId = reader.GetInt32(1),
-                    ActionKey = reader.GetString(2),
-                    DisplayName = reader.GetString(3),
-                    Description = reader.GetString(4),
-                    HandlerMethod = reader.GetString(5),
-                    ConsumesAction = reader.GetBoolean(6),
-                    DisplayOrder = reader.GetInt32(7),
-                    IsActive = reader.GetBoolean(8)
+                    Id = Convert.ToInt32(reader["Id"]),
+                    GroupId = Convert.ToInt32(reader["GroupId"]),
+                    ActionKey = reader["ActionKey"]?.ToString() ?? string.Empty,
+                    DisplayName = reader["DisplayName"]?.ToString() ?? string.Empty,
+                    Description = reader["Description"]?.ToString() ?? string.Empty,
+                    HandlerMethod = reader["HandlerMethod"]?.ToString() ?? string.Empty,
+                    ConsumesAction = Convert.ToBoolean(reader["ConsumesAction"]),
+                    DisplayOrder = Convert.ToInt32(reader["DisplayOrder"]),
+                    IsActive = Convert.ToBoolean(reader["IsActive"])
                 });
             }
         }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetAllGameActionsNew error: {ex.Message}"); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetAllGameActions error: {ex.Message}"); }
         return actions;
     }
 
+    // =========================================================
+    // ActionParams - ИСПРАВЛЕНО
+    // =========================================================
     public List<ActionParam> GetActionParams(int actionId)
     {
         var parameters = new List<ActionParam>();
         try
         {
             using var cmd = new SQLiteCommand(@"SELECT Id, ActionId, ParamTypeId, ParamKey, DisplayName, 
-            OrderIndex, IsRequired, FilterCondition, DataSource, ValidationRules, DefaultValue 
-            FROM ActionParams WHERE ActionId = @actionId ORDER BY OrderIndex", _conn);
+        OrderIndex, IsRequired, FilterCondition, DataSource, ValidationRules, DefaultValue 
+        FROM ActionParams WHERE ActionId = @actionId ORDER BY OrderIndex", _conn);
             cmd.Parameters.AddWithValue("@actionId", actionId);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 parameters.Add(new ActionParam
                 {
-                    Id = reader.GetInt32(0),
-                    ActionId = reader.GetInt32(1),
-                    ParamTypeId = reader.GetInt32(2),
-                    ParamKey = reader.GetString(3),
-                    DisplayName = reader.GetString(4),
-                    OrderIndex = reader.GetInt32(5),
-                    IsRequired = reader.GetBoolean(6),
-                    FilterCondition = reader.GetString(7),
-                    DataSource = reader.GetString(8),
-                    ValidationRules = reader.GetString(9),
-                    DefaultValue = reader.GetString(10)
+                    Id = Convert.ToInt32(reader["Id"]),
+                    ActionId = Convert.ToInt32(reader["ActionId"]),
+                    ParamTypeId = Convert.ToInt32(reader["ParamTypeId"]),
+                    ParamKey = reader["ParamKey"]?.ToString() ?? string.Empty,
+                    DisplayName = reader["DisplayName"]?.ToString() ?? string.Empty,
+                    OrderIndex = Convert.ToInt32(reader["OrderIndex"]),
+                    IsRequired = Convert.ToBoolean(reader["IsRequired"]),
+                    FilterCondition = reader["FilterCondition"]?.ToString() ?? string.Empty,
+                    DataSource = reader["DataSource"]?.ToString() ?? string.Empty,
+                    ValidationRules = reader["ValidationRules"]?.ToString() ?? string.Empty,
+                    DefaultValue = reader["DefaultValue"]?.ToString() ?? string.Empty
                 });
             }
         }
@@ -1514,6 +1360,9 @@ public class DatabaseManager
         return parameters;
     }
 
+    // =========================================================
+    // HandlerParamMapping - ИСПРАВЛЕНО
+    // =========================================================
     public List<HandlerParamMapping> GetHandlerParamMappings(int actionId)
     {
         var mappings = new List<HandlerParamMapping>();
@@ -1526,11 +1375,11 @@ public class DatabaseManager
             {
                 mappings.Add(new HandlerParamMapping
                 {
-                    Id = reader.GetInt32(0),
-                    ActionId = reader.GetInt32(1),
-                    HandlerId = reader.GetInt32(2),
-                    HandlerParamName = reader.GetString(3),
-                    ActionParamKey = reader.GetString(4)
+                    Id = Convert.ToInt32(reader["Id"]),
+                    ActionId = Convert.ToInt32(reader["ActionId"]),
+                    HandlerId = Convert.ToInt32(reader["HandlerId"]),
+                    HandlerParamName = reader["HandlerParamName"]?.ToString() ?? string.Empty,
+                    ActionParamKey = reader["ActionParamKey"]?.ToString() ?? string.Empty
                 });
             }
         }
@@ -1538,6 +1387,9 @@ public class DatabaseManager
         return mappings;
     }
 
+    // =========================================================
+    // ResultTemplate - ИСПРАВЛЕНО
+    // =========================================================
     public ResultTemplate? GetResultTemplate(int actionId)
     {
         try
@@ -1549,11 +1401,11 @@ public class DatabaseManager
             {
                 return new ResultTemplate
                 {
-                    Id = reader.GetInt32(0),
-                    ActionId = reader.GetInt32(1),
-                    SuccessTemplate = reader.GetString(2),
-                    FailTemplate = reader.GetString(3),
-                    Color = reader.GetString(4)
+                    Id = Convert.ToInt32(reader["Id"]),
+                    ActionId = Convert.ToInt32(reader["ActionId"]),
+                    SuccessTemplate = reader["SuccessTemplate"]?.ToString() ?? string.Empty,
+                    FailTemplate = reader["FailTemplate"]?.ToString() ?? string.Empty,
+                    Color = reader["Color"]?.ToString() ?? "normal"
                 };
             }
         }
@@ -1561,6 +1413,9 @@ public class DatabaseManager
         return null;
     }
 
+    // =========================================================
+    // ParamTypes - ИСПРАВЛЕНО
+    // =========================================================
     public List<ParamType> GetParamTypes()
     {
         var types = new List<ParamType>();
@@ -1572,11 +1427,11 @@ public class DatabaseManager
             {
                 types.Add(new ParamType
                 {
-                    Id = reader.GetInt32(0),
-                    Name = reader.GetString(1),
-                    ControlType = reader.GetString(2),
-                    ValueType = reader.GetString(3),
-                    IsList = reader.GetBoolean(4)
+                    Id = Convert.ToInt32(reader["Id"]),
+                    Name = reader["Name"]?.ToString() ?? string.Empty,
+                    ControlType = reader["ControlType"]?.ToString() ?? string.Empty,
+                    ValueType = reader["ValueType"]?.ToString() ?? string.Empty,
+                    IsList = Convert.ToBoolean(reader["IsList"])
                 });
             }
         }

@@ -98,7 +98,8 @@ public class Npc
     public string GenderLabel => Gender switch
     {
         Gender.Male => "М",
-        Gender.Female => "Ж"
+        Gender.Female => "Ж",
+        _ => "?"
     };
 
     public string FollowerLabel => FollowerLevel switch
@@ -131,6 +132,11 @@ public class Npc
         Memory.Add(entry);
         if (Memory.Count > 50)
             Memory.RemoveAt(0);
+    }
+
+    public override string ToString()
+    {
+        return Name;
     }
 }
 

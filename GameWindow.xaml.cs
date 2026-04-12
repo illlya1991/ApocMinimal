@@ -36,7 +36,7 @@ public partial class GameWindow : Window
     {
         InitializeComponent();
         _db = db;
-        _actionManager = new ActionManager(_db, _rnd);
+        _actionManager = new ActionManager(_db, _rnd, Log); // Передаем метод Log
         LoadData();
         BuildActionCombo();
         BuildQuestTaskCombo();
@@ -60,11 +60,11 @@ public partial class GameWindow : Window
         var groups = _actionManager.GetGroups();
         foreach (var group in groups)
         {
-            ActionCombo.Items.Add(group.Name);
+            ActionCombo.Items.Add(group);
         }
         ActionCombo.SelectedIndex = -1;
 
-        // Приховуємо панель піддії та параметрів спочатку
+        // Приховуємо панель поддій та параметрів спочатку
         SetVis(SubActionRow, false);
         SetVis(ParametersPanel, false);
     }
@@ -417,11 +417,12 @@ public partial class GameWindow : Window
     {
         if (ActionCombo.SelectedIndex < 0) return;
 
-        var groupName = ActionCombo.SelectedItem?.ToString() ?? "";
-        var group = _actionManager.GetGroups().FirstOrDefault(g => g.Name == groupName);
+        //var groupName = ActionCombo.SelectedItem?.ToString() ?? "";
+        //var group = _actionManager.GetGroups().Find FirstOrDefault(g => g.Name == groupName);
+        ActionGroup group = (ActionGroup)ActionCombo.SelectedItem;
         if (group == null) return;
 
-        // Показуємо панель піддії
+        // Показуємо панель поддій
         SetVis(SubActionRow, true);
         SetVis(SubActionLabel, true);
 
@@ -430,7 +431,7 @@ public partial class GameWindow : Window
         var actions = _actionManager.GetActionsByGroup(group.Id);
         foreach (var action in actions)
         {
-            SubActionCombo.Items.Add(action.DisplayName);
+            SubActionCombo.Items.Add(action);
         }
         SubActionCombo.SelectedIndex = -1;
 
@@ -449,8 +450,8 @@ public partial class GameWindow : Window
             return;
         }
 
-        var actionName = SubActionCombo.SelectedItem?.ToString() ?? "";
-        _currentSelectedAction = _actionManager.GetAllActions().FirstOrDefault(a => a.DisplayName == actionName);
+        //var actionName = SubActionCombo.SelectedItem?.ToString() ?? "";
+        _currentSelectedAction = (GameActionDb)SubActionCombo.SelectedItem;
 
         if (_currentSelectedAction == null) return;
 
@@ -552,7 +553,7 @@ public partial class GameWindow : Window
             Background = HexBrush("#21262d"),
             Foreground = HexBrush("#c9d1d9"),
             BorderBrush = HexBrush("#30363d"),
-            Padding = new Thickness(4, 2),
+            Padding = new Thickness(4, 2, 0, 0),
             Tag = param.ParamKey,
             Text = string.IsNullOrEmpty(param.DefaultValue) ? "1" : param.DefaultValue
         };
@@ -567,7 +568,7 @@ public partial class GameWindow : Window
             Background = HexBrush("#21262d"),
             Foreground = HexBrush("#c9d1d9"),
             BorderBrush = HexBrush("#30363d"),
-            Padding = new Thickness(4, 2),
+            Padding = new Thickness(4, 2, 0, 0),
             Tag = param.ParamKey,
             Text = param.DefaultValue
         };
@@ -609,7 +610,8 @@ public partial class GameWindow : Window
 
         // Виконання дії через ActionManager
         var result = _actionManager.ExecuteAction(_currentSelectedAction, parameters, _player, _npcs, _resources, _quests);
-        Log(result, LogEntry.ColorSuccess);
+        if (result != "")
+            Log(result, LogEntry.ColorSuccess);
 
         if (_currentSelectedAction.ConsumesAction)
         {
@@ -684,14 +686,23 @@ public partial class GameWindow : Window
         {
             foreach (var child in panel.Children)
             {
-                var found = FindControlByTag(child, tag);
-                if (found != null) return found;
+                // Виправлено: додано перевірку чи child є UIElement
+                if (child is UIElement uiChild)
+                {
+                    var found = FindControlByTag(uiChild, tag);
+                    if (found != null) return found;
+                }
             }
+        }
+
+        // Додано рекурсивний пошук в ContentControl (Expander, Border тощо)
+        if (parent is ContentControl contentControl && contentControl.Content is UIElement contentElement)
+        {
+            return FindControlByTag(contentElement, tag);
         }
 
         return null;
     }
-
     private Npc? GetSelectedNpc(FrameworkElement control)
     {
         if (control is ComboBox combo && combo.SelectedItem != null)
