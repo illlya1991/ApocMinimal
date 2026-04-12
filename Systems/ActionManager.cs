@@ -56,27 +56,13 @@ public class ActionManager
 
     private void InitializeHandlers(Action<string, string> logAction)
     {
-        // Группа Информация
-        _handlers["ViewInfoHandler"] = new ViewInfoHandler(_db, _rnd, logAction);
-
-        // Группа Взаимодействие - один универсальный хендлер
+        // Универсальные обработчики по группам
+        _handlers["InfoHandler"] = new InfoHandler(_db, _rnd, logAction);
         _handlers["InteractionHandler"] = new InteractionHandler(_db, _rnd, logAction);
-
-        // Группа Ресурсы
-        _handlers["TransferResourceHandler"] = new TransferResourceHandler(_db, _rnd, logAction);
-        _handlers["DemandResourceHandler"] = new DemandResourceHandler(_db, _rnd, logAction);
-
-        // Группа Квесты
-        _handlers["GiveQuestHandler"] = new GiveQuestHandler(_db, _rnd, logAction);
-        _handlers["CompleteQuestHandler"] = new CompleteQuestHandler(_db, _rnd, logAction);
-        _handlers["AssignPublicQuestHandler"] = new AssignPublicQuestHandler(_db, _rnd, logAction);
-
-        // Группа Техники
-        _handlers["TeachTechniqueHandler"] = new TeachTechniqueHandler(_db, _rnd, logAction);
-
-        // Группа Управление
-        _handlers["RewardNpcHandler"] = new RewardNpcHandler(_db, _rnd, logAction);
-        _handlers["PunishNpcHandler"] = new PunishNpcHandler(_db, _rnd, logAction);
+        _handlers["ResourceHandler"] = new ResourceHandler(_db, _rnd, logAction);
+        _handlers["QuestHandler"] = new QuestHandler(_db, _rnd, logAction);      // ✅ Полная реализация
+        _handlers["TechniqueHandler"] = new TechniqueHandler(_db, _rnd, logAction); // ✅ Полная реализация
+        _handlers["ManagementHandler"] = new ManagementHandler(_db, _rnd, logAction); // ✅ Полная реализация
 
         // Заглушка
         _handlers["EmptyHandler"] = new EmptyHandler(_db, _rnd, logAction);
@@ -150,5 +136,20 @@ public class ActionManager
             result = result.Replace($"{{{kvp.Key}}}", valueStr);
         }
         return result != template ? result : defaultResult;
+    }
+    /// <summary>
+    /// Получить данные для источника
+    /// </summary>
+    public List<object> GetDataSource(string sourceName, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
+    {
+        return sourceName switch
+        {
+            "alive_npcs" => npcs.Where(n => n.IsAlive).Cast<object>().ToList(),
+            "resources_all" => resources.Cast<object>().ToList(),
+            "resources_food" => resources.Where(r => r.Name == "Еда" || r.Name == "Вода").Cast<object>().ToList(),
+            "available_quests" => quests.Where(q => q.Status == QuestStatus.Available).Cast<object>().ToList(),
+            "available_techniques" => _db.GetTechniquesByAltarLevel(player.AltarLevel).Cast<object>().ToList(),
+            _ => new List<object>()
+        };
     }
 }

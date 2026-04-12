@@ -12,6 +12,7 @@ using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
 using ApocMinimal.Models.UIData;
 using ApocMinimal.Systems;
+using ApocMinimal.Systems.Handlers;
 
 namespace ApocMinimal;
 
@@ -26,8 +27,10 @@ public partial class GameWindow : Window
 
     private readonly Random _rnd = new();
     private StackPanel? _currentDayPanel;
+    private Expander? _currentPlayerActionExpander;
+    private StackPanel? _currentPlayerActionPanel;
 
-    // Нова система дій
+    // Новая система действий
     private ActionManager _actionManager = null!;
     private GameActionDb? _currentSelectedAction = null;
     private List<ComboBox> _dynamicComboBoxes = new();
@@ -36,11 +39,15 @@ public partial class GameWindow : Window
     {
         InitializeComponent();
         _db = db;
-        _actionManager = new ActionManager(_db, _rnd, Log); // Передаем метод Log
+        _actionManager = new ActionManager(_db, _rnd, Log);
         LoadData();
         BuildActionCombo();
         BuildQuestTaskCombo();
         RefreshAll();
+
+        // Устанавливаем заголовок окна с именем игрока
+        this.Title = $"Apocalypse Simulation — {_player.Name}";
+
         LogDay($"=== День {_player.CurrentDay} ===");
         Log($"Мир загружен. Выживших: {_npcs.Count(n => n.IsAlive)}", LogEntry.ColorNormal);
     }
@@ -64,7 +71,6 @@ public partial class GameWindow : Window
         }
         ActionCombo.SelectedIndex = -1;
 
-        // Приховуємо панель поддій та параметрів спочатку
         SetVis(SubActionRow, false);
         SetVis(ParametersPanel, false);
     }
@@ -76,10 +82,6 @@ public partial class GameWindow : Window
             TaskCombo.Items.Add(q.Title);
         if (TaskCombo.Items.Count > 0) TaskCombo.SelectedIndex = 0;
     }
-
-    // =========================================================
-    // Обновление UI
-    // =========================================================
 
     private void RefreshAll()
     {
@@ -165,7 +167,8 @@ public partial class GameWindow : Window
         {
             card.Child = panel;
             card.Cursor = Cursors.Hand;
-            card.MouseLeftButtonUp += (_, _) => DoViewInfo(npc);
+            // Вызываем статический метод InfoHandler
+            card.MouseLeftButtonUp += (_, _) => InfoHandler.ShowNpcInfoStatic(npc, Log);
             return card;
         }
 
@@ -221,10 +224,10 @@ public partial class GameWindow : Window
 
         card.Child = panel;
         card.Cursor = Cursors.Hand;
-        card.MouseLeftButtonUp += (_, _) => DoViewInfo(npc);
+        // Вызываем статический метод InfoHandler
+        card.MouseLeftButtonUp += (_, _) => InfoHandler.ShowNpcInfoStatic(npc, Log);
         return card;
     }
-
     private static StackPanel MakeBar(string label, double value, string fillHex, string bgHex)
     {
         const double maxWidth = 220;
@@ -254,16 +257,13 @@ public partial class GameWindow : Window
         _ => Brushes.Transparent,
     };
 
+    private static SolidColorBrush HexBrush(string hex)
+    {
+        return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+    }
+
     private void RefreshAltarTab()
     {
-        var limParts = new System.Text.StringBuilder();
-        for (int fl = 0; fl <= 5; fl++)
-        {
-            int lim = _player.GetFollowerLimit(fl);
-            if (lim == 0) continue;
-            limParts.Append($"  lvl{fl}: {(lim == -1 ? "∞" : lim.ToString())}");
-        }
-
         AltarInfoLabel.Text =
             $"Уровень: {_player.AltarLevel} / 10\n" +
             $"Вера: {_player.FaithPoints:F0}\n" +
@@ -410,23 +410,109 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Новая система выбора действия (группа → действие → параметры)
+    // Логирование
+    // =========================================================
+
+    private void LogDay(string header)
+    {
+        var expander = new Expander
+        {
+            Header = header,
+            Style = (Style)Resources["DayExpander"],
+            IsExpanded = true,
+        };
+        var content = new StackPanel { Margin = new Thickness(10, 2, 0, 4) };
+        expander.Content = content;
+        _currentDayPanel = content;
+        LogStack.Children.Add(expander);
+
+        // Сбрасываем текущий Expander действий игрока для нового дня
+        _currentPlayerActionExpander = null;
+        _currentPlayerActionPanel = null;
+
+        LogScroll.UpdateLayout();
+        LogScroll.ScrollToBottom();
+    }
+    private void Log(string text, string color)
+    {
+        // Находим текущий Expander дня
+        var currentDayExpander = LogStack.Children.OfType<Expander>().LastOrDefault();
+        if (currentDayExpander == null)
+        {
+            LogDay($"=== День {_player.CurrentDay} ===");
+            currentDayExpander = LogStack.Children.OfType<Expander>().LastOrDefault();
+        }
+
+        if (currentDayExpander == null) return;
+
+        // Проверяем, не является ли текущий вызов частью просмотра информации об NPC
+        // Если _currentDayPanel установлен вручную (как в ShowNpcInfo), используем его
+        if (_currentDayPanel != null && _currentDayPanel != currentDayExpander.Content)
+        {
+            // Добавляем сообщение напрямую в _currentDayPanel
+            _currentDayPanel.Children.Add(new TextBlock
+            {
+                Text = text,
+                Foreground = HexBrush(color),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 1, 0, 0),
+            });
+            LogScroll.UpdateLayout();
+            LogScroll.ScrollToBottom();
+            return;
+        }
+
+        // Получаем или создаём Expander для действий игрока (только для обычных логов, не для информации об NPC)
+        if (_currentPlayerActionExpander == null || _currentPlayerActionExpander.Parent != currentDayExpander.Content)
+        {
+            _currentPlayerActionExpander = new Expander
+            {
+                Header = $"🎮 Действия {_player.Name}",
+                Style = (Style)Resources["DayExpander"],
+                IsExpanded = true,
+                Margin = new Thickness(0, 4, 0, 2)
+            };
+
+            _currentPlayerActionPanel = new StackPanel { Margin = new Thickness(10, 2, 0, 4) };
+            _currentPlayerActionExpander.Content = _currentPlayerActionPanel;
+
+            if (currentDayExpander.Content is StackPanel mainPanel)
+            {
+                // Сворачиваем ВСЕ другие Expander перед добавлением нового
+                foreach (var child in mainPanel.Children.OfType<Expander>())
+                {
+                    child.IsExpanded = false;
+                }
+                mainPanel.Children.Add(_currentPlayerActionExpander);
+            }
+        }
+
+        // Добавляем сообщение
+        _currentPlayerActionPanel?.Children.Add(new TextBlock
+        {
+            Text = text,
+            Foreground = HexBrush(color),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 1, 0, 0),
+        });
+
+        LogScroll.UpdateLayout();
+        LogScroll.ScrollToBottom();
+    }
+    // =========================================================
+    // Новая система выбора действия
     // =========================================================
 
     private void ActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ActionCombo.SelectedIndex < 0) return;
 
-        //var groupName = ActionCombo.SelectedItem?.ToString() ?? "";
-        //var group = _actionManager.GetGroups().Find FirstOrDefault(g => g.Name == groupName);
         ActionGroup group = (ActionGroup)ActionCombo.SelectedItem;
         if (group == null) return;
 
-        // Показуємо панель поддій
         SetVis(SubActionRow, true);
         SetVis(SubActionLabel, true);
 
-        // Заповнюємо другий комбобокс діями
         SubActionCombo.Items.Clear();
         var actions = _actionManager.GetActionsByGroup(group.Id);
         foreach (var action in actions)
@@ -435,7 +521,6 @@ public partial class GameWindow : Window
         }
         SubActionCombo.SelectedIndex = -1;
 
-        // Очищаємо панель параметрів
         ParametersPanel.Children.Clear();
         SetVis(ParametersPanel, false);
     }
@@ -450,12 +535,10 @@ public partial class GameWindow : Window
             return;
         }
 
-        //var actionName = SubActionCombo.SelectedItem?.ToString() ?? "";
         _currentSelectedAction = (GameActionDb)SubActionCombo.SelectedItem;
 
         if (_currentSelectedAction == null) return;
 
-        // Будуємо UI для параметрів
         BuildParametersUI(_currentSelectedAction);
         SetVis(ParametersPanel, true);
     }
@@ -467,7 +550,6 @@ public partial class GameWindow : Window
 
         foreach (var param in action.Parameters.OrderBy(p => p.OrderIndex))
         {
-            // Лейбл
             var label = new TextBlock
             {
                 Text = param.DisplayName,
@@ -477,7 +559,6 @@ public partial class GameWindow : Window
             };
             ParametersPanel.Children.Add(label);
 
-            // Контрол
             UIElement control = param.ParamType?.Name switch
             {
                 "Npc" => BuildNpcComboBox(param),
@@ -501,7 +582,6 @@ public partial class GameWindow : Window
 
         var npcs = _npcs.AsEnumerable();
 
-        // Фільтрація: тільки живі NPC
         if (param.FilterCondition.Contains("\"IsAlive\": true") || param.DataSource == "alive_npcs")
             npcs = npcs.Where(n => n.IsAlive);
 
@@ -525,7 +605,6 @@ public partial class GameWindow : Window
 
         var resources = _resources.AsEnumerable();
 
-        // Фільтрація за категорією
         if (param.FilterCondition.Contains("\"Category\""))
         {
             var match = System.Text.RegularExpressions.Regex.Match(param.FilterCondition, "\"Category\":\\s*\"([^\"]+)\"");
@@ -557,7 +636,6 @@ public partial class GameWindow : Window
             Tag = param.ParamKey,
             Text = string.IsNullOrEmpty(param.DefaultValue) ? "1" : param.DefaultValue
         };
-
         return box;
     }
 
@@ -572,7 +650,6 @@ public partial class GameWindow : Window
             Tag = param.ParamKey,
             Text = param.DefaultValue
         };
-
         return box;
     }
 
@@ -588,17 +665,14 @@ public partial class GameWindow : Window
             return;
         }
 
-        // Перевірка дій гравця
         if (_currentSelectedAction.ConsumesAction && _player.PlayerActionsToday >= Player.MaxPlayerActionsPerDay)
         {
             Log($"Час игрока исчерпан ({Player.MaxPlayerActionsPerDay} действий/день).", LogEntry.ColorWarning);
             return;
         }
 
-        // Збір значень параметрів
         var parameters = CollectParameterValues(_currentSelectedAction);
 
-        // Перевірка обов'язкових параметрів
         foreach (var param in _currentSelectedAction.Parameters.Where(p => p.IsRequired))
         {
             if (!parameters.ContainsKey(param.ParamKey) || parameters[param.ParamKey] == null)
@@ -608,7 +682,6 @@ public partial class GameWindow : Window
             }
         }
 
-        // Виконання дії через ActionManager
         var result = _actionManager.ExecuteAction(_currentSelectedAction, parameters, _player, _npcs, _resources, _quests);
         if (result != "")
             Log(result, LogEntry.ColorSuccess);
@@ -619,10 +692,8 @@ public partial class GameWindow : Window
             _db.SavePlayer(_player);
         }
 
-        // Оновлення UI після виконання
         RefreshAll();
 
-        // Оновлюємо комбобокси в параметрах (якщо змінилися ресурси або NPC)
         foreach (var combo in _dynamicComboBoxes)
         {
             var paramKey = combo.Tag?.ToString();
@@ -686,7 +757,6 @@ public partial class GameWindow : Window
         {
             foreach (var child in panel.Children)
             {
-                // Виправлено: додано перевірку чи child є UIElement
                 if (child is UIElement uiChild)
                 {
                     var found = FindControlByTag(uiChild, tag);
@@ -695,7 +765,6 @@ public partial class GameWindow : Window
             }
         }
 
-        // Додано рекурсивний пошук в ContentControl (Expander, Border тощо)
         if (parent is ContentControl contentControl && contentControl.Content is UIElement contentElement)
         {
             return FindControlByTag(contentElement, tag);
@@ -703,6 +772,7 @@ public partial class GameWindow : Window
 
         return null;
     }
+
     private Npc? GetSelectedNpc(FrameworkElement control)
     {
         if (control is ComboBox combo && combo.SelectedItem != null)
@@ -736,160 +806,6 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Старые методы (оставлены для совместимости)
-    // =========================================================
-
-    private void DoViewInfo(Npc npc)
-    {
-        var npcExp = new Expander
-        {
-            Header = $"[ {npc.Name} — информация ]",
-            Style = (Style)Resources["DayExpander"],
-            IsExpanded = true,
-        };
-        var npcContent = new StackPanel { Margin = new Thickness(10, 2, 0, 4) };
-        npcExp.Content = npcContent;
-        _currentDayPanel?.Children.Add(npcExp);
-        var saved = _currentDayPanel;
-        _currentDayPanel = npcContent;
-
-        Log($"── {npc.Name} [{npc.GenderLabel}] {npc.Age} лет  {npc.Profession}", LogEntry.ColorDay);
-        Log($"  HP:{npc.Health:F0}  Выносл:{npc.Stamina:F0}  Чакра:{npc.Chakra:F0}  Вера:{npc.Faith:F0}", HealthColor(npc.Health));
-        Log($"  Страх:{npc.Fear:F0}  Доверие:{npc.Trust:F0}  Инициатива:{npc.Initiative:F0}  Последователь:[{npc.FollowerLabel}]", LogEntry.ColorNormal);
-        Log($"  Черты: {string.Join(", ", npc.CharTraits.Select(c => c.ToLabel()))}", LogEntry.ColorNormal);
-        if (npc.Emotions.Count > 0)
-            Log($"  Эмоции: {string.Join("  ", npc.Emotions.Select(em => $"{em.Name} {em.Percentage:F0}%"))}", LogEntry.ColorSpeech);
-        Log($"  Цель: {npc.Goal}", LogEntry.ColorNormal);
-        Log($"  Мечта: {npc.Dream}", LogEntry.ColorNormal);
-        Log($"  Желание: {npc.Desire}", LogEntry.ColorNormal);
-        if (npc.Specializations.Count > 0)
-            Log($"  Специализации: {string.Join(", ", npc.Specializations)}", LogEntry.ColorNormal);
-
-        Log("  ПОТРЕБНОСТИ:", LogEntry.ColorDay);
-        foreach (var need in npc.Needs.Where(n => n.IsUrgent || n.IsCritical))
-            Log($"    {need.Name} [{need.Level}]: {need.Value:F0}% {(need.IsCritical ? "КРИТИЧНО" : "")}",
-                need.IsCritical ? LogEntry.ColorDanger : LogEntry.ColorWarning);
-
-        Log($"  ФИЗИЧЕСКИЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
-        Log($"    Выносливость:          {npc.Stats.Endurance.FinalValue,3}  (база: {npc.Stats.Endurance.FullBase})", StatColor(npc.Stats.Endurance.FinalValue));
-        Log($"    Стойкость:             {npc.Stats.Toughness.FinalValue,3}  (база: {npc.Stats.Toughness.FullBase})", StatColor(npc.Stats.Toughness.FinalValue));
-        Log($"    Сила:                  {npc.Stats.Strength.FinalValue,3}  (база: {npc.Stats.Strength.FullBase})", StatColor(npc.Stats.Strength.FinalValue));
-        Log($"    Восстановление (физ):  {npc.Stats.RecoveryPhys.FinalValue,3}  (база: {npc.Stats.RecoveryPhys.FullBase})", StatColor(npc.Stats.RecoveryPhys.FinalValue));
-        Log($"    Рефлексы:              {npc.Stats.Reflexes.FinalValue,3}  (база: {npc.Stats.Reflexes.FullBase})", StatColor(npc.Stats.Reflexes.FinalValue));
-        Log($"    Ловкость:              {npc.Stats.Agility.FinalValue,3}  (база: {npc.Stats.Agility.FullBase})", StatColor(npc.Stats.Agility.FinalValue));
-        Log($"    Адаптация:             {npc.Stats.Adaptation.FinalValue,3}  (база: {npc.Stats.Adaptation.FullBase})", StatColor(npc.Stats.Adaptation.FinalValue));
-        Log($"    Регенерация:           {npc.Stats.Regeneration.FinalValue,3}  (база: {npc.Stats.Regeneration.FullBase})", StatColor(npc.Stats.Regeneration.FinalValue));
-        Log($"    Сенсорика:             {npc.Stats.Sensorics.FinalValue,3}  (база: {npc.Stats.Sensorics.FullBase})", StatColor(npc.Stats.Sensorics.FinalValue));
-        Log($"    Долголетие:            {npc.Stats.Longevity.FinalValue,3}  (база: {npc.Stats.Longevity.FullBase})", StatColor(npc.Stats.Longevity.FinalValue));
-
-        Log($"  МЕНТАЛЬНЫЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
-        Log($"    Фокус:                 {npc.Stats.Focus.FinalValue,3}  (база: {npc.Stats.Focus.FullBase})", StatColor(npc.Stats.Focus.FinalValue));
-        Log($"    Память:                {npc.Stats.Memory.FinalValue,3}  (база: {npc.Stats.Memory.FullBase})", StatColor(npc.Stats.Memory.FinalValue));
-        Log($"    Логика:                {npc.Stats.Logic.FinalValue,3}  (база: {npc.Stats.Logic.FullBase})", StatColor(npc.Stats.Logic.FinalValue));
-        Log($"    Дедукция:              {npc.Stats.Deduction.FinalValue,3}  (база: {npc.Stats.Deduction.FullBase})", StatColor(npc.Stats.Deduction.FinalValue));
-        Log($"    Интеллект:             {npc.Stats.Intelligence.FinalValue,3}  (база: {npc.Stats.Intelligence.FullBase})", StatColor(npc.Stats.Intelligence.FinalValue));
-        Log($"    Воля:                  {npc.Stats.Will.FinalValue,3}  (база: {npc.Stats.Will.FullBase})", StatColor(npc.Stats.Will.FinalValue));
-        Log($"    Обучение:              {npc.Stats.Learning.FinalValue,3}  (база: {npc.Stats.Learning.FullBase})", StatColor(npc.Stats.Learning.FinalValue));
-        Log($"    Гибкость:              {npc.Stats.Flexibility.FinalValue,3}  (база: {npc.Stats.Flexibility.FullBase})", StatColor(npc.Stats.Flexibility.FinalValue));
-        Log($"    Интуиция:              {npc.Stats.Intuition.FinalValue,3}  (база: {npc.Stats.Intuition.FullBase})", StatColor(npc.Stats.Intuition.FinalValue));
-        Log($"    Соц. интеллект:        {npc.Stats.SocialIntel.FinalValue,3}  (база: {npc.Stats.SocialIntel.FullBase})", StatColor(npc.Stats.SocialIntel.FinalValue));
-        Log($"    Творчество:            {npc.Stats.Creativity.FinalValue,3}  (база: {npc.Stats.Creativity.FullBase})", StatColor(npc.Stats.Creativity.FinalValue));
-        Log($"    Математика:            {npc.Stats.Mathematics.FinalValue,3}  (база: {npc.Stats.Mathematics.FullBase})", StatColor(npc.Stats.Mathematics.FinalValue));
-
-        Log($"  ЭНЕРГЕТИЧЕСКИЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
-        Log($"    Запас энергии:         {npc.Stats.EnergyReserve.FinalValue,3}  (база: {npc.Stats.EnergyReserve.FullBase})", StatColor(npc.Stats.EnergyReserve.FinalValue));
-        Log($"    Восстановление (энерг):{npc.Stats.EnergyRecovery.FinalValue,3}  (база: {npc.Stats.EnergyRecovery.FullBase})", StatColor(npc.Stats.EnergyRecovery.FinalValue));
-        Log($"    Контроль:              {npc.Stats.Control.FinalValue,3}  (база: {npc.Stats.Control.FullBase})", StatColor(npc.Stats.Control.FinalValue));
-        Log($"    Концентрация:          {npc.Stats.Concentration.FinalValue,3}  (база: {npc.Stats.Concentration.FullBase})", StatColor(npc.Stats.Concentration.FinalValue));
-        Log($"    Выход:                 {npc.Stats.Output.FinalValue,3}  (база: {npc.Stats.Output.FullBase})", StatColor(npc.Stats.Output.FinalValue));
-        Log($"    Тонкость:              {npc.Stats.Precision.FinalValue,3}  (база: {npc.Stats.Precision.FullBase})", StatColor(npc.Stats.Precision.FinalValue));
-        Log($"    Устойчивость (энерг):  {npc.Stats.EnergyResist.FinalValue,3}  (база: {npc.Stats.EnergyResist.FullBase})", StatColor(npc.Stats.EnergyResist.FinalValue));
-        Log($"    Восприятие энергии:    {npc.Stats.EnergySense.FinalValue,3}  (база: {npc.Stats.EnergySense.FullBase})", StatColor(npc.Stats.EnergySense.FinalValue));
-
-        if (npc.Memory.Count > 0)
-        {
-            Log("  ПАМЯТЬ (последние):", LogEntry.ColorDay);
-            foreach (var mem in npc.Memory.TakeLast(5))
-                Log($"    {mem.Icon} День {mem.Day}: {mem.Text}", LogEntry.ColorNormal);
-        }
-        Log("──────────────────────────────────────────────", LogEntry.ColorNormal);
-
-        _currentDayPanel = saved;
-        LogScroll.UpdateLayout();
-        LogScroll.ScrollToBottom();
-    }
-
-    private void DoTransfer(Npc npc)
-    {
-        if (!npc.IsAlive) { Log($"{npc.Name} мёртв.", LogEntry.ColorDanger); return; }
-        if (ResourceCombo.SelectedIndex < 0) return;
-        if (!double.TryParse(AmountBox.Text, out var amount) || amount <= 0)
-        {
-            Log("Введите корректное количество (> 0).", LogEntry.ColorWarning);
-            return;
-        }
-        var res = _resources[ResourceCombo.SelectedIndex];
-        if (res.Amount < amount) { Log($"Недостаточно «{res.Name}». Есть: {res.Amount:F0}.", LogEntry.ColorWarning); return; }
-
-        res.Amount -= amount;
-        _db.SaveResource(res);
-        NeedSystem.SatisfyNeed(npc, res.Name, amount * 0.5);
-        _db.SaveNpc(npc);
-
-        Log($"Передано {amount:F0} ед. «{res.Name}» → {npc.Name}. Осталось: {res.Amount:F0}", LogEntry.ColorSuccess);
-        RefreshResourceCombo();
-        RefreshNpcSidebar();
-    }
-
-    private void DoChat(Npc npc)
-    {
-        if (!npc.IsAlive) { Log($"{npc.Name} мёртв.", LogEntry.ColorDanger); return; }
-
-        Log($"Ты обращаешься к {npc.Name}:", LogEntry.ColorNormal);
-        string response = (npc.Trait, npc.Trust) switch
-        {
-            (NpcTrait.Loner, < 50) => "...(пожимает плечами и отводит взгляд)",
-            (NpcTrait.Loner, _) => "Я справлюсь сам. Спасибо.",
-            (NpcTrait.Coward, _) when npc.Health < 40 => "Пожалуйста, не бросай нас! Я боюсь...",
-            (NpcTrait.Coward, _) => "Я постараюсь. Только это не опасно?",
-            (NpcTrait.Leader, > 60) => "Я верую в тебя, Божество! Веду остальных вперёд.",
-            (_, >= 70) => "Я верую в тебя! Мы выживем вместе.",
-            (_, >= 40) => "Спасибо за заботу. Стараюсь держаться.",
-            _ => "Тяжело. Не знаю, есть ли смысл продолжать...",
-        };
-        var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
-        if (urgentNeed != null && urgentNeed.IsCritical)
-            response += $" Мне срочно нужно: {urgentNeed.Name}!";
-
-        npc.Trust = Math.Min(100, npc.Trust + 2);
-        _db.SaveNpc(npc);
-        npc.Remember(new MemoryEntry(_player.CurrentDay, MemoryType.Social, "Поговорил с Божеством"));
-
-        Log($"  {npc.Name}: «{response}»", LogEntry.ColorSpeech);
-    }
-
-    private void DoAssignQuest(Npc npc)
-    {
-        if (!npc.IsAlive) { Log($"{npc.Name} мёртв.", LogEntry.ColorDanger); return; }
-        if (npc.HasTask) { Log($"{npc.Name} уже занят: {npc.ActiveTask}.", LogEntry.ColorWarning); return; }
-
-        var availQuests = _quests.Where(q => q.Status == QuestStatus.Available).ToList();
-        if (TaskCombo.SelectedIndex < 0 || TaskCombo.SelectedIndex >= availQuests.Count)
-        { Log("Нет доступных квестов.", LogEntry.ColorWarning); return; }
-
-        var quest = availQuests[TaskCombo.SelectedIndex];
-        if (npc.Trait == NpcTrait.Coward && _rnd.NextDouble() < 0.5)
-        { Log($"{npc.Name} (Трус) отказался от «{quest.Title}».", LogEntry.ColorWarning); return; }
-
-        QuestSystem.AssignQuest(quest, npc);
-        _db.SaveNpc(npc);
-        _db.SaveQuest(quest);
-
-        Log($"{npc.Name} взял квест: «{quest.Title}» (осталось {quest.DaysRemaining} дн.)", LogEntry.ColorSuccess);
-        RefreshAll();
-    }
-
-    // =========================================================
     // Завершение дня
     // =========================================================
 
@@ -897,30 +813,39 @@ public partial class GameWindow : Window
     {
         _player.CurrentDay++;
         _player.PlayerActionsToday = 0;
+
         LogDay($"═══ ДЕНЬ {_player.CurrentDay} ══════════════════════");
 
         var day = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd);
 
-        foreach (var nr in day.NpcResults)
+        var currentDayExpander = LogStack.Children.OfType<Expander>().LastOrDefault();
+        if (currentDayExpander != null && currentDayExpander.Content is StackPanel mainPanel)
         {
-            var npcExp = new Expander
+            foreach (var nr in day.NpcResults)
             {
-                Header = $"{nr.Npc.Name} — {nr.Actions.Count(x => !x.IsAlert)} действий",
-                Style = (Style)Resources["DayExpander"],
-                IsExpanded = false,
-            };
-            var npcPanel = new StackPanel { Margin = new Thickness(10, 2, 0, 2) };
-            foreach (var entry in nr.Actions)
-                npcPanel.Children.Add(new TextBlock
+                var npcExp = new Expander
                 {
-                    Text = $"[{entry.Time}] {entry.Text}",
-                    Foreground = HexBrush(entry.Color),
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 1, 0, 0),
-                    FontWeight = entry.IsAlert ? FontWeights.Bold : FontWeights.Normal,
-                });
-            npcExp.Content = npcPanel;
-            _currentDayPanel?.Children.Add(npcExp);
+                    Header = $"{nr.Npc.Name} — {nr.Actions.Count(x => !x.IsAlert)} действий",
+                    Style = (Style)Resources["DayExpander"],
+                    IsExpanded = false,  // По умолчанию свернуто
+                    Margin = new Thickness(0, 2, 0, 2)
+                };
+
+                var npcPanel = new StackPanel { Margin = new Thickness(10, 2, 0, 2) };
+                foreach (var entry in nr.Actions)
+                {
+                    npcPanel.Children.Add(new TextBlock
+                    {
+                        Text = $"[{entry.Time}] {entry.Text}",
+                        Foreground = HexBrush(entry.Color),
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 1, 0, 0),
+                        FontWeight = entry.IsAlert ? FontWeights.Bold : FontWeights.Normal,
+                    });
+                }
+                npcExp.Content = npcPanel;
+                mainPanel.Children.Add(npcExp);
+            }
         }
 
         foreach (var (npc, q) in day.QuestRewards)
@@ -930,8 +855,12 @@ public partial class GameWindow : Window
             {
                 res.Amount += q.RewardAmount;
                 Log($"Квест выполнен: «{q.Title}» ({npc.Name}) → +{q.RewardAmount:F0} ед. «{res.Name}»", LogEntry.ColorSuccess);
+                _db.SaveResource(res);
             }
-            else Log($"Квест выполнен: «{q.Title}» ({npc.Name})", LogEntry.ColorSuccess);
+            else
+            {
+                Log($"Квест выполнен: «{q.Title}» ({npc.Name})", LogEntry.ColorSuccess);
+            }
         }
 
         foreach (var q in day.NewQuests)
@@ -941,7 +870,9 @@ public partial class GameWindow : Window
         }
 
         foreach (var (text, isAlert) in day.Logs)
+        {
             Log(text, isAlert ? LogEntry.ColorDanger : LogEntry.ColorNormal);
+        }
 
         Log($"Получено ОВ: +{day.FaithGained:F1}  (последователей: {day.FollowerCount}, макс. {Player.MaxFaithPerNpcPerDay:F0}/NPC)",
             LogEntry.ColorAltarColor);
@@ -952,7 +883,11 @@ public partial class GameWindow : Window
         foreach (var q in _quests.Where(q => q.Status != QuestStatus.Available)) _db.SaveQuest(q);
 
         Log($"Выживших: {_npcs.Count(n => n.IsAlive)}/{_npcs.Count}  |  Вера: {_player.FaithPoints:F0}", LogEntry.ColorDay);
+
         RefreshAll();
+
+        LogScroll.UpdateLayout();
+        LogScroll.ScrollToBottom();
     }
 
     // =========================================================
@@ -1037,6 +972,8 @@ public partial class GameWindow : Window
     {
         LogStack.Children.Clear();
         _currentDayPanel = null;
+        _currentPlayerActionExpander = null;
+        _currentPlayerActionPanel = null;
     }
 
     private void FilterLog7Days_Click(object sender, RoutedEventArgs e)
@@ -1083,48 +1020,11 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Лог
-    // =========================================================
-
-    private void Log(string text, string color)
-    {
-        (_currentDayPanel ?? LogStack.Children.OfType<StackPanel>().LastOrDefault())
-            ?.Children.Add(new TextBlock
-            {
-                Text = text,
-                Foreground = HexBrush(color),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 1, 0, 0),
-            });
-        LogScroll.UpdateLayout();
-        LogScroll.ScrollToBottom();
-    }
-
-    private void LogDay(string header)
-    {
-        var expander = new Expander
-        {
-            Header = header,
-            Style = (Style)Resources["DayExpander"],
-            IsExpanded = true,
-        };
-        var content = new StackPanel { Margin = new Thickness(10, 2, 0, 4) };
-        expander.Content = content;
-        _currentDayPanel = content;
-        LogStack.Children.Add(expander);
-        LogScroll.UpdateLayout();
-        LogScroll.ScrollToBottom();
-    }
-
-    // =========================================================
     // Вспомогательные
     // =========================================================
 
     private static void SetVis(UIElement el, bool visible) =>
         el.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-
-    private static SolidColorBrush HexBrush(string hex) =>
-        new((Color)ColorConverter.ConvertFromString(hex));
 
     private static string HealthColor(double hp) =>
         hp < 30 ? LogEntry.ColorDanger : hp < 60 ? LogEntry.ColorWarning : LogEntry.ColorSuccess;

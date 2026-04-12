@@ -1438,6 +1438,68 @@ public class DatabaseManager
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetParamTypes error: {ex.Message}"); }
         return types;
     }
+    // Добавить в конец класса DatabaseManager (перед закрывающей скобкой)
+
+    /// <summary>
+    /// Получить технику по ID
+    /// </summary>
+    public Technique? GetTechniqueById(int id)
+    {
+        using var cmd = new SQLiteCommand("SELECT * FROM Techniques WHERE Id = @id", _conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        using var rdr = cmd.ExecuteReader();
+        return rdr.Read() ? ReadTechnique(rdr) : null;
+    }
+
+    /// <summary>
+    /// Получить все техники, доступные для данного уровня алтаря
+    /// </summary>
+    public List<Technique> GetTechniquesByAltarLevel(int altarLevel)
+    {
+        var list = new List<Technique>();
+        using var cmd = new SQLiteCommand("SELECT * FROM Techniques WHERE AltarLevel <= @level ORDER BY AltarLevel, Id", _conn);
+        cmd.Parameters.AddWithValue("@level", altarLevel);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read())
+            list.Add(ReadTechnique(rdr));
+        return list;
+    }
+
+    /// <summary>
+    /// Получить количество последователей определённого уровня
+    /// </summary>
+    public int GetFollowerCountAtLevel(int followerLevel)
+    {
+        using var cmd = new SQLiteCommand("SELECT COUNT(*) FROM Npcs WHERE FollowerLevel = @level AND Health > 0", _conn);
+        cmd.Parameters.AddWithValue("@level", followerLevel);
+        return Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+    }
+
+    /// <summary>
+    /// Получить доступные квесты для выбора в комбобоксе
+    /// </summary>
+    public List<Quest> GetAvailableQuests()
+    {
+        var list = new List<Quest>();
+        using var cmd = new SQLiteCommand("SELECT * FROM Quests WHERE Status = 'Available' ORDER BY Id", _conn);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read())
+        {
+            list.Add(new Quest
+            {
+                Id = rdr.GetInt32(rdr.GetOrdinal("Id")),
+                Title = rdr.GetString(rdr.GetOrdinal("Title")),
+                Description = rdr.GetString(rdr.GetOrdinal("Description")),
+                Status = QuestStatus.Available,
+                DaysRequired = rdr.GetInt32(rdr.GetOrdinal("DaysRequired")),
+                DaysRemaining = rdr.GetInt32(rdr.GetOrdinal("DaysRemaining")),
+                RewardResourceId = rdr.GetInt32(rdr.GetOrdinal("RewardResourceId")),
+                RewardAmount = rdr.GetDouble(rdr.GetOrdinal("RewardAmount")),
+                FaithCost = rdr.GetDouble(rdr.GetOrdinal("FaithCost"))
+            });
+        }
+        return list;
+    }
 }
 
 public class OneSave
