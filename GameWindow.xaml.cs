@@ -101,13 +101,11 @@ public partial class GameWindow : Window
 
         InfoHandler.ShowNpcInfoStatic(npc, CollectLog);
 
-        // Выводим в отдельную секцию лога
-        LogControl.AddNpcSeparator();
+        // Выводим информацию об NPC в лог через AddEntry
         for (int i = 0; i < infoLines.Count; i++)
         {
-            LogControl.AddNpcInfo(infoLines[i], infoColors[i]);
+            LogControl.AddEntry(infoLines[i], infoColors[i]);
         }
-        LogControl.AddNpcSeparator();
     }
 
     private void RefreshResourceCombo()
@@ -503,61 +501,29 @@ public partial class GameWindow : Window
     // =========================================================
     // Logging
     // =========================================================
-
     private void LogDay(string header)
     {
-        LogControl.NewDay(header);
+        LogControl.AddEntry(header, LogEntry.ColorDay);
     }
 
     private void Log(string text, string color)
     {
-        // Определяем тип сообщения по содержимому
-        if (text.Contains("──") || text.Contains("────────────────"))
-        {
-            // Разделители для информации об NPC
-            LogControl.AddNpcInfo(text, color);
-        }
-        else if (text.Contains("Алтарь") || text.Contains("веры") || text.Contains("ОВ") ||
-                 text.Contains("алтарь") || text.Contains("Вера"))
-        {
-            // Системные сообщения об алтаре и вере
-            LogControl.AddSystemMessage(text, color);
-        }
-        else if (text.Contains("ПОТРЕБНОСТИ") || text.Contains("ПАМЯТЬ") || text.Contains("ХАРАКТЕРИСТИКИ") ||
-                 text.Contains("ФИЗИЧЕСКИЕ") || text.Contains("МЕНТАЛЬНЫЕ") || text.Contains("ЭНЕРГЕТИЧЕСКИЕ"))
-        {
-            // Заголовки секций в информации об NPC
-            LogControl.AddNpcInfo(text, color);
-        }
-        else if (text.Contains("HP:") || text.Contains("Чакра:") || text.Contains("Страх:") ||
-                 text.Contains("Доверие:") || text.Contains("Инициатива:"))
-        {
-            // Характеристики NPC
-            LogControl.AddNpcInfo(text, color);
-        }
-        else if (text.Contains("Эмоции:") || text.Contains("Черты:") || text.Contains("Цель:") ||
-                 text.Contains("Мечта:") || text.Contains("Желание:") || text.Contains("Специализации:"))
-        {
-            // Психология NPC
-            LogControl.AddNpcInfo(text, color);
-        }
-        else if (text.Contains("Выносливость:") || text.Contains("Стойкость:") || text.Contains("Сила:") ||
-                 text.Contains("Ловкость:") || text.Contains("Рефлексы:") || text.Contains("Интеллект:") ||
-                 text.Contains("Память:") || text.Contains("Логика:") || text.Contains("Воля:"))
-        {
-            // Статы NPC
-            LogControl.AddNpcInfo(text, color);
-        }
-        else if (text.Contains("Мир загружен") || text.Contains("Выживших:") || text.Contains("Получено ОВ"))
-        {
-            // Системные сообщения
-            LogControl.AddSystemMessage(text, color);
-        }
-        else
-        {
-            // Действия игрока
-            LogControl.AddPlayerAction(text, color);
-        }
+        LogControl.AddEntry(text, color);
+    }
+
+    private void ClearLog_Click(object sender, RoutedEventArgs e)
+    {
+        LogControl.Clear();
+    }
+
+    private void FilterLog7Days_Click(object sender, RoutedEventArgs e)
+    {
+        LogControl.ShowLastDays(7);
+    }
+
+    private void ShowAllLog_Click(object sender, RoutedEventArgs e)
+    {
+        LogControl.ShowAllDays();
     }
 
     // =========================================================
@@ -578,31 +544,6 @@ public partial class GameWindow : Window
         else if (sender == TabQuests) { TabQuests.IsChecked = true; PanelQuests.Visibility = Visibility.Visible; RefreshQuestsTab(); }
         else if (sender == TabAltar) { TabAltar.IsChecked = true; PanelAltar.Visibility = Visibility.Visible; RefreshAltarTab(); }
         else if (sender == TabMap) { TabMap.IsChecked = true; PanelMap.Visibility = Visibility.Visible; RefreshMapTab(); }
-    }
-
-    private void ClearLog_Click(object sender, RoutedEventArgs e)
-    {
-        LogControl.Clear();
-    }
-
-    private void FilterLog7Days_Click(object sender, RoutedEventArgs e)
-    {
-        LogControl.ShowLastDays(7);
-    }
-
-    private void ShowAllLog_Click(object sender, RoutedEventArgs e)
-    {
-        LogControl.ShowAllDays();
-    }
-
-    private void CollapseAll_Click(object sender, RoutedEventArgs e)
-    {
-        LogControl.CollapseAll();
-    }
-
-    private void ExpandAll_Click(object sender, RoutedEventArgs e)
-    {
-        LogControl.ExpandAll();
     }
 
     private void UpgradeAltarBtn_Click(object sender, RoutedEventArgs e)
@@ -658,4 +599,5 @@ public partial class GameWindow : Window
         }
         RefreshAll();
     }
+    
 }
