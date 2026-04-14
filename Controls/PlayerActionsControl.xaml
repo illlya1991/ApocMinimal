@@ -1,0 +1,128 @@
+﻿<UserControl x:Class="ApocMinimal.Controls.PlayerActionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="310">
+
+    <UserControl.Resources>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+
+        <Style x:Key="LightCombo" TargetType="ComboBox">
+            <Setter Property="Background" Value="#ffffff"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+        </Style>
+
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Background" Value="#21262d"/>
+            <Setter Property="Foreground" Value="#c9d1d9"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363d"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TabBtn" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#21262d"/>
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Foreground" Value="#58a6ff"/>
+                    <Setter Property="BorderBrush" Value="#58a6ff"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363d"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="#0d1117" BorderBrush="#30363d" BorderThickness="1,0,0,0">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="#161b22">
+                <ToggleButton x:Name="TabActions" Content="Действия" Style="{StaticResource TabBtn}" IsChecked="True" Click="Tab_Click"/>
+                <ToggleButton x:Name="TabQuests" Content="Квесты" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+                <ToggleButton x:Name="TabAltar" Content="Алтарь" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+                <ToggleButton x:Name="TabMap" Content="Карта" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+            </StackPanel>
+
+            <!-- ACTIONS TAB -->
+            <ScrollViewer x:Name="PanelActions" VerticalScrollBarVisibility="Auto" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="КАТЕГОРИЯ" Style="{StaticResource SectionHeader}"/>
+                    <ComboBox x:Name="ActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="ActionCombo_SelectionChanged"/>
+
+                    <TextBlock x:Name="SubActionLabel" Text="ДЕЙСТВИЕ" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
+                    <Grid x:Name="SubActionRow" Visibility="Collapsed">
+                        <ComboBox x:Name="SubActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="SubActionCombo_SelectionChanged"/>
+                    </Grid>
+
+                    <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
+
+                    <Button Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
+
+                    <Separator Background="#30363d" Margin="0,12,0,6"/>
+                    <TextBlock Text="ТЕХНИКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel x:Name="TechniquePanel"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- QUESTS TAB -->
+            <ScrollViewer x:Name="PanelQuests" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="ДОСТУПНЫЕ КВЕСТЫ" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel x:Name="QuestAvailPanel"/>
+                    <Separator Background="#30363d" Margin="0,10,0,6"/>
+                    <TextBlock Text="АКТИВНЫЕ КВЕСТЫ" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel x:Name="QuestActivePanel"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ALTAR TAB -->
+            <ScrollViewer x:Name="PanelAltar" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="АЛТАРЬ" Style="{StaticResource SectionHeader}"/>
+                    <TextBlock x:Name="AltarInfoLabel" Foreground="#c9d1d9" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                    <Button x:Name="UpgradeAltarBtn" Content="УЛУЧШИТЬ АЛТАРЬ" Style="{StaticResource ActionBtn}" Background="#2d1b69" Foreground="#d2a8ff" Click="UpgradeAltarBtn_Click"/>
+                    <Separator Background="#30363d" Margin="0,12,0,6"/>
+                    <TextBlock Text="БАРЬЕР" Style="{StaticResource SectionHeader}"/>
+                    <TextBlock x:Name="BarrierLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
+                    <Button Content="УКРЕПИТЬ БАРЬЕР (-20 веры)" Style="{StaticResource ActionBtn}" Background="#1a2a3a" Foreground="#79c0ff" Margin="0,4" Click="BarrierBtn_Click"/>
+                    <Separator Background="#30363d" Margin="0,12,0,6"/>
+                    <TextBlock Text="ПОСЛЕДОВАТЕЛИ" Style="{StaticResource SectionHeader}"/>
+                    <TextBlock x:Name="FollowerLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
+                    <Separator Background="#30363d" Margin="0,12,0,6"/>
+                    <TextBlock Text="ТЕХНИКИ" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel x:Name="AltarTechPanel"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- MAP TAB -->
+            <ScrollViewer x:Name="PanelMap" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="КАРТА МИРА" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel x:Name="MapPanel"/>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</UserControl>

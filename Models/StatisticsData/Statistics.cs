@@ -98,7 +98,7 @@ namespace ApocalypseSimulation.Models.StatisticsData
         }
 
         // === ПОЛУЧЕНИЕ ХАРАКТЕРИСТИКИ ПО ID ===
-        public Characteristic GetById(string id)
+        public Characteristic? GetById(string id)
         {
             return AllStats.FirstOrDefault(s => s.Id == id);
         }

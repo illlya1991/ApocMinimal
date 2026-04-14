@@ -21,9 +21,6 @@ public partial class LogControl : UserControl
     private LogSectionItem? _currentNpcSection;
     private LogSectionItem? _currentSystemSection;
 
-    // Флаг, указывающий, что мы сейчас в начале дня (системные сообщения)
-    private bool _isStartOfDay = true;
-
     public LogControl()
     {
         InitializeComponent();
@@ -55,26 +52,11 @@ public partial class LogControl : UserControl
         }
     }
 
-    private void UpdateButtonArrow(Button button, bool isExpanded)
-    {
-        if (button.Template?.FindName("ArrowText", button) is TextBlock arrow)
-        {
-            arrow.Text = isExpanded ? "▼ " : "▶ ";
-        }
-    }
-
     /// <summary>
-    /// Начать новый день - сворачивает предыдущий день
+    /// Начать новый день
     /// </summary>
     public void NewDay(string header)
     {
-        // Сворачиваем предыдущий день, если он есть
-        if (_currentDay != null && _currentDay.ContentPanel != null)
-        {
-            _currentDay.ContentPanel.Visibility = Visibility.Collapsed;
-            UpdateButtonArrow(_currentDay.HeaderButton!, false);
-        }
-
         var dayContainer = new Border
         {
             Background = (SolidColorBrush)new BrushConverter().ConvertFromString("#0d1117")!,
@@ -92,6 +74,7 @@ public partial class LogControl : UserControl
         var dayContent = new StackPanel { Margin = new Thickness(10, 4, 0, 6) };
         dayContent.Visibility = Visibility.Visible;
 
+        // Обновляем стрелку при клике
         headerButton.Click += (s, e) =>
         {
             dayContent.Visibility = dayContent.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
@@ -114,15 +97,19 @@ public partial class LogControl : UserControl
         };
         _days.Add(_currentDay);
 
-        // Сбрасываем секции для нового дня
         _currentPlayerSection = null;
         _currentNpcSection = null;
         _currentSystemSection = null;
 
-        // В начале дня флаг true - системные сообщения будут добавляться
-        _isStartOfDay = true;
-
         ScrollToBottom();
+    }
+
+    private void UpdateButtonArrow(Button button, bool isExpanded)
+    {
+        if (button.Template?.FindName("ArrowText", button) is TextBlock arrow)
+        {
+            arrow.Text = isExpanded ? "▼ " : "▶ ";
+        }
     }
 
     private void EnsureCurrentSection(ref LogSectionItem? section, string title, string icon)
@@ -177,43 +164,7 @@ public partial class LogControl : UserControl
     }
 
     /// <summary>
-    /// Добавить системное сообщение (только в начале дня)
-    /// </summary>
-    public void AddSystemMessage(string text, string colorHex)
-    {
-        // Системные сообщения добавляются только в начале дня
-        if (!_isStartOfDay) return;
-
-        EnsureCurrentSection(ref _currentSystemSection, "Система", "⚙");
-        AddTextToSection(_currentSystemSection, text, colorHex);
-        ScrollToBottom();
-    }
-
-    /// <summary>
-    /// Добавить действие игрока
-    /// </summary>
-    public void AddPlayerAction(string text, string colorHex)
-    {
-        // После первого действия игрока - отключаем добавление системных сообщений
-        _isStartOfDay = false;
-
-        EnsureCurrentSection(ref _currentPlayerSection, "Действия", "🎮");
-        AddTextToSection(_currentPlayerSection, text, colorHex);
-        ScrollToBottom();
-    }
-
-    /// <summary>
-    /// Добавить информацию об NPC
-    /// </summary>
-    public void AddNpcInfo(string text, string colorHex)
-    {
-        EnsureCurrentSection(ref _currentNpcSection, "Информация об NPC", "📋");
-        AddTextToSection(_currentNpcSection, text, colorHex);
-        ScrollToBottom();
-    }
-
-    /// <summary>
-    /// Добавить запись в лог (автоматически определяет тип)
+    /// Добавить запись в лог (автоматически определяет секцию)
     /// </summary>
     public void AddEntry(string text, string colorHex)
     {
@@ -224,25 +175,31 @@ public partial class LogControl : UserControl
         }
         else if (text.Contains("──") || text.Contains("────────────────"))
         {
-            AddNpcInfo(text, colorHex);
+            EnsureCurrentSection(ref _currentNpcSection, "Информация об NPC", "📋");
+            AddTextToSection(_currentNpcSection, text, colorHex);
         }
         else if (text.Contains("Алтарь") || text.Contains("веры") || text.Contains("ОВ") ||
                  text.Contains("алтарь") || text.Contains("Вера") || text.Contains("Система") ||
                  text.Contains("Мир загружен") || text.Contains("Выживших:"))
         {
-            AddSystemMessage(text, colorHex);
+            EnsureCurrentSection(ref _currentSystemSection, "Система", "⚙");
+            AddTextToSection(_currentSystemSection, text, colorHex);
         }
         else if (text.Contains("ПОТРЕБНОСТИ") || text.Contains("ПАМЯТЬ") || text.Contains("ХАРАКТЕРИСТИКИ") ||
                  text.Contains("ФИЗИЧЕСКИЕ") || text.Contains("МЕНТАЛЬНЫЕ") || text.Contains("ЭНЕРГЕТИЧЕСКИЕ") ||
                  text.Contains("HP:") || text.Contains("Чакра:") || text.Contains("Эмоции:") ||
                  text.Contains("Черты:") || text.Contains("Цель:") || text.Contains("Мечта:"))
         {
-            AddNpcInfo(text, colorHex);
+            EnsureCurrentSection(ref _currentNpcSection, "Информация об NPC", "📋");
+            AddTextToSection(_currentNpcSection, text, colorHex);
         }
         else
         {
-            AddPlayerAction(text, colorHex);
+            EnsureCurrentSection(ref _currentPlayerSection, "Действия", "🎮");
+            AddTextToSection(_currentPlayerSection, text, colorHex);
         }
+
+        ScrollToBottom();
     }
 
     /// <summary>
@@ -257,7 +214,6 @@ public partial class LogControl : UserControl
         _currentNpcSection = null;
         _currentSystemSection = null;
         _autoScroll = true;
-        _isStartOfDay = true;
     }
 
     /// <summary>
@@ -346,14 +302,6 @@ public partial class LogControl : UserControl
         ScrollToBottom();
     }
 
-    /// <summary>
-    /// Показать все дни (алиас)
-    /// </summary>
-    public void ShowAll()
-    {
-        ShowAllDays();
-    }
-
     // =========================================================
     // Event Handlers
     // =========================================================
@@ -366,7 +314,7 @@ public partial class LogControl : UserControl
 
     private void Filter7Days_Click(object sender, RoutedEventArgs e) => ShowLastDays(7);
 
-    private void ShowAll_Click(object sender, RoutedEventArgs e) => ShowAll();
+    private void ShowAll_Click(object sender, RoutedEventArgs e) => ShowAllDays();
 
     // Внутренние классы
     private class LogSectionItem

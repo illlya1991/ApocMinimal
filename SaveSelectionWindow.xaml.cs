@@ -109,7 +109,7 @@ namespace ApocMinimal
             }
         }
 
-        private async void OnSaveSelected(OneSave save)
+        private void OnSaveSelected(OneSave save)
         {
             if (_mode == "new")
             {
@@ -151,7 +151,7 @@ namespace ApocMinimal
             }
         }
 
-        private async void OnDeleteSave(OneSave save, StackPanel container)
+        private void OnDeleteSave(OneSave save, StackPanel container)
         {
             MessageBoxResult result = MessageBox.Show(
                 $"Ви дійсно хочете видалити збереження {save._connectionString}?\n\nЦю дію не можна буде скасувати!",
