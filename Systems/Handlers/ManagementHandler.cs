@@ -53,7 +53,7 @@ public class ManagementHandler : BaseActionHandler
             return $"{target.Name} уже достиг максимального уровня последователя ({target.FollowerLabel})";
 
         // Проверка лимита алтаря
-        int currentCount = GetFollowerCountAtLevel(target.FollowerLevel + 1);
+        int currentCount = _db.GetFollowerCountAtLevel(target.FollowerLevel + 1);
         int limit = player.GetFollowerLimit(target.FollowerLevel + 1);
         if (limit != -1 && currentCount >= limit)
             return $"Невозможно повысить: достигнут лимит алтаря для уровня {target.FollowerLevel + 1} (лимит: {limit})";
@@ -167,10 +167,4 @@ public class ManagementHandler : BaseActionHandler
         target.Initiative = Math.Max(0, target.Initiative - 5);
     }
 
-    private int GetFollowerCountAtLevel(int level)
-    {
-        // Нужно получить из _db, но DatabaseManager не имеет такого метода
-        // Временная заглушка - считаем из _npcs, но у нас нет доступа
-        return 0;
-    }
 }

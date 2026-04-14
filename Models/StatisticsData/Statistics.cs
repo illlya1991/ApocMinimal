@@ -247,5 +247,47 @@ namespace ApocalypseSimulation.Models.StatisticsData
         {
             return string.Join("\n", AllStats.Select(s => s.ToString()));
         }
+
+        // В Statistics.cs добавить:
+        public int GetStatValue(int statId)
+        {
+            return statId switch
+            {
+                // Физические (1-10)
+                1 => Endurance.FinalValue,
+                2 => Toughness.FinalValue,
+                3 => Strength.FinalValue,
+                4 => RecoveryPhys.FinalValue,
+                5 => Reflexes.FinalValue,
+                6 => Agility.FinalValue,
+                7 => Adaptation.FinalValue,
+                8 => Regeneration.FinalValue,
+                9 => Sensorics.FinalValue,
+                10 => Longevity.FinalValue,
+                // Ментальные (11-22)
+                11 => Focus.FinalValue,
+                12 => Memory.FinalValue,
+                13 => Logic.FinalValue,
+                14 => Deduction.FinalValue,
+                15 => Intelligence.FinalValue,
+                16 => Will.FinalValue,
+                17 => Learning.FinalValue,
+                18 => Flexibility.FinalValue,
+                19 => Intuition.FinalValue,
+                20 => SocialIntel.FinalValue,
+                21 => Creativity.FinalValue,
+                22 => Mathematics.FinalValue,
+                // Энергетические (23-30)
+                23 => EnergyReserve.FinalValue,
+                24 => EnergyRecovery.FinalValue,
+                25 => Control.FinalValue,
+                26 => Concentration.FinalValue,
+                27 => Output.FinalValue,
+                28 => Precision.FinalValue,
+                29 => EnergyResist.FinalValue,
+                30 => EnergySense.FinalValue,
+                _ => 0
+            };
+        }
     }
 }

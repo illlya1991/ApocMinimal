@@ -10,12 +10,12 @@ namespace ApocMinimal.Systems;
 /// </summary>
 public class NpcDayResult
 {
-    public Npc                     Npc     { get; }
+    public Npc Npc { get; }
     public IReadOnlyList<ActionLogEntry> Actions { get; }
 
     public NpcDayResult(Npc npc, List<ActionLogEntry> actions)
     {
-        Npc     = npc;
+        Npc = npc;
         Actions = actions;
     }
 }
@@ -26,13 +26,13 @@ public class NpcDayResult
 /// </summary>
 public class DayResult
 {
-    public List<NpcDayResult>       NpcResults    { get; } = new();
-    public List<(Npc Npc, Quest Quest)> QuestRewards  { get; } = new();
-    public List<Quest>              NewQuests     { get; } = new();
+    public List<NpcDayResult> NpcResults { get; } = new();
+    public List<(Npc Npc, Quest Quest)> QuestRewards { get; } = new();
+    public List<Quest> NewQuests { get; } = new();
     /// <summary>General text log lines (resource consumption, leader bonus, etc.).</summary>
     public List<(string Text, bool IsAlert)> Logs { get; } = new();
-    public double FaithGained    { get; set; }
-    public int    FollowerCount  { get; set; }
+    public double FaithGained { get; set; }
+    public int FollowerCount { get; set; }
 }
 
 /// <summary>
@@ -53,11 +53,11 @@ public static class GameLoopService
     /// returns a <see cref="DayResult"/> that the UI can render.
     /// </summary>
     public static DayResult ProcessDay(
-        Player       player,
-        List<Npc>    npcs,
+        Player player,
+        List<Npc> npcs,
         List<Resource> resources,
-        List<Quest>  quests,
-        Random       rnd)
+        List<Quest> quests,
+        Random rnd)
     {
         var result = new DayResult();
 
@@ -96,29 +96,29 @@ public static class GameLoopService
         double faithTotal = 0;
         foreach (var npc in npcs.Where(n => n.IsAlive && n.FollowerLevel > 0))
         {
-            double maxDay  = npc.FollowerLevel * (Player.MaxFaithPerNpcPerDay / 5.0);
-            double avgSat  = npc.Needs.Count > 0
+            double maxDay = npc.FollowerLevel * (Player.MaxFaithPerNpcPerDay / 5.0);
+            double avgSat = npc.Needs.Count > 0
                 ? npc.Needs.Average(n => n.Satisfaction) / 100.0
                 : 0.5;
             double trustMod = 0.3 + npc.Trust / 100.0 * 0.7;
-            double posSum   = npc.Emotions
+            double posSum = npc.Emotions
                 .Where(em => PositiveEmotions.Contains(em.Name))
                 .Sum(em => em.Percentage);
-            double emoMod  = 0.5 + posSum / 200.0;
-            faithTotal    += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
+            double emoMod = 0.5 + posSum / 200.0;
+            faithTotal += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
         }
-        player.FaithPoints  += faithTotal;
-        result.FaithGained   = faithTotal;
+        player.FaithPoints += faithTotal;
+        result.FaithGained = faithTotal;
         result.FollowerCount = npcs.Count(n => n.IsAlive && n.FollowerLevel > 0);
 
         // ── 7. Auto-consume resources ─────────────────────────────────────────
         int alive = npcs.Count(n => n.IsAlive);
         if (alive > 0)
         {
-            var food  = resources.FirstOrDefault(r => r.Name == ResourceNames.Food);
+            var food = resources.FirstOrDefault(r => r.Name == ResourceNames.Food);
             var water = resources.FirstOrDefault(r => r.Name == ResourceNames.Water);
 
-            if (food != null)
+            if (food != null && food.Amount > 0)
             {
                 double eat = Math.Min(food.Amount, alive);
                 food.Amount -= eat;
@@ -126,14 +126,26 @@ public static class GameLoopService
                     NeedSystem.SatisfyNeed(n, BasicNeedId.Food, 30);
                 result.Logs.Add(($"{ResourceNames.Food}: -{eat:F0} ед.  Осталось: {food.Amount:F0}", false));
             }
+            else if (food != null && food.Amount <= 0)
+            {
+                result.Logs.Add(($"{ResourceNames.Food}: закончилась! Голод наносит урон!", true));
+                foreach (var n in npcs.Where(n => n.IsAlive))
+                    n.Health = Math.Max(0, n.Health - 5);
+            }
 
-            if (water != null)
+            if (water != null && water.Amount > 0)
             {
                 double drink = Math.Min(water.Amount, alive);
                 water.Amount -= drink;
                 foreach (var n in npcs.Where(n => n.IsAlive).Take((int)drink))
                     NeedSystem.SatisfyNeed(n, BasicNeedId.Water, 35);
                 result.Logs.Add(($"{ResourceNames.Water}: -{drink:F0} ед.  Осталось: {water.Amount:F0}", false));
+            }
+            else if (water != null && water.Amount <= 0)
+            {
+                result.Logs.Add(($"{ResourceNames.Water}: закончилась! Обезвоживание наносит урон!", true));
+                foreach (var n in npcs.Where(n => n.IsAlive))
+                    n.Health = Math.Max(0, n.Health - 8);
             }
         }
 

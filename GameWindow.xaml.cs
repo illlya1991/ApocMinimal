@@ -1,302 +1,156 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Input;
 using System.Windows.Media;
 using ApocMinimal.Database;
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
-using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
 using ApocMinimal.Models.UIData;
 using ApocMinimal.Systems;
 using ApocMinimal.Systems.Handlers;
+using ApocMinimal.ViewModels;
+using ApocMinimal.Services;
 
 namespace ApocMinimal;
 
 public partial class GameWindow : Window
 {
-    private readonly DatabaseManager _db;
-    private Player _player = null!;
-    private List<Npc> _npcs = new();
-    private List<Resource> _resources = new();
-    private List<Quest> _quests = new();
-    private List<Location> _locations = new();
-
-    private readonly Random _rnd = new();
-    private StackPanel? _currentDayPanel;
-    private Expander? _currentPlayerActionExpander;
-    private StackPanel? _currentPlayerActionPanel;
-
-    // Новая система действий
-    private ActionManager _actionManager = null!;
-    private GameActionDb? _currentSelectedAction = null;
-    private List<ComboBox> _dynamicComboBoxes = new();
+    private readonly GameViewModel _viewModel;
+    private readonly GameUIService _uiService;
+    private readonly List<ComboBox> _dynamicComboBoxes = new();
 
     public GameWindow(DatabaseManager db)
     {
         InitializeComponent();
-        _db = db;
-        _actionManager = new ActionManager(_db, _rnd, Log);
-        LoadData();
-        BuildActionCombo();
-        BuildQuestTaskCombo();
+
+        _uiService = new GameUIService(Log);
+        _viewModel = new GameViewModel(db, Log);
+
+        DataContext = _viewModel;
+        _viewModel.PropertyChanged += (s, e) => RefreshHeader();
+
+        InitializeUI();
         RefreshAll();
 
-        // Устанавливаем заголовок окна с именем игрока
-        this.Title = $"Apocalypse Simulation — {_player.Name}";
-
-        LogDay($"=== День {_player.CurrentDay} ===");
-        Log($"Мир загружен. Выживших: {_npcs.Count(n => n.IsAlive)}", LogEntry.ColorNormal);
+        Title = $"Apocalypse Simulation — {_viewModel.PlayerName}";
+        LogDay($"=== День {_viewModel.CurrentDay} ===");
+        Log($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
     }
 
-    private void LoadData()
-    {
-        _player = _db.GetPlayer()!;
-        _npcs = _db.GetAllNpcs();
-        _resources = _db.GetAllResources();
-        _quests = _db.GetAllQuests();
-        _locations = _db.GetAllLocations();
-    }
-
-    private void BuildActionCombo()
+    private void InitializeUI()
     {
         ActionCombo.Items.Clear();
-        var groups = _actionManager.GetGroups();
-        foreach (var group in groups)
-        {
+        foreach (var group in _viewModel.ActionGroups)
             ActionCombo.Items.Add(group);
-        }
         ActionCombo.SelectedIndex = -1;
 
-        SetVis(SubActionRow, false);
-        SetVis(ParametersPanel, false);
-    }
+        SubActionRow.Visibility = Visibility.Collapsed;
+        ParametersPanel.Visibility = Visibility.Collapsed;
 
-    private void BuildQuestTaskCombo()
-    {
-        TaskCombo.Items.Clear();
-        foreach (var q in _quests.Where(q => q.Status == QuestStatus.Available))
-            TaskCombo.Items.Add(q.Title);
-        if (TaskCombo.Items.Count > 0) TaskCombo.SelectedIndex = 0;
+        RefreshNpcSidebar();
     }
 
     private void RefreshAll()
     {
         RefreshHeader();
-        RefreshNpcCombo();
-        RefreshResourceCombo();
         RefreshNpcSidebar();
         RefreshAltarTab();
         RefreshQuestsTab();
         RefreshMapTab();
         RefreshTechniquePanel();
+        RefreshResourceCombo();
     }
 
     private void RefreshHeader()
     {
-        DayLabel.Text = $"  |  День {_player.CurrentDay}";
-        FaithLabel.Text = $"  {_player.FaithPoints:F0} веры";
-        AltarLabel.Text = $"  Алтарь: ур.{_player.AltarLevel}";
-        bool actionsLeft = _player.PlayerActionsToday < Player.MaxPlayerActionsPerDay;
-        ActionsLabel.Text = $"  Действий: {_player.PlayerActionsToday}/{Player.MaxPlayerActionsPerDay}";
-        ActionsLabel.Foreground = actionsLeft ? HexBrush("#56d364") : HexBrush("#f87171");
-    }
-
-    private void RefreshNpcCombo()
-    {
-        NpcCombo.Items.Clear();
-        foreach (var n in _npcs)
-            NpcCombo.Items.Add(n.IsAlive ? n.Name : $"{n.Name} (погиб)");
-        if (NpcCombo.Items.Count > 0) NpcCombo.SelectedIndex = 0;
-    }
-
-    private void RefreshResourceCombo()
-    {
-        ResourceCombo.Items.Clear();
-        foreach (var r in _resources)
-            ResourceCombo.Items.Add($"{r.Name}  ({r.Amount:F0} ед.)");
-        if (ResourceCombo.Items.Count > 0) ResourceCombo.SelectedIndex = 0;
+        DayLabel.Text = $"  |  {_viewModel.DayDisplay}";
+        FaithLabel.Text = $"  {_viewModel.FaithDisplay}";
+        AltarLabel.Text = $"  {_viewModel.AltarDisplay}";
+        ActionsLabel.Text = $"  {_viewModel.ActionsDisplay}";
+        ActionsLabel.Foreground = _viewModel.HasActionsLeft ?
+            (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")! :
+            (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;
     }
 
     private void RefreshNpcSidebar()
     {
         NpcPanel.Children.Clear();
-        foreach (var npc in _npcs)
-            NpcPanel.Children.Add(BuildNpcCard(npc));
+        foreach (var npc in _viewModel.AllNpcs)
+        {
+            var card = _uiService.BuildNpcCard(npc);
+            var capturedNpc = npc;
+            card.MouseLeftButtonUp += (_, _) => ShowNpcInfo(capturedNpc);
+            NpcPanel.Children.Add(card);
+        }
     }
 
-    private UIElement BuildNpcCard(Npc npc)
+    private void ShowNpcInfo(Npc npc)
     {
-        var card = new Border
-        {
-            Background = HexBrush(npc.StatusColor),
-            CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(0, 0, 0, 6),
-            Padding = new Thickness(8, 6, 8, 6),
-            Opacity = npc.IsAlive ? 1.0 : 0.5,
-        };
-        var panel = new StackPanel();
+        // Собираем всю информацию об NPC в буфер
+        var infoLines = new List<string>();
+        var infoColors = new List<string>();
 
-        var nameRow = new Grid();
-        nameRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        nameRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var nameText = new TextBlock
+        // Временный логгер для сбора строк
+        void CollectLog(string text, string color)
         {
-            Text = npc.IsAlive ? $"{npc.Name} ({npc.GenderLabel})" : $"[погиб] {npc.Name}",
-            Foreground = Brushes.White,
-            FontSize = 13,
-            FontWeight = FontWeights.SemiBold,
-        };
-        Grid.SetColumn(nameText, 0);
-        var traitText = new TextBlock
-        {
-            Text = npc.TraitLabel,
-            Foreground = TraitBrush(npc.Trait),
-            FontSize = 10,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetColumn(traitText, 1);
-        nameRow.Children.Add(nameText);
-        nameRow.Children.Add(traitText);
-        panel.Children.Add(nameRow);
-
-        if (!npc.IsAlive)
-        {
-            card.Child = panel;
-            card.Cursor = Cursors.Hand;
-            // Вызываем статический метод InfoHandler
-            card.MouseLeftButtonUp += (_, _) => InfoHandler.ShowNpcInfoStatic(npc, Log);
-            return card;
+            infoLines.Add(text);
+            infoColors.Add(color);
         }
 
-        panel.Children.Add(MakeBar("HP", npc.Health, npc.Health < 30 ? "#f87171" : "#4ade80", "#1a3a1a"));
-        panel.Children.Add(MakeBar("Выносл.", npc.Stamina, npc.Stamina < 30 ? "#f87171" : "#60a5fa", "#10202a"));
+        InfoHandler.ShowNpcInfoStatic(npc, CollectLog);
 
-        panel.Children.Add(new TextBlock
+        // Выводим в отдельную секцию лога
+        LogControl.AddNpcSeparator();
+        for (int i = 0; i < infoLines.Count; i++)
         {
-            Text = $"Страх: {npc.Fear:F0}  Доверие: {npc.Trust:F0}  Вера: {npc.Faith:F0}",
-            Foreground = HexBrush("#8b949e"),
-            FontSize = 10,
-            Margin = new Thickness(0, 2, 0, 0)
-        });
-
-        panel.Children.Add(new TextBlock
-        {
-            Text = $"Сил:{npc.Stats.Strength.FinalValue}  Лов:{npc.Stats.Agility.FinalValue}  Инт:{npc.Stats.Intelligence.FinalValue}",
-            Foreground = HexBrush("#8b949e"),
-            FontSize = 10,
-        });
-
-        panel.Children.Add(new TextBlock
-        {
-            Text = $"{npc.Profession}  [{npc.FollowerLabel}]",
-            Foreground = HexBrush("#8b949e"),
-            FontSize = 10,
-        });
-
-        if (npc.CharTraits.Count > 0)
-            panel.Children.Add(new TextBlock
-            {
-                Text = string.Join(", ", npc.CharTraits.Select(c => c.ToLabel())),
-                Foreground = HexBrush("#d29922"),
-                FontSize = 10,
-            });
-
-        var urgent = NeedSystem.GetMostUrgentNeed(npc);
-        if (urgent != null)
-            panel.Children.Add(new TextBlock
-            {
-                Text = $"Нужда: {urgent.Name} ({urgent.Value:F0}%)",
-                Foreground = urgent.IsCritical ? HexBrush("#f87171") : HexBrush("#fbbf24"),
-                FontSize = 10,
-            });
-
-        if (npc.HasTask)
-            panel.Children.Add(new TextBlock
-            {
-                Text = $"Задание: {npc.ActiveTask} ({npc.TaskDaysLeft} дн.)",
-                Foreground = HexBrush("#e879f9"),
-                FontSize = 10,
-            });
-
-        card.Child = panel;
-        card.Cursor = Cursors.Hand;
-        // Вызываем статический метод InfoHandler
-        card.MouseLeftButtonUp += (_, _) => InfoHandler.ShowNpcInfoStatic(npc, Log);
-        return card;
-    }
-    private static StackPanel MakeBar(string label, double value, string fillHex, string bgHex)
-    {
-        const double maxWidth = 220;
-        var wrap = new StackPanel();
-        wrap.Children.Add(new TextBlock
-        { Text = label, Foreground = HexBrush("#8b949e"), FontSize = 9, Margin = new Thickness(0, 2, 0, 0) });
-        var bg = new Border { Background = HexBrush(bgHex), CornerRadius = new CornerRadius(2), Height = 7 };
-        var fill = new Border
-        {
-            Background = HexBrush(fillHex),
-            CornerRadius = new CornerRadius(2),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Width = Math.Max(0, Math.Min(1, value / 100.0)) * maxWidth,
-        };
-        var grid = new Grid();
-        grid.Children.Add(bg);
-        grid.Children.Add(fill);
-        wrap.Children.Add(grid);
-        return wrap;
+            LogControl.AddNpcInfo(infoLines[i], infoColors[i]);
+        }
+        LogControl.AddNpcSeparator();
     }
 
-    private static Brush TraitBrush(NpcTrait t) => t switch
+    private void RefreshResourceCombo()
     {
-        NpcTrait.Leader => HexBrush("#facc15"),
-        NpcTrait.Coward => HexBrush("#f87171"),
-        NpcTrait.Loner => HexBrush("#94a3b8"),
-        _ => Brushes.Transparent,
-    };
-
-    private static SolidColorBrush HexBrush(string hex)
-    {
-        return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        ResourceCombo.Items.Clear();
+        foreach (var r in _viewModel.Resources)
+            ResourceCombo.Items.Add($"{r.Name}  ({r.Amount:F0} ед.)");
+        if (ResourceCombo.Items.Count > 0) ResourceCombo.SelectedIndex = 0;
     }
 
     private void RefreshAltarTab()
     {
         AltarInfoLabel.Text =
-            $"Уровень: {_player.AltarLevel} / 10\n" +
-            $"Вера: {_player.FaithPoints:F0}\n" +
-            $"Макс. ОВ/NPC/день: {Player.MaxFaithPerNpcPerDay:F0}\n" +
-            $"Стоимость улучшения: {_player.UpgradeCost:N0} ОВ";
+            $"Уровень: {_viewModel.AltarLevel} / 10\n" +
+            $"Вера: {_viewModel.FaithPoints:F0}\n" +
+            $"Стоимость улучшения: {_viewModel.UpgradeCost:N0} ОВ";
 
-        UpgradeAltarBtn.IsEnabled = _player.CanUpgrade;
-        UpgradeAltarBtn.Opacity = _player.CanUpgrade ? 1.0 : 0.5;
-        UpgradeAltarBtn.Content = _player.AltarLevel >= 10
+        UpgradeAltarBtn.IsEnabled = _viewModel.CanUpgrade;
+        UpgradeAltarBtn.Content = _viewModel.AltarLevel >= 10
             ? "Максимальный уровень"
-            : $"Улучшить ({_player.UpgradeCost:N0} ОВ)";
+            : $"Улучшить ({_viewModel.UpgradeCost:N0} ОВ)";
 
-        BarrierLabel.Text = $"Размер барьера: {_player.BarrierSize:F0} м";
+        BarrierLabel.Text = $"Размер барьера: {_viewModel.BarrierSize:F0} м";
 
         var sb = new System.Text.StringBuilder("Последователи: ");
         for (int fl = 0; fl <= 5; fl++)
         {
-            int lim = _player.GetFollowerLimit(fl);
+            int lim = _viewModel.GetFollowerLimit(fl);
             if (lim == 0) continue;
-            int cur = _npcs.Count(n => n.IsAlive && n.FollowerLevel == fl);
+            int cur = _viewModel.GetFollowerCountAtLevel(fl);
             sb.Append($"lvl{fl}: {cur}/{(lim == -1 ? "∞" : lim.ToString())}  ");
         }
         FollowerLabel.Text = sb.ToString().TrimEnd();
 
         AltarTechPanel.Children.Clear();
-        foreach (var tech in Player.AllTechniques)
+        foreach (var tech in _viewModel.AllTechniques)
         {
-            bool unlocked = tech.AltarLevel <= _player.AltarLevel;
+            bool unlocked = tech.AltarLevel <= _viewModel.AltarLevel;
             var btn = new Button
             {
                 Content = $"{tech.Name}  ({tech.FaithCost:F0} ОВ)",
                 Style = (Style)Resources["ActionBtn"],
-                IsEnabled = unlocked && _player.FaithPoints >= tech.FaithCost,
+                IsEnabled = unlocked && _viewModel.FaithPoints >= tech.FaithCost,
                 Opacity = unlocked ? 1.0 : 0.4,
                 ToolTip = tech.Description,
                 Tag = tech,
@@ -308,57 +162,22 @@ public partial class GameWindow : Window
 
     private void RefreshQuestsTab()
     {
-        BuildQuestTaskCombo();
-
         QuestAvailPanel.Children.Clear();
-        foreach (var q in _quests.Where(q => q.Status == QuestStatus.Available))
-        {
-            var b = new Border
-            {
-                Background = HexBrush("#161b22"),
-                BorderBrush = HexBrush("#30363d"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
-                Margin = new Thickness(0, 0, 0, 4),
-                Padding = new Thickness(6, 4, 6, 4),
-            };
-            var sp = new StackPanel();
-            sp.Children.Add(new TextBlock { Text = q.Title, Foreground = HexBrush("#c9d1d9"), FontWeight = FontWeights.SemiBold });
-            sp.Children.Add(new TextBlock { Text = q.Description, Foreground = HexBrush("#8b949e"), FontSize = 10, TextWrapping = TextWrapping.Wrap });
-            sp.Children.Add(new TextBlock { Text = $"Дней: {q.DaysRequired}  Вознаграждение: {q.RewardAmount:F0} ед.", Foreground = HexBrush("#d29922"), FontSize = 10 });
-            b.Child = sp;
-            QuestAvailPanel.Children.Add(b);
-        }
-        if (!_quests.Any(q => q.Status == QuestStatus.Available))
-            QuestAvailPanel.Children.Add(new TextBlock { Text = "Нет доступных квестов.", Foreground = HexBrush("#8b949e"), FontSize = 11 });
+        foreach (var q in _viewModel.AvailableQuests)
+            QuestAvailPanel.Children.Add(_uiService.BuildQuestCard(q, false));
 
         QuestActivePanel.Children.Clear();
-        foreach (var q in _quests.Where(q => q.Status == QuestStatus.Active))
+        foreach (var q in _viewModel.ActiveQuests)
         {
-            var npc = _npcs.FirstOrDefault(n => n.Id == q.AssignedNpcId);
-            var b = new Border
-            {
-                Background = HexBrush("#1a2a1a"),
-                BorderBrush = HexBrush("#30363d"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
-                Margin = new Thickness(0, 0, 0, 4),
-                Padding = new Thickness(6, 4, 6, 4),
-            };
-            var sp = new StackPanel();
-            sp.Children.Add(new TextBlock { Text = q.Title, Foreground = HexBrush("#56d364"), FontWeight = FontWeights.SemiBold });
-            sp.Children.Add(new TextBlock { Text = $"Исполнитель: {npc?.Name ?? "?"}", Foreground = HexBrush("#8b949e"), FontSize = 10 });
-            sp.Children.Add(new TextBlock { Text = $"Осталось дней: {q.DaysRemaining}", Foreground = HexBrush("#d29922"), FontSize = 10 });
-            b.Child = sp;
-            QuestActivePanel.Children.Add(b);
+            var npc = _viewModel.GetNpcById(q.AssignedNpcId);
+            QuestActivePanel.Children.Add(_uiService.BuildQuestCard(q, true, npc?.Name));
         }
     }
 
     private void RefreshMapTab()
     {
         MapPanel.Children.Clear();
-        var cities = _locations.Where(l => l.Type == LocationType.City).ToList();
-        foreach (var city in cities)
+        foreach (var city in _viewModel.Locations.Where(l => l.Type == LocationType.City))
             MapPanel.Children.Add(BuildLocationNode(city, 0));
     }
 
@@ -368,22 +187,24 @@ public partial class GameWindow : Window
         var header = new TextBlock
         {
             Text = $"{(loc.IsExplored ? "" : "? ")}{loc.TypeLabel}: {loc.Name}",
-            Foreground = loc.IsExplored ? HexBrush("#c9d1d9") : HexBrush("#8b949e"),
+            Foreground = loc.IsExplored ?
+                (SolidColorBrush)new BrushConverter().ConvertFromString("#c9d1d9")! :
+                (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e")!,
             FontSize = 11,
         };
-        if (loc.DangerLevel > 50) header.Foreground = HexBrush("#f87171");
+        if (loc.DangerLevel > 50) header.Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;
         sp.Children.Add(header);
 
         if (loc.IsExplored && loc.ResourceNodes.Count > 0)
             sp.Children.Add(new TextBlock
             {
                 Text = "  " + string.Join(", ", loc.ResourceNodes.Select(kv => $"{kv.Key}: {kv.Value:F0}")),
-                Foreground = HexBrush("#56d364"),
+                Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!,
                 FontSize = 9,
             });
 
         if (loc.Type > LocationType.Floor)
-            foreach (var child in _locations.Where(l => l.ParentId == loc.Id))
+            foreach (var child in _viewModel.Locations.Where(l => l.ParentId == loc.Id))
                 sp.Children.Add(BuildLocationNode(child, depth + 1));
 
         return sp;
@@ -392,15 +213,14 @@ public partial class GameWindow : Window
     private void RefreshTechniquePanel()
     {
         TechniquePanel.Children.Clear();
-        foreach (var tech in _player.UnlockedTechniques)
+        foreach (var tech in _viewModel.UnlockedTechniques)
         {
-            bool canUse = _player.FaithPoints >= tech.FaithCost;
             var btn = new Button
             {
                 Content = $"{tech.Name} ({tech.FaithCost:F0} ОВ)",
                 Style = (Style)Resources["ActionBtn"],
-                IsEnabled = canUse,
-                Opacity = canUse ? 1.0 : 0.5,
+                IsEnabled = _viewModel.FaithPoints >= tech.FaithCost,
+                Opacity = _viewModel.FaithPoints >= tech.FaithCost ? 1.0 : 0.5,
                 ToolTip = tech.Description,
                 Tag = tech,
             };
@@ -410,137 +230,37 @@ public partial class GameWindow : Window
     }
 
     // =========================================================
-    // Логирование
-    // =========================================================
-
-    private void LogDay(string header)
-    {
-        var expander = new Expander
-        {
-            Header = header,
-            Style = (Style)Resources["DayExpander"],
-            IsExpanded = true,
-        };
-        var content = new StackPanel { Margin = new Thickness(10, 2, 0, 4) };
-        expander.Content = content;
-        _currentDayPanel = content;
-        LogStack.Children.Add(expander);
-
-        // Сбрасываем текущий Expander действий игрока для нового дня
-        _currentPlayerActionExpander = null;
-        _currentPlayerActionPanel = null;
-
-        LogScroll.UpdateLayout();
-        LogScroll.ScrollToBottom();
-    }
-    private void Log(string text, string color)
-    {
-        // Находим текущий Expander дня
-        var currentDayExpander = LogStack.Children.OfType<Expander>().LastOrDefault();
-        if (currentDayExpander == null)
-        {
-            LogDay($"=== День {_player.CurrentDay} ===");
-            currentDayExpander = LogStack.Children.OfType<Expander>().LastOrDefault();
-        }
-
-        if (currentDayExpander == null) return;
-
-        // Проверяем, не является ли текущий вызов частью просмотра информации об NPC
-        // Если _currentDayPanel установлен вручную (как в ShowNpcInfo), используем его
-        if (_currentDayPanel != null && _currentDayPanel != currentDayExpander.Content)
-        {
-            // Добавляем сообщение напрямую в _currentDayPanel
-            _currentDayPanel.Children.Add(new TextBlock
-            {
-                Text = text,
-                Foreground = HexBrush(color),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 1, 0, 0),
-            });
-            LogScroll.UpdateLayout();
-            LogScroll.ScrollToBottom();
-            return;
-        }
-
-        // Получаем или создаём Expander для действий игрока (только для обычных логов, не для информации об NPC)
-        if (_currentPlayerActionExpander == null || _currentPlayerActionExpander.Parent != currentDayExpander.Content)
-        {
-            _currentPlayerActionExpander = new Expander
-            {
-                Header = $"🎮 Действия {_player.Name}",
-                Style = (Style)Resources["DayExpander"],
-                IsExpanded = true,
-                Margin = new Thickness(0, 4, 0, 2)
-            };
-
-            _currentPlayerActionPanel = new StackPanel { Margin = new Thickness(10, 2, 0, 4) };
-            _currentPlayerActionExpander.Content = _currentPlayerActionPanel;
-
-            if (currentDayExpander.Content is StackPanel mainPanel)
-            {
-                // Сворачиваем ВСЕ другие Expander перед добавлением нового
-                foreach (var child in mainPanel.Children.OfType<Expander>())
-                {
-                    child.IsExpanded = false;
-                }
-                mainPanel.Children.Add(_currentPlayerActionExpander);
-            }
-        }
-
-        // Добавляем сообщение
-        _currentPlayerActionPanel?.Children.Add(new TextBlock
-        {
-            Text = text,
-            Foreground = HexBrush(color),
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 1, 0, 0),
-        });
-
-        LogScroll.UpdateLayout();
-        LogScroll.ScrollToBottom();
-    }
-    // =========================================================
-    // Новая система выбора действия
+    // Actions UI
     // =========================================================
 
     private void ActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ActionCombo.SelectedIndex < 0) return;
+        if (ActionCombo.SelectedItem is not ActionGroup group) return;
 
-        ActionGroup group = (ActionGroup)ActionCombo.SelectedItem;
-        if (group == null) return;
-
-        SetVis(SubActionRow, true);
-        SetVis(SubActionLabel, true);
-
+        SubActionRow.Visibility = Visibility.Visible;
         SubActionCombo.Items.Clear();
-        var actions = _actionManager.GetActionsByGroup(group.Id);
-        foreach (var action in actions)
-        {
-            SubActionCombo.Items.Add(action);
-        }
-        SubActionCombo.SelectedIndex = -1;
 
+        foreach (var action in _viewModel.GetActionsByGroup(group.Id))
+            SubActionCombo.Items.Add(action);
+
+        SubActionCombo.SelectedIndex = -1;
         ParametersPanel.Children.Clear();
-        SetVis(ParametersPanel, false);
+        ParametersPanel.Visibility = Visibility.Collapsed;
     }
 
     private void SubActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (SubActionCombo.SelectedIndex < 0)
+        if (SubActionCombo.SelectedItem is not GameActionDb action)
         {
-            _currentSelectedAction = null;
+            _viewModel.SelectedAction = null;
             ParametersPanel.Children.Clear();
-            SetVis(ParametersPanel, false);
+            ParametersPanel.Visibility = Visibility.Collapsed;
             return;
         }
 
-        _currentSelectedAction = (GameActionDb)SubActionCombo.SelectedItem;
-
-        if (_currentSelectedAction == null) return;
-
-        BuildParametersUI(_currentSelectedAction);
-        SetVis(ParametersPanel, true);
+        _viewModel.SelectedAction = action;
+        BuildParametersUI(action);
+        ParametersPanel.Visibility = Visibility.Visible;
     }
 
     private void BuildParametersUI(GameActionDb action)
@@ -550,14 +270,13 @@ public partial class GameWindow : Window
 
         foreach (var param in action.Parameters.OrderBy(p => p.OrderIndex))
         {
-            var label = new TextBlock
+            ParametersPanel.Children.Add(new TextBlock
             {
                 Text = param.DisplayName,
-                Foreground = HexBrush("#8b949e"),
+                Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e")!,
                 FontSize = 11,
                 Margin = new Thickness(0, 8, 0, 4)
-            };
-            ParametersPanel.Children.Add(label);
+            });
 
             UIElement control = param.ParamType?.Name switch
             {
@@ -565,7 +284,7 @@ public partial class GameWindow : Window
                 "Resource" => BuildResourceComboBox(param),
                 "Number" => BuildNumberBox(param),
                 "Text" => BuildTextBox(param),
-                _ => new TextBlock { Text = $"Тип: {param.ParamType?.Name}", Foreground = HexBrush("#f87171") }
+                _ => new TextBlock { Text = $"Тип: {param.ParamType?.Name}", Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")! }
             };
 
             ParametersPanel.Children.Add(control);
@@ -574,106 +293,61 @@ public partial class GameWindow : Window
 
     private ComboBox BuildNpcComboBox(ActionParam param)
     {
-        var combo = new ComboBox
-        {
-            Style = (Style)Resources["LightCombo"],
-            Tag = param.ParamKey
-        };
-
-        var npcs = _npcs.AsEnumerable();
-
-        if (param.FilterCondition.Contains("\"IsAlive\": true") || param.DataSource == "alive_npcs")
-            npcs = npcs.Where(n => n.IsAlive);
-
-        foreach (var npc in npcs)
+        var combo = new ComboBox { Style = (Style)Resources["LightCombo"], Tag = param.ParamKey };
+        foreach (var npc in _viewModel.AliveNpcs)
             combo.Items.Add(npc.Name);
-
-        if (combo.Items.Count > 0)
-            combo.SelectedIndex = 0;
-
+        if (combo.Items.Count > 0) combo.SelectedIndex = 0;
         _dynamicComboBoxes.Add(combo);
         return combo;
     }
 
     private ComboBox BuildResourceComboBox(ActionParam param)
     {
-        var combo = new ComboBox
-        {
-            Style = (Style)Resources["LightCombo"],
-            Tag = param.ParamKey
-        };
-
-        var resources = _resources.AsEnumerable();
-
-        if (param.FilterCondition.Contains("\"Category\""))
-        {
-            var match = System.Text.RegularExpressions.Regex.Match(param.FilterCondition, "\"Category\":\\s*\"([^\"]+)\"");
-            if (match.Success)
-            {
-                string category = match.Groups[1].Value;
-                resources = resources.Where(r => r.Category == category);
-            }
-        }
-
-        foreach (var res in resources)
+        var combo = new ComboBox { Style = (Style)Resources["LightCombo"], Tag = param.ParamKey };
+        foreach (var res in _viewModel.Resources)
             combo.Items.Add(res.Name);
-
-        if (combo.Items.Count > 0)
-            combo.SelectedIndex = 0;
-
+        if (combo.Items.Count > 0) combo.SelectedIndex = 0;
         _dynamicComboBoxes.Add(combo);
         return combo;
     }
 
-    private TextBox BuildNumberBox(ActionParam param)
+    private TextBox BuildNumberBox(ActionParam param) => new()
     {
-        var box = new TextBox
-        {
-            Background = HexBrush("#21262d"),
-            Foreground = HexBrush("#c9d1d9"),
-            BorderBrush = HexBrush("#30363d"),
-            Padding = new Thickness(4, 2, 0, 0),
-            Tag = param.ParamKey,
-            Text = string.IsNullOrEmpty(param.DefaultValue) ? "1" : param.DefaultValue
-        };
-        return box;
-    }
+        Background = (SolidColorBrush)new BrushConverter().ConvertFromString("#21262d")!,
+        Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#c9d1d9")!,
+        BorderBrush = (SolidColorBrush)new BrushConverter().ConvertFromString("#30363d")!,
+        Padding = new Thickness(4, 2, 0, 0),
+        Tag = param.ParamKey,
+        Text = string.IsNullOrEmpty(param.DefaultValue) ? "1" : param.DefaultValue
+    };
 
-    private TextBox BuildTextBox(ActionParam param)
+    private TextBox BuildTextBox(ActionParam param) => new()
     {
-        var box = new TextBox
-        {
-            Background = HexBrush("#21262d"),
-            Foreground = HexBrush("#c9d1d9"),
-            BorderBrush = HexBrush("#30363d"),
-            Padding = new Thickness(4, 2, 0, 0),
-            Tag = param.ParamKey,
-            Text = param.DefaultValue
-        };
-        return box;
-    }
-
-    // =========================================================
-    // Выполнение действий
-    // =========================================================
+        Background = (SolidColorBrush)new BrushConverter().ConvertFromString("#21262d")!,
+        Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#c9d1d9")!,
+        BorderBrush = (SolidColorBrush)new BrushConverter().ConvertFromString("#30363d")!,
+        Padding = new Thickness(4, 2, 0, 0),
+        Tag = param.ParamKey,
+        Text = param.DefaultValue
+    };
 
     private void ExecuteAction_Click(object sender, RoutedEventArgs e)
     {
-        if (_currentSelectedAction == null)
+        if (_viewModel.SelectedAction == null)
         {
             Log("Выберите действие.", LogEntry.ColorWarning);
             return;
         }
 
-        if (_currentSelectedAction.ConsumesAction && _player.PlayerActionsToday >= Player.MaxPlayerActionsPerDay)
+        if (_viewModel.SelectedAction.ConsumesAction && !_viewModel.HasActionsLeft)
         {
             Log($"Час игрока исчерпан ({Player.MaxPlayerActionsPerDay} действий/день).", LogEntry.ColorWarning);
             return;
         }
 
-        var parameters = CollectParameterValues(_currentSelectedAction);
+        var parameters = CollectParameterValues(_viewModel.SelectedAction);
 
-        foreach (var param in _currentSelectedAction.Parameters.Where(p => p.IsRequired))
+        foreach (var param in _viewModel.SelectedAction.Parameters.Where(p => p.IsRequired))
         {
             if (!parameters.ContainsKey(param.ParamKey) || parameters[param.ParamKey] == null)
             {
@@ -682,44 +356,47 @@ public partial class GameWindow : Window
             }
         }
 
-        var result = _actionManager.ExecuteAction(_currentSelectedAction, parameters, _player, _npcs, _resources, _quests);
-        if (result != "")
+        var result = _viewModel.ExecuteAction(_viewModel.SelectedAction, parameters);
+        if (!string.IsNullOrEmpty(result))
             Log(result, LogEntry.ColorSuccess);
 
-        if (_currentSelectedAction.ConsumesAction)
+        if (_viewModel.SelectedAction.ConsumesAction)
         {
-            _player.PlayerActionsToday++;
-            _db.SavePlayer(_player);
+            _viewModel.ActionsToday++;
+            _viewModel.SavePlayer();
         }
 
+        _viewModel.Refresh();
         RefreshAll();
+        UpdateCombosAfterAction();
+    }
 
+    private void UpdateCombosAfterAction()
+    {
         foreach (var combo in _dynamicComboBoxes)
         {
             var paramKey = combo.Tag?.ToString();
-            var param = _currentSelectedAction.Parameters.FirstOrDefault(p => p.ParamKey == paramKey);
-            if (param != null)
+            var param = _viewModel.SelectedAction?.Parameters.FirstOrDefault(p => p.ParamKey == paramKey);
+            if (param == null) continue;
+
+            var selected = combo.SelectedItem?.ToString();
+            combo.Items.Clear();
+
+            if (param.ParamType?.Name == "Npc")
             {
-                var selected = combo.SelectedItem?.ToString();
-                combo.Items.Clear();
-
-                if (param.ParamType?.Name == "Npc")
-                {
-                    var npcs = _npcs.Where(n => n.IsAlive);
-                    foreach (var npc in npcs)
-                        combo.Items.Add(npc.Name);
-                }
-                else if (param.ParamType?.Name == "Resource")
-                {
-                    foreach (var res in _resources)
-                        combo.Items.Add(res.Name);
-                }
-
-                if (combo.Items.Contains(selected))
-                    combo.SelectedItem = selected;
-                else if (combo.Items.Count > 0)
-                    combo.SelectedIndex = 0;
+                foreach (var npc in _viewModel.AliveNpcs)
+                    combo.Items.Add(npc.Name);
             }
+            else if (param.ParamType?.Name == "Resource")
+            {
+                foreach (var res in _viewModel.Resources)
+                    combo.Items.Add(res.Name);
+            }
+
+            if (!string.IsNullOrEmpty(selected) && combo.Items.Contains(selected))
+                combo.SelectedItem = selected;
+            else if (combo.Items.Count > 0)
+                combo.SelectedIndex = 0;
         }
     }
 
@@ -778,7 +455,7 @@ public partial class GameWindow : Window
         if (control is ComboBox combo && combo.SelectedItem != null)
         {
             var name = combo.SelectedItem.ToString();
-            return _npcs.FirstOrDefault(n => n.Name == name);
+            return _viewModel.AllNpcs.FirstOrDefault(n => n.Name == name);
         }
         return null;
     }
@@ -788,7 +465,7 @@ public partial class GameWindow : Window
         if (control is ComboBox combo && combo.SelectedItem != null)
         {
             var name = combo.SelectedItem.ToString();
-            return _resources.FirstOrDefault(r => r.Name == name);
+            return _viewModel.Resources.FirstOrDefault(r => r.Name == name);
         }
         return null;
     }
@@ -802,154 +479,89 @@ public partial class GameWindow : Window
 
     private string GetTextValue(FrameworkElement control)
     {
-        return control is TextBox box ? box.Text : "";
+        return control is TextBox box ? box.Text : string.Empty;
     }
 
     // =========================================================
-    // Завершение дня
+    // End of Day
     // =========================================================
 
     private void EndDayBtn_Click(object sender, RoutedEventArgs e)
     {
-        _player.CurrentDay++;
-        _player.PlayerActionsToday = 0;
+        _viewModel.ProcessEndOfDay(Log);
+        _viewModel.SaveAll();
 
-        LogDay($"═══ ДЕНЬ {_player.CurrentDay} ══════════════════════");
+        LogDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
 
-        var day = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd);
+        Log($"Получено ОВ: (последователей: {_viewModel.AliveNpcsCount})", LogEntry.ColorAltarColor);
+        Log($"Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}  |  Вера: {_viewModel.FaithPoints:F0}", LogEntry.ColorDay);
 
-        var currentDayExpander = LogStack.Children.OfType<Expander>().LastOrDefault();
-        if (currentDayExpander != null && currentDayExpander.Content is StackPanel mainPanel)
-        {
-            foreach (var nr in day.NpcResults)
-            {
-                var npcExp = new Expander
-                {
-                    Header = $"{nr.Npc.Name} — {nr.Actions.Count(x => !x.IsAlert)} действий",
-                    Style = (Style)Resources["DayExpander"],
-                    IsExpanded = false,  // По умолчанию свернуто
-                    Margin = new Thickness(0, 2, 0, 2)
-                };
-
-                var npcPanel = new StackPanel { Margin = new Thickness(10, 2, 0, 2) };
-                foreach (var entry in nr.Actions)
-                {
-                    npcPanel.Children.Add(new TextBlock
-                    {
-                        Text = $"[{entry.Time}] {entry.Text}",
-                        Foreground = HexBrush(entry.Color),
-                        TextWrapping = TextWrapping.Wrap,
-                        Margin = new Thickness(0, 1, 0, 0),
-                        FontWeight = entry.IsAlert ? FontWeights.Bold : FontWeights.Normal,
-                    });
-                }
-                npcExp.Content = npcPanel;
-                mainPanel.Children.Add(npcExp);
-            }
-        }
-
-        foreach (var (npc, q) in day.QuestRewards)
-        {
-            var res = _resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
-            if (res != null)
-            {
-                res.Amount += q.RewardAmount;
-                Log($"Квест выполнен: «{q.Title}» ({npc.Name}) → +{q.RewardAmount:F0} ед. «{res.Name}»", LogEntry.ColorSuccess);
-                _db.SaveResource(res);
-            }
-            else
-            {
-                Log($"Квест выполнен: «{q.Title}» ({npc.Name})", LogEntry.ColorSuccess);
-            }
-        }
-
-        foreach (var q in day.NewQuests)
-        {
-            _db.InsertQuest(q);
-            Log($"Новый квест: «{q.Title}»", LogEntry.ColorDay);
-        }
-
-        foreach (var (text, isAlert) in day.Logs)
-        {
-            Log(text, isAlert ? LogEntry.ColorDanger : LogEntry.ColorNormal);
-        }
-
-        Log($"Получено ОВ: +{day.FaithGained:F1}  (последователей: {day.FollowerCount}, макс. {Player.MaxFaithPerNpcPerDay:F0}/NPC)",
-            LogEntry.ColorAltarColor);
-
-        _db.SavePlayer(_player);
-        foreach (var n in _npcs) _db.SaveNpc(n);
-        foreach (var r in _resources) _db.SaveResource(r);
-        foreach (var q in _quests.Where(q => q.Status != QuestStatus.Available)) _db.SaveQuest(q);
-
-        Log($"Выживших: {_npcs.Count(n => n.IsAlive)}/{_npcs.Count}  |  Вера: {_player.FaithPoints:F0}", LogEntry.ColorDay);
-
+        _viewModel.Refresh();
         RefreshAll();
-
-        LogScroll.UpdateLayout();
-        LogScroll.ScrollToBottom();
     }
 
     // =========================================================
-    // Алтарь
+    // Logging
     // =========================================================
 
-    private void UpgradeAltarBtn_Click(object sender, RoutedEventArgs e)
+    private void LogDay(string header)
     {
-        if (!_player.CanUpgrade) return;
-        long cost = _player.UpgradeCost;
-        _player.FaithPoints -= cost;
-        _player.AltarLevel++;
-        _db.SavePlayer(_player);
-        Log($"Алтарь улучшен до уровня {_player.AltarLevel}! (потрачено {cost:N0} ОВ)", LogEntry.ColorAltarColor);
-        Log($"  Макс. ОВ/NPC/день: {Player.MaxFaithPerNpcPerDay:F0}  Активных последователей: {_player.MaxActiveFollowers}", LogEntry.ColorAltarColor);
-        RefreshAll();
+        LogControl.NewDay(header);
     }
 
-    private void BarrierBtn_Click(object sender, RoutedEventArgs e)
+    private void Log(string text, string color)
     {
-        const double cost = 20;
-        if (_player.FaithPoints < cost) { Log("Недостаточно ОВ для барьера (нужно 20).", LogEntry.ColorWarning); return; }
-        _player.FaithPoints -= cost;
-        _player.BarrierSize = Math.Min(100, _player.BarrierSize + 10);
-        _db.SavePlayer(_player);
-        Log($"Барьер укреплён: {_player.BarrierSize:F0} м (-{cost} ОВ)", LogEntry.ColorAltarColor);
-        RefreshAll();
-    }
-
-    private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button btn || btn.Tag is not Technique tech) return;
-        if (_player.FaithPoints < tech.FaithCost) { Log($"Недостаточно ОВ для «{tech.Name}».", LogEntry.ColorWarning); return; }
-
-        _player.FaithPoints -= tech.FaithCost;
-        _db.SavePlayer(_player);
-
-        var target = tech.HealAmount > 0
-            ? _npcs.Where(n => n.IsAlive).OrderBy(n => n.Health).FirstOrDefault()
-            : _npcs.Where(n => n.IsAlive).OrderByDescending(n => n.Initiative).FirstOrDefault();
-
-        if (target == null)
+        // Определяем тип сообщения по содержимому
+        if (text.Contains("──") || text.Contains("────────────────"))
         {
-            Log($"«{tech.Name}»: нет живых целей.", LogEntry.ColorWarning);
-            RefreshAll();
-            return;
+            // Разделители для информации об NPC
+            LogControl.AddNpcInfo(text, color);
         }
-
-        if (TechniqueSystem.Apply(tech, target, out string techLog))
+        else if (text.Contains("Алтарь") || text.Contains("веры") || text.Contains("ОВ") ||
+                 text.Contains("алтарь") || text.Contains("Вера"))
         {
-            _db.SaveNpc(target);
-            Log($"  {techLog}", LogEntry.ColorSuccess);
+            // Системные сообщения об алтаре и вере
+            LogControl.AddSystemMessage(text, color);
+        }
+        else if (text.Contains("ПОТРЕБНОСТИ") || text.Contains("ПАМЯТЬ") || text.Contains("ХАРАКТЕРИСТИКИ") ||
+                 text.Contains("ФИЗИЧЕСКИЕ") || text.Contains("МЕНТАЛЬНЫЕ") || text.Contains("ЭНЕРГЕТИЧЕСКИЕ"))
+        {
+            // Заголовки секций в информации об NPC
+            LogControl.AddNpcInfo(text, color);
+        }
+        else if (text.Contains("HP:") || text.Contains("Чакра:") || text.Contains("Страх:") ||
+                 text.Contains("Доверие:") || text.Contains("Инициатива:"))
+        {
+            // Характеристики NPC
+            LogControl.AddNpcInfo(text, color);
+        }
+        else if (text.Contains("Эмоции:") || text.Contains("Черты:") || text.Contains("Цель:") ||
+                 text.Contains("Мечта:") || text.Contains("Желание:") || text.Contains("Специализации:"))
+        {
+            // Психология NPC
+            LogControl.AddNpcInfo(text, color);
+        }
+        else if (text.Contains("Выносливость:") || text.Contains("Стойкость:") || text.Contains("Сила:") ||
+                 text.Contains("Ловкость:") || text.Contains("Рефлексы:") || text.Contains("Интеллект:") ||
+                 text.Contains("Память:") || text.Contains("Логика:") || text.Contains("Воля:"))
+        {
+            // Статы NPC
+            LogControl.AddNpcInfo(text, color);
+        }
+        else if (text.Contains("Мир загружен") || text.Contains("Выживших:") || text.Contains("Получено ОВ"))
+        {
+            // Системные сообщения
+            LogControl.AddSystemMessage(text, color);
         }
         else
         {
-            Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);
+            // Действия игрока
+            LogControl.AddPlayerAction(text, color);
         }
-        RefreshAll();
     }
 
     // =========================================================
-    // Переключение вкладок
+    // Tabs and Helpers
     // =========================================================
 
     private void Tab_Click(object sender, RoutedEventArgs e)
@@ -970,65 +582,80 @@ public partial class GameWindow : Window
 
     private void ClearLog_Click(object sender, RoutedEventArgs e)
     {
-        LogStack.Children.Clear();
-        _currentDayPanel = null;
-        _currentPlayerActionExpander = null;
-        _currentPlayerActionPanel = null;
+        LogControl.Clear();
     }
 
     private void FilterLog7Days_Click(object sender, RoutedEventArgs e)
     {
-        int minDay = _player.CurrentDay - 6;
-        foreach (var exp in LogStack.Children.OfType<Expander>())
-        {
-            string hdr = exp.Header?.ToString() ?? "";
-            int day = ParseDayFromHeader(hdr);
-            exp.Visibility = (day == 0 || day >= minDay) ? Visibility.Visible : Visibility.Collapsed;
-        }
+        LogControl.ShowLastDays(7);
     }
 
     private void ShowAllLog_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var exp in LogStack.Children.OfType<Expander>())
-            exp.Visibility = Visibility.Visible;
-    }
-
-    private static int ParseDayFromHeader(string header)
-    {
-        var match = System.Text.RegularExpressions.Regex.Match(header, @"[Дд]ень\s+(\d+)");
-        return match.Success && int.TryParse(match.Groups[1].Value, out int d) ? d : 0;
+        LogControl.ShowAllDays();
     }
 
     private void CollapseAll_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var child in LogStack.Children.OfType<Expander>())
-            SetExpanderRecursive(child, false);
+        LogControl.CollapseAll();
     }
 
     private void ExpandAll_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var child in LogStack.Children.OfType<Expander>())
-            SetExpanderRecursive(child, true);
+        LogControl.ExpandAll();
     }
 
-    private static void SetExpanderRecursive(Expander exp, bool expanded)
+    private void UpgradeAltarBtn_Click(object sender, RoutedEventArgs e)
     {
-        exp.IsExpanded = expanded;
-        if (exp.Content is StackPanel sp)
-            foreach (var inner in sp.Children.OfType<Expander>())
-                SetExpanderRecursive(inner, expanded);
+        if (!_viewModel.CanUpgrade) return;
+        long cost = _viewModel.UpgradeCost;
+        _viewModel.FaithPoints -= cost;
+        _viewModel.AltarLevel++;
+        _viewModel.SavePlayer();
+        Log($"Алтарь улучшен до уровня {_viewModel.AltarLevel}! (потрачено {cost:N0} ОВ)", LogEntry.ColorAltarColor);
+        Log($"  Макс. ОВ/NPC/день: {Player.MaxFaithPerNpcPerDay:F0}  Активных последователей: {_viewModel.MaxActiveFollowers}", LogEntry.ColorAltarColor);
+        RefreshAll();
     }
 
-    // =========================================================
-    // Вспомогательные
-    // =========================================================
+    private void BarrierBtn_Click(object sender, RoutedEventArgs e)
+    {
+        const double cost = 20;
+        if (_viewModel.FaithPoints < cost) { Log("Недостаточно ОВ для барьера (нужно 20).", LogEntry.ColorWarning); return; }
+        _viewModel.FaithPoints -= cost;
+        _viewModel.BarrierSize = Math.Min(100, _viewModel.BarrierSize + 10);
+        _viewModel.SavePlayer();
+        Log($"Барьер укреплён: {_viewModel.BarrierSize:F0} м (-{cost} ОВ)", LogEntry.ColorAltarColor);
+        RefreshAll();
+    }
 
-    private static void SetVis(UIElement el, bool visible) =>
-        el.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not Technique tech) return;
+        if (_viewModel.FaithPoints < tech.FaithCost) { Log($"Недостаточно ОВ для «{tech.Name}».", LogEntry.ColorWarning); return; }
 
-    private static string HealthColor(double hp) =>
-        hp < 30 ? LogEntry.ColorDanger : hp < 60 ? LogEntry.ColorWarning : LogEntry.ColorSuccess;
+        _viewModel.FaithPoints -= tech.FaithCost;
+        _viewModel.SavePlayer();
 
-    private static string StatColor(int value) =>
-        value >= 75 ? LogEntry.ColorSuccess : value >= 50 ? LogEntry.ColorNormal : LogEntry.ColorWarning;
+        var target = tech.HealAmount > 0
+            ? _viewModel.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
+            : _viewModel.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
+
+        if (target == null)
+        {
+            Log($"«{tech.Name}»: нет живых целей.", LogEntry.ColorWarning);
+            RefreshAll();
+            return;
+        }
+
+        if (TechniqueSystem.Apply(tech, target, out string techLog))
+        {
+            _viewModel.SaveNpc(target);
+            Log($"  {techLog}", LogEntry.ColorSuccess);
+        }
+        else
+        {
+            Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);
+        }
+        RefreshAll();
+    }
 }

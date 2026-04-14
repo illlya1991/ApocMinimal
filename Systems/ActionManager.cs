@@ -63,9 +63,6 @@ public class ActionManager
         _handlers["QuestHandler"] = new QuestHandler(_db, _rnd, logAction);      // ✅ Полная реализация
         _handlers["TechniqueHandler"] = new TechniqueHandler(_db, _rnd, logAction); // ✅ Полная реализация
         _handlers["ManagementHandler"] = new ManagementHandler(_db, _rnd, logAction); // ✅ Полная реализация
-
-        // Заглушка
-        _handlers["EmptyHandler"] = new EmptyHandler(_db, _rnd, logAction);
     }
 
     /// <summary>
