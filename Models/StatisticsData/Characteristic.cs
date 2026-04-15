@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ApocalypseSimulation.Models.StatisticsData
+namespace ApocMinimal.Models.StatisticsData
 {
     public class Characteristic
     {

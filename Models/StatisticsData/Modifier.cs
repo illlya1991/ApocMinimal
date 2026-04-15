@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ApocalypseSimulation.Models.StatisticsData
+namespace ApocMinimal.Models.StatisticsData
 {
     /// <summary>
     /// Базовый класс модификатора

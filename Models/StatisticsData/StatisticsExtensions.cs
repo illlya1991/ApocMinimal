@@ -1,4 +1,4 @@
-﻿using ApocalypseSimulation.Models.StatisticsData;
+﻿using ApocMinimal.Models.StatisticsData;
 
 namespace ApocMinimal.Systems
 {

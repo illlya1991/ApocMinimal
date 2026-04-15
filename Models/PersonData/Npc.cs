@@ -1,4 +1,4 @@
-using ApocalypseSimulation.Models.StatisticsData;
+using ApocMinimal.Models.StatisticsData;
 using ApocMinimal.Models.PersonData.NpcData;
 using System.Text.Json.Serialization;
 

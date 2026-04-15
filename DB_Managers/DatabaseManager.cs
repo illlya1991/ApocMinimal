@@ -5,7 +5,7 @@ using System.Data.SQLite;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
-using ApocalypseSimulation.Models.StatisticsData;
+using ApocMinimal.Models.StatisticsData;
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;

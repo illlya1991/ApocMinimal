@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ApocalypseSimulation.Models.StatisticsData
+namespace ApocMinimal.Models.StatisticsData
 {
     /// <summary>
     /// Контейнер всех 30 характеристик NPC с прямым доступом к свойствам

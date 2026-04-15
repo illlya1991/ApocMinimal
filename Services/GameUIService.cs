@@ -1,12 +1,11 @@
-﻿// Services/GameUIService.cs
-using ApocMinimal.Models.PersonData.NpcData;
-using ApocMinimal.Models.PersonData;
-using ApocMinimal.Systems;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using ApocMinimal.Systems;
+using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
-using ApocalypseSimulation.Models.StatisticsData;
+using ApocMinimal.Models.StatisticsData;
 
 namespace ApocMinimal.Services;
 
@@ -145,6 +144,7 @@ public class GameUIService
 
         return panel;
     }
+
 
     private static TextBlock CreateProfessionText(Npc npc) => new()
     {

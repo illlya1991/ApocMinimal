@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace ApocalypseSimulation.Models.StatisticsData
+namespace ApocMinimal.Models.StatisticsData
 {
     /// <summary>
     /// Условие, состоящее из нескольких базовых условий характеристик

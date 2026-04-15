@@ -1,4 +1,4 @@
-﻿namespace ApocalypseSimulation.Models.StatisticsData
+﻿namespace ApocMinimal.Models.StatisticsData
 {
     /// <summary>
     /// Тип характеристики
