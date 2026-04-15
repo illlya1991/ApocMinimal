@@ -211,7 +211,7 @@ namespace ApocMinimal
         {
             panel.Children.Add(new TextBlock
             {
-                Text = $"❤{npc.Health:F0} ✦{npc.Faith:F0} 😨{npc.Fear:F0} 🤝{npc.Trust:F0} 💪{npc.Stats.Strength.FinalValue} 🧠{npc.Stats.Intelligence.FinalValue}",
+                Text = $"❤{npc.Health:F0} ✦{npc.Faith:F0} 😨{npc.Fear:F0} 🤝{npc.Trust:F0} 💪{npc.Stats.Strength} 🧠{npc.Stats.Intelligence}",
                 Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#c9d1d9")!,
                 FontSize = 14,
                 Margin = new Thickness(0, 5, 0, 5)
@@ -253,70 +253,21 @@ namespace ApocMinimal
                 panel.Children.Add(CreateInfoRow("Специализации:", string.Join(", ", npc.Specializations), "#56d364", isCompare, otherNpc != null ? string.Join(", ", otherNpc.Specializations) : null, (a, b) => a == b));
         }
 
-        private void AddPhysicalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
-        {
-            panel.Children.Add(CreateInfoRow("  Выносливость:", $"{npc.Stats.Endurance.FinalValue}", GetStatColor(npc.Stats.Endurance.FinalValue), isCompare, otherNpc?.Stats.Endurance.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Стойкость:", $"{npc.Stats.Toughness.FinalValue}", GetStatColor(npc.Stats.Toughness.FinalValue), isCompare, otherNpc?.Stats.Toughness.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Сила:", $"{npc.Stats.Strength.FinalValue}", GetStatColor(npc.Stats.Strength.FinalValue), isCompare, otherNpc?.Stats.Strength.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Восст.(физ):", $"{npc.Stats.RecoveryPhys.FinalValue}", GetStatColor(npc.Stats.RecoveryPhys.FinalValue), isCompare, otherNpc?.Stats.RecoveryPhys.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Рефлексы:", $"{npc.Stats.Reflexes.FinalValue}", GetStatColor(npc.Stats.Reflexes.FinalValue), isCompare, otherNpc?.Stats.Reflexes.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Ловкость:", $"{npc.Stats.Agility.FinalValue}", GetStatColor(npc.Stats.Agility.FinalValue), isCompare, otherNpc?.Stats.Agility.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Адаптация:", $"{npc.Stats.Adaptation.FinalValue}", GetStatColor(npc.Stats.Adaptation.FinalValue), isCompare, otherNpc?.Stats.Adaptation.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Регенерация:", $"{npc.Stats.Regeneration.FinalValue}", GetStatColor(npc.Stats.Regeneration.FinalValue), isCompare, otherNpc?.Stats.Regeneration.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Сенсорика:", $"{npc.Stats.Sensorics.FinalValue}", GetStatColor(npc.Stats.Sensorics.FinalValue), isCompare, otherNpc?.Stats.Sensorics.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Долголетие:", $"{npc.Stats.Longevity.FinalValue}", GetStatColor(npc.Stats.Longevity.FinalValue), isCompare, otherNpc?.Stats.Longevity.FinalValue, (a, b) => a == b));
-        }
-
-        private void AddMentalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
-        {
-            panel.Children.Add(CreateInfoRow("  Фокус:", $"{npc.Stats.Focus.FinalValue}", GetStatColor(npc.Stats.Focus.FinalValue), isCompare, otherNpc?.Stats.Focus.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Память:", $"{npc.Stats.Memory.FinalValue}", GetStatColor(npc.Stats.Memory.FinalValue), isCompare, otherNpc?.Stats.Memory.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Логика:", $"{npc.Stats.Logic.FinalValue}", GetStatColor(npc.Stats.Logic.FinalValue), isCompare, otherNpc?.Stats.Logic.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Дедукция:", $"{npc.Stats.Deduction.FinalValue}", GetStatColor(npc.Stats.Deduction.FinalValue), isCompare, otherNpc?.Stats.Deduction.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Интеллект:", $"{npc.Stats.Intelligence.FinalValue}", GetStatColor(npc.Stats.Intelligence.FinalValue), isCompare, otherNpc?.Stats.Intelligence.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Воля:", $"{npc.Stats.Will.FinalValue}", GetStatColor(npc.Stats.Will.FinalValue), isCompare, otherNpc?.Stats.Will.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Обучение:", $"{npc.Stats.Learning.FinalValue}", GetStatColor(npc.Stats.Learning.FinalValue), isCompare, otherNpc?.Stats.Learning.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Гибкость:", $"{npc.Stats.Flexibility.FinalValue}", GetStatColor(npc.Stats.Flexibility.FinalValue), isCompare, otherNpc?.Stats.Flexibility.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Интуиция:", $"{npc.Stats.Intuition.FinalValue}", GetStatColor(npc.Stats.Intuition.FinalValue), isCompare, otherNpc?.Stats.Intuition.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Соц.интеллект:", $"{npc.Stats.SocialIntel.FinalValue}", GetStatColor(npc.Stats.SocialIntel.FinalValue), isCompare, otherNpc?.Stats.SocialIntel.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Творчество:", $"{npc.Stats.Creativity.FinalValue}", GetStatColor(npc.Stats.Creativity.FinalValue), isCompare, otherNpc?.Stats.Creativity.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Математика:", $"{npc.Stats.Mathematics.FinalValue}", GetStatColor(npc.Stats.Mathematics.FinalValue), isCompare, otherNpc?.Stats.Mathematics.FinalValue, (a, b) => a == b));
-        }
-
-        private void AddEnergyStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
-        {
-            panel.Children.Add(CreateInfoRow("  Запас энергии:", $"{npc.Stats.EnergyReserve.FinalValue}", GetStatColor(npc.Stats.EnergyReserve.FinalValue), isCompare, otherNpc?.Stats.EnergyReserve.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Восст.энергии:", $"{npc.Stats.EnergyRecovery.FinalValue}", GetStatColor(npc.Stats.EnergyRecovery.FinalValue), isCompare, otherNpc?.Stats.EnergyRecovery.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Контроль:", $"{npc.Stats.Control.FinalValue}", GetStatColor(npc.Stats.Control.FinalValue), isCompare, otherNpc?.Stats.Control.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Концентрация:", $"{npc.Stats.Concentration.FinalValue}", GetStatColor(npc.Stats.Concentration.FinalValue), isCompare, otherNpc?.Stats.Concentration.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Выход:", $"{npc.Stats.Output.FinalValue}", GetStatColor(npc.Stats.Output.FinalValue), isCompare, otherNpc?.Stats.Output.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Тонкость:", $"{npc.Stats.Precision.FinalValue}", GetStatColor(npc.Stats.Precision.FinalValue), isCompare, otherNpc?.Stats.Precision.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Устойчивость:", $"{npc.Stats.EnergyResist.FinalValue}", GetStatColor(npc.Stats.EnergyResist.FinalValue), isCompare, otherNpc?.Stats.EnergyResist.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("  Восприятие:", $"{npc.Stats.EnergySense.FinalValue}", GetStatColor(npc.Stats.EnergySense.FinalValue), isCompare, otherNpc?.Stats.EnergySense.FinalValue, (a, b) => a == b));
-        }
-
         private void AddCombatStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
         {
-            panel.Children.Add(CreateInfoRow("Сила:", $"{npc.Stats.Strength.FinalValue}", GetStatColor(npc.Stats.Strength.FinalValue), isCompare, otherNpc?.Stats.Strength.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Ловкость:", $"{npc.Stats.Agility.FinalValue}", GetStatColor(npc.Stats.Agility.FinalValue), isCompare, otherNpc?.Stats.Agility.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stats.Endurance.FinalValue}", GetStatColor(npc.Stats.Endurance.FinalValue), isCompare, otherNpc?.Stats.Endurance.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Стойкость:", $"{npc.Stats.Toughness.FinalValue}", GetStatColor(npc.Stats.Toughness.FinalValue), isCompare, otherNpc?.Stats.Toughness.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Рефлексы:", $"{npc.Stats.Reflexes.FinalValue}", GetStatColor(npc.Stats.Reflexes.FinalValue), isCompare, otherNpc?.Stats.Reflexes.FinalValue, (a, b) => a == b));
+            panel.Children.Add(CreateInfoRow("Сила:", $"{npc.Stats.Strength}", GetStatColor(npc.Stats.Strength), isCompare, otherNpc?.Stats.Strength, (a, b) => a == b));
+            panel.Children.Add(CreateInfoRow("Ловкость:", $"{npc.Stats.Agility}", GetStatColor(npc.Stats.Agility), isCompare, otherNpc?.Stats.Agility, (a, b) => a == b));
+            panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stats.Endurance}", GetStatColor(npc.Stats.Endurance), isCompare, otherNpc?.Stats.Endurance, (a, b) => a == b));
+            panel.Children.Add(CreateInfoRow("Стойкость:", $"{npc.Stats.Toughness}", GetStatColor(npc.Stats.Toughness), isCompare, otherNpc?.Stats.Toughness, (a, b) => a == b));
+            panel.Children.Add(CreateInfoRow("Рефлексы:", $"{npc.Stats.Reflexes}", GetStatColor(npc.Stats.Reflexes), isCompare, otherNpc?.Stats.Reflexes, (a, b) => a == b));
             panel.Children.Add(CreateInfoRow("Боевая инициатива:", $"{npc.CombatInitiative:F0}", "#c9d1d9", isCompare, otherNpc?.CombatInitiative, (a, b) => a == b));
         }
 
         private void AddEnergyCombatStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
         {
-            panel.Children.Add(CreateInfoRow("Запас энергии:", $"{npc.Stats.EnergyReserve.FinalValue}", GetStatColor(npc.Stats.EnergyReserve.FinalValue), isCompare, otherNpc?.Stats.EnergyReserve.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Контроль:", $"{npc.Stats.Control.FinalValue}", GetStatColor(npc.Stats.Control.FinalValue), isCompare, otherNpc?.Stats.Control.FinalValue, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Выход:", $"{npc.Stats.Output.FinalValue}", GetStatColor(npc.Stats.Output.FinalValue), isCompare, otherNpc?.Stats.Output.FinalValue, (a, b) => a == b));
-        }
-
-        private void AddAllStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
-        {
-            AddPhysicalStats(panel, npc, isCompare, otherNpc);
-            AddMentalStats(panel, npc, isCompare, otherNpc);
-            AddEnergyStats(panel, npc, isCompare, otherNpc);
+            panel.Children.Add(CreateInfoRow("Запас энергии:", $"{npc.Stats.EnergyReserve}", GetStatColor(npc.Stats.EnergyReserve), isCompare, otherNpc?.Stats.EnergyReserve, (a, b) => a == b));
+            panel.Children.Add(CreateInfoRow("Контроль:", $"{npc.Stats.Control}", GetStatColor(npc.Stats.Control), isCompare, otherNpc?.Stats.Control, (a, b) => a == b));
+            panel.Children.Add(CreateInfoRow("Выход:", $"{npc.Stats.Output}", GetStatColor(npc.Stats.Output), isCompare, otherNpc?.Stats.Output, (a, b) => a == b));
         }
 
         private UIElement CreateSectionHeader(string title, bool isCollapsible = false)
@@ -386,5 +337,58 @@ namespace ApocMinimal
         private string GetStatColor(int value) => value >= 75 ? "#4ade80" : value >= 50 ? "#c9d1d9" : "#fbbf24";
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+
+        private void AddPhysicalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
+        {
+            foreach (var stat in npc.Stats.GetPhysicalStats())
+            {
+                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
+                panel.Children.Add(CreateInfoRow(
+                    $"  {stat.Name}:",
+                    $"{stat}",
+                    GetStatColor(stat.FinalValue),
+                    isCompare,
+                    otherValue,
+                    (a, b) => a?.ToString() == b?.ToString()));
+            }
+        }
+
+        private void AddMentalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
+        {
+            foreach (var stat in npc.Stats.GetMentalStats())
+            {
+                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
+                panel.Children.Add(CreateInfoRow(
+                    $"  {stat.Name}:",
+                    $"{stat}",
+                    GetStatColor(stat.FinalValue),
+                    isCompare,
+                    otherValue,
+                    (a, b) => a?.ToString() == b?.ToString()));
+            }
+        }
+
+        private void AddEnergyStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
+        {
+            foreach (var stat in npc.Stats.GetEnergyStats())
+            {
+                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
+                panel.Children.Add(CreateInfoRow(
+                    $"  {stat.Name}:",
+                    $"{stat}",
+                    GetStatColor(stat.FinalValue),
+                    isCompare,
+                    otherValue,
+                    (a, b) => a?.ToString() == b?.ToString()));
+            }
+        }
+
+        private void AddAllStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
+        {
+            AddPhysicalStats(panel, npc, isCompare, otherNpc);
+            AddMentalStats(panel, npc, isCompare, otherNpc);
+            AddEnergyStats(panel, npc, isCompare, otherNpc);
+        }
     }
 }

@@ -26,8 +26,17 @@
 
     <DockPanel>
         <!-- TOP HEADER -->
-        <Border DockPanel.Dock="Top" Background="#161b22"
-                BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="12,8">
+        <Border DockPanel.Dock="Top" 
+                BorderBrush="#30363d" 
+                BorderThickness="0,0,0,1" 
+                Padding="12,8">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#161b22" Offset="0"/>
+                    <GradientStop Color="#1a1a2e" Offset="0.5"/>
+                    <GradientStop Color="#161b22" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -68,7 +77,7 @@
             <local:LogControl x:Name="LogControl" />
         </DockPanel>
 
-        <!-- RIGHT PANEL: PLAYER ACTIONS (вкладки) -->ф
+        <!-- RIGHT PANEL: PLAYER ACTIONS (вкладки) -->
         <local:PlayerActionsControl x:Name="PlayerActionsControl" DockPanel.Dock="Right" Width="310"/>
     </DockPanel>
 </Window>

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
 
@@ -19,7 +20,7 @@ public partial class NpcSidebarControl : UserControl
     private Npc? _currentNpc;
 
     public event Action? Closed;
-    public bool IsVisible => SidebarRoot.Visibility == Visibility.Visible;
+    public new bool IsVisible => SidebarRoot.Visibility == Visibility.Visible;
     public Npc? CurrentNpc => _currentNpc;
 
     public NpcSidebarControl()
@@ -72,18 +73,46 @@ public partial class NpcSidebarControl : UserControl
         return rb;
     }
 
+    private void AnimateShow()
+    {
+        var animation = new DoubleAnimation
+        {
+            From = 0,
+            To = 1,
+            Duration = TimeSpan.FromMilliseconds(200),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        SidebarRoot.BeginAnimation(UIElement.OpacityProperty, animation);
+    }
+
+    private void AnimateHide()
+    {
+        var animation = new DoubleAnimation
+        {
+            From = 1,
+            To = 0,
+            Duration = TimeSpan.FromMilliseconds(150),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+        };
+        animation.Completed += (s, e) => SidebarRoot.Visibility = Visibility.Collapsed;
+        SidebarRoot.BeginAnimation(UIElement.OpacityProperty, animation);
+    }
+
     public void ShowNpc(Npc npc)
     {
         _currentNpc = npc;
         SidebarTitle.Text = $"ИНФОРМАЦИЯ: {npc.Name}";
         SidebarRoot.Visibility = Visibility.Visible;
+        SidebarRoot.Opacity = 0;
         UpdateContent();
+        AnimateShow();
     }
 
     public void Hide()
     {
-        SidebarRoot.Visibility = Visibility.Collapsed;
+        if (!IsVisible) return;
         _currentNpc = null;
+        AnimateHide();
         Closed?.Invoke();
     }
 
@@ -193,7 +222,7 @@ public partial class NpcSidebarControl : UserControl
     {
         panel.Children.Add(new TextBlock
         {
-            Text = $"❤{npc.Health:F0} ✦{npc.Faith:F0} 😨{npc.Fear:F0} 🤝{npc.Trust:F0} 💪{npc.Stats.Strength.FinalValue} 🧠{npc.Stats.Intelligence.FinalValue}",
+            Text = $"❤{npc.Health:F0} ✦{npc.Faith:F0} 😨{npc.Fear:F0} 🤝{npc.Trust:F0} 💪{npc.Stats.Strength} 🧠{npc.Stats.Intelligence}",
             Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#c9d1d9")!,
             FontSize = 12,
             Margin = new Thickness(0, 5, 0, 5)
@@ -214,16 +243,16 @@ public partial class NpcSidebarControl : UserControl
     private void BuildCombatInfo(StackPanel panel, Npc npc)
     {
         panel.Children.Add(CreateSectionHeader("БОЕВЫЕ ХАРАКТЕРИСТИКИ"));
-        panel.Children.Add(CreateInfoRow("Сила:", $"{npc.Stats.Strength.FinalValue}", GetStatColor(npc.Stats.Strength.FinalValue)));
-        panel.Children.Add(CreateInfoRow("Ловкость:", $"{npc.Stats.Agility.FinalValue}", GetStatColor(npc.Stats.Agility.FinalValue)));
-        panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stats.Endurance.FinalValue}", GetStatColor(npc.Stats.Endurance.FinalValue)));
-        panel.Children.Add(CreateInfoRow("Стойкость:", $"{npc.Stats.Toughness.FinalValue}", GetStatColor(npc.Stats.Toughness.FinalValue)));
-        panel.Children.Add(CreateInfoRow("Рефлексы:", $"{npc.Stats.Reflexes.FinalValue}", GetStatColor(npc.Stats.Reflexes.FinalValue)));
+        panel.Children.Add(CreateInfoRow("Сила:", $"{npc.Stats.Strength}", GetStatColor(npc.Stats.Strength)));
+        panel.Children.Add(CreateInfoRow("Ловкость:", $"{npc.Stats.Agility}", GetStatColor(npc.Stats.Agility )));
+        panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stats.Endurance }", GetStatColor(npc.Stats.Endurance)));
+        panel.Children.Add(CreateInfoRow("Стойкость:", $"{npc.Stats.Toughness}", GetStatColor(npc.Stats.Toughness)));
+        panel.Children.Add(CreateInfoRow("Рефлексы:", $"{npc.Stats.Reflexes}", GetStatColor(npc.Stats.Reflexes)));
         panel.Children.Add(CreateInfoRow("Боевая инициатива:", $"{npc.CombatInitiative:F0}", "#c9d1d9"));
 
         panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
-        panel.Children.Add(CreateInfoRow("Запас энергии:", $"{npc.Stats.EnergyReserve.FinalValue}", GetStatColor(npc.Stats.EnergyReserve.FinalValue)));
-        panel.Children.Add(CreateInfoRow("Контроль:", $"{npc.Stats.Control.FinalValue}", GetStatColor(npc.Stats.Control.FinalValue)));
+        panel.Children.Add(CreateInfoRow("Запас энергии:", $"{npc.Stats.EnergyReserve}", GetStatColor(npc.Stats.EnergyReserve)));
+        panel.Children.Add(CreateInfoRow("Контроль:", $"{npc.Stats.Control}", GetStatColor(npc.Stats.Control)));
     }
 
     private void BuildSocialInfo(StackPanel panel, Npc npc)
@@ -300,36 +329,52 @@ public partial class NpcSidebarControl : UserControl
         AddMentalStats(panel, npc);
         AddEnergyStats(panel, npc);
     }
+    private void CloseSidebar_Click(object sender, RoutedEventArgs e)
+    {
+        Hide();
+    }
 
     private void AddPhysicalStats(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(new TextBlock { Text = "ФИЗИЧЕСКИЕ:", Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")! });
-        panel.Children.Add(CreateInfoRow("  Выносливость:", $"{npc.Stats.Endurance.FinalValue}", GetStatColor(npc.Stats.Endurance.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Стойкость:", $"{npc.Stats.Toughness.FinalValue}", GetStatColor(npc.Stats.Toughness.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Сила:", $"{npc.Stats.Strength.FinalValue}", GetStatColor(npc.Stats.Strength.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Ловкость:", $"{npc.Stats.Agility.FinalValue}", GetStatColor(npc.Stats.Agility.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Рефлексы:", $"{npc.Stats.Reflexes.FinalValue}", GetStatColor(npc.Stats.Reflexes.FinalValue)));
+        panel.Children.Add(new TextBlock
+        {
+            Text = "ФИЗИЧЕСКИЕ:",
+            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!
+        });
+
+        foreach (var stat in npc.Stats.GetPhysicalStats())
+        {
+            panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue)));
+        }
     }
 
     private void AddMentalStats(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(new TextBlock { Text = "МЕНТАЛЬНЫЕ:", Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!, Margin = new Thickness(0, 10, 0, 0) });
-        panel.Children.Add(CreateInfoRow("  Интеллект:", $"{npc.Stats.Intelligence.FinalValue}", GetStatColor(npc.Stats.Intelligence.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Память:", $"{npc.Stats.Memory.FinalValue}", GetStatColor(npc.Stats.Memory.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Логика:", $"{npc.Stats.Logic.FinalValue}", GetStatColor(npc.Stats.Logic.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Воля:", $"{npc.Stats.Will.FinalValue}", GetStatColor(npc.Stats.Will.FinalValue)));
+        panel.Children.Add(new TextBlock
+        {
+            Text = "МЕНТАЛЬНЫЕ:",
+            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!,
+            Margin = new Thickness(0, 10, 0, 0)
+        });
+
+        foreach (var stat in npc.Stats.GetMentalStats())
+        {
+            panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue)));
+        }
     }
 
     private void AddEnergyStats(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(new TextBlock { Text = "ЭНЕРГЕТИЧЕСКИЕ:", Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!, Margin = new Thickness(0, 10, 0, 0) });
-        panel.Children.Add(CreateInfoRow("  Запас энергии:", $"{npc.Stats.EnergyReserve.FinalValue}", GetStatColor(npc.Stats.EnergyReserve.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Контроль:", $"{npc.Stats.Control.FinalValue}", GetStatColor(npc.Stats.Control.FinalValue)));
-        panel.Children.Add(CreateInfoRow("  Концентрация:", $"{npc.Stats.Concentration.FinalValue}", GetStatColor(npc.Stats.Concentration.FinalValue)));
-    }
+        panel.Children.Add(new TextBlock
+        {
+            Text = "ЭНЕРГЕТИЧЕСКИЕ:",
+            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!,
+            Margin = new Thickness(0, 10, 0, 0)
+        });
 
-    private void CloseSidebar_Click(object sender, RoutedEventArgs e)
-    {
-        Hide();
+        foreach (var stat in npc.Stats.GetEnergyStats())
+        {
+            panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue)));
+        }
     }
 }

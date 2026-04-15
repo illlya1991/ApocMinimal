@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ApocMinimal.Models.PersonData.PlayerData;
+using ApocalypseSimulation.Models.StatisticsData;
 
 namespace ApocMinimal.Services;
 
@@ -145,13 +146,6 @@ public class GameUIService
         return panel;
     }
 
-    private static TextBlock CreateStatsText(Npc npc) => new()
-    {
-        Text = $"Сил:{npc.Stats.Strength.FinalValue}  Лов:{npc.Stats.Agility.FinalValue}  Инт:{npc.Stats.Intelligence.FinalValue}",
-        Foreground = GetBrush("#8b949e"),
-        FontSize = 10,
-    };
-
     private static TextBlock CreateProfessionText(Npc npc) => new()
     {
         Text = $"{npc.Profession}  [{npc.FollowerLabel}]",
@@ -260,4 +254,89 @@ public class GameUIService
         b.Child = sp;
         return b;
     }
+
+    /// <summary>
+    /// Создать панель со всеми характеристиками через циклы
+    /// </summary>
+    public StackPanel BuildStatsPanel(Npc npc, bool showAll = true)
+    {
+        var panel = new StackPanel();
+
+        if (showAll)
+        {
+            AddStatsCategory(panel, npc.Stats.GetPhysicalStats(), "ФИЗИЧЕСКИЕ");
+            AddStatsCategory(panel, npc.Stats.GetMentalStats(), "МЕНТАЛЬНЫЕ");
+            AddStatsCategory(panel, npc.Stats.GetEnergyStats(), "ЭНЕРГЕТИЧЕСКИЕ");
+        }
+
+        return panel;
+    }
+
+    /// <summary>
+    /// Добавить категорию характеристик в панель
+    /// </summary>
+    private void AddStatsCategory(StackPanel panel, List<Characteristic> stats, string categoryName)
+    {
+        if (!stats.Any()) return;
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = categoryName,
+            Foreground = GetBrush("#60a5fa"),
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 10, 0, 5)
+        });
+
+        foreach (var stat in stats)
+        {
+            panel.Children.Add(CreateStatRow(stat.Name, stat.FinalValue, stat.FullBase));
+        }
+    }
+
+    /// <summary>
+    /// Создать строку характеристики
+    /// </summary>
+    private Grid CreateStatRow(string name, int finalValue, int fullBase)
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140, GridUnitType.Pixel) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        grid.Children.Add(new TextBlock
+        {
+            Text = name + ":",
+            Foreground = GetBrush("#8b949e"),
+            FontSize = 11,
+            Margin = new Thickness(0, 1, 0, 1)
+        });
+
+        string color = GetStatColor(finalValue);
+        grid.Children.Add(new TextBlock
+        {
+            Text = $"{finalValue,3}  (база: {fullBase})",
+            Foreground = GetBrush(color),
+            FontSize = 11,
+            Margin = new Thickness(5, 1, 0, 1)
+        });
+
+        Grid.SetColumn(grid.Children[1], 1);
+        return grid;
+    }
+
+    /// <summary>
+    /// Получить цвет для значения характеристики
+    /// </summary>
+    private string GetStatColor(int value)
+    {
+        if (value >= 75) return "#4ade80";
+        if (value >= 50) return "#c9d1d9";
+        return "#fbbf24";
+    }
+    private static TextBlock CreateStatsText(Npc npc) => new()
+    {
+        Text = $"Сил:{npc.Stats.GetStatValue("Сила")}  Лов:{npc.Stats.GetStatValue("Ловкость")}  Инт:{npc.Stats.GetStatValue("Интеллект")}",
+        Foreground = GetBrush("#8b949e"),
+        FontSize = 10,
+    };
 }

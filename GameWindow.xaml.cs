@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using ApocMinimal.Database;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
@@ -23,7 +24,6 @@ public partial class GameWindow : Window
         _viewModel.PropertyChanged += (s, e) => RefreshHeader();
 
         // Инициализация контролов
-        PlayerActionsControl = new PlayerActionsControl();
         PlayerActionsControl.SetViewModel(_viewModel);
         PlayerActionsControl.LogAction += Log;
         NpcListControl.NpcSelected += OnNpcSelected;
@@ -64,12 +64,25 @@ public partial class GameWindow : Window
 
     private void EndDayBtn_Click(object sender, RoutedEventArgs e)
     {
+        // Эффект нажатия
+        var scaleAnim = new DoubleAnimation
+        {
+            From = 1,
+            To = 0.95,
+            Duration = TimeSpan.FromMilliseconds(50),
+            AutoReverse = true
+        };
+        EndDayBtn.RenderTransform = new ScaleTransform();
+        EndDayBtn.RenderTransformOrigin = new Point(0.5, 0.5);
+        EndDayBtn.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+        EndDayBtn.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+
         _viewModel.ProcessEndOfDay(Log);
         _viewModel.SaveAll();
 
         LogDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
 
-        Log($"Получено ОВ: (последователей: {_viewModel.AliveNpcsCount})", LogEntry.ColorAltarColor);
+        Log($"Получено ОВ: {_viewModel.FaithPoints:F0} (последователей: {_viewModel.AliveNpcsCount})", LogEntry.ColorAltarColor);
         Log($"Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}  |  Вера: {_viewModel.FaithPoints:F0}", LogEntry.ColorDay);
 
         _viewModel.Refresh();

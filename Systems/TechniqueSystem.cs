@@ -104,62 +104,6 @@ public static class TechniqueSystem
         return statId switch
         {
             // Физические (1-10)
-            1 => stats.Endurance.FinalValue,
-            2 => stats.Toughness.FinalValue,
-            3 => stats.Strength.FinalValue,
-            4 => stats.RecoveryPhys.FinalValue,
-            5 => stats.Reflexes.FinalValue,
-            6 => stats.Agility.FinalValue,
-            7 => stats.Adaptation.FinalValue,
-            8 => stats.Regeneration.FinalValue,
-            9 => stats.Sensorics.FinalValue,
-            10 => stats.Longevity.FinalValue,
-
-            // Ментальные (11-22)
-            11 => stats.Focus.FinalValue,
-            12 => stats.Memory.FinalValue,
-            13 => stats.Logic.FinalValue,
-            14 => stats.Deduction.FinalValue,
-            15 => stats.Intelligence.FinalValue,
-            16 => stats.Will.FinalValue,
-            17 => stats.Learning.FinalValue,
-            18 => stats.Flexibility.FinalValue,
-            19 => stats.Intuition.FinalValue,
-            20 => stats.SocialIntel.FinalValue,
-            21 => stats.Creativity.FinalValue,
-            22 => stats.Mathematics.FinalValue,
-
-            // Энергетические (23-30)
-            23 => stats.EnergyReserve.FinalValue,
-            24 => stats.EnergyRecovery.FinalValue,
-            25 => stats.Control.FinalValue,
-            26 => stats.Concentration.FinalValue,
-            27 => stats.Output.FinalValue,
-            28 => stats.Precision.FinalValue,
-            29 => stats.EnergyResist.FinalValue,
-            30 => stats.EnergySense.FinalValue,
-
-            _ => 0
-        };
-    }
-
-    /// <summary>
-    /// Добавление отклонения к характеристике по ID
-    /// </summary>
-    private static void AddStatDeviation(Statistics stats, int statId, int delta)
-    {
-        var stat = GetCharacteristicById(stats, statId);
-        stat?.AddDeviation(delta);
-    }
-
-    /// <summary>
-    /// Получение объекта характеристики по ID
-    /// </summary>
-    private static Characteristic? GetCharacteristicById(Statistics stats, int statId)
-    {
-        return statId switch
-        {
-            // Физические (1-10)
             1 => stats.Endurance,
             2 => stats.Toughness,
             3 => stats.Strength,
@@ -194,6 +138,62 @@ public static class TechniqueSystem
             28 => stats.Precision,
             29 => stats.EnergyResist,
             30 => stats.EnergySense,
+
+            _ => 0
+        };
+    }
+
+    /// <summary>
+    /// Добавление отклонения к характеристике по ID
+    /// </summary>
+    private static void AddStatDeviation(Statistics stats, int statId, int delta)
+    {
+        var stat = GetCharacteristicById(stats, statId);
+        stat?.AddDeviation(delta);
+    }
+
+    /// <summary>
+    /// Получение объекта характеристики по ID
+    /// </summary>
+    private static Characteristic? GetCharacteristicById(Statistics stats, int statId)
+    {
+        return statId switch
+        {
+            // Физические (1-10)
+            1 => stats.EnduranceChar,
+            2 => stats.ToughnessChar,
+            3 => stats.StrengthChar,
+            4 => stats.RecoveryPhysChar,
+            5 => stats.ReflexesChar,
+            6 => stats.AgilityChar,
+            7 => stats.AdaptationChar,
+            8 => stats.RegenerationChar,
+            9 => stats.SensoricsChar,
+            10 => stats.LongevityChar,
+
+            // Ментальные (11-22)
+            11 => stats.FocusChar,
+            12 => stats.MemoryChar,
+            13 => stats.LogicChar,
+            14 => stats.DeductionChar,
+            15 => stats.IntelligenceChar,
+            16 => stats.WillChar,
+            17 => stats.LearningChar,
+            18 => stats.FlexibilityChar,
+            19 => stats.IntuitionChar,
+            20 => stats.SocialIntelChar,
+            21 => stats.CreativityChar,
+            22 => stats.MathematicsChar,
+
+            // Энергетические (23-30)
+            23 => stats.EnergyReserveChar,
+            24 => stats.EnergyRecoveryChar,
+            25 => stats.ControlChar,
+            26 => stats.ConcentrationChar,
+            27 => stats.OutputChar,
+            28 => stats.PrecisionChar,
+            29 => stats.EnergyResistChar,
+            30 => stats.EnergySenseChar,
 
             _ => null
         };

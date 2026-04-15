@@ -74,12 +74,18 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Стиль для текста -->
+        <!-- Стиль для текста лога с улучшенной читаемостью -->
         <Style x:Key="LogTextStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="0,1,0,1"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="LineHeight" Value="18"/>
+        </Style>
+
+        <!-- Стиль для выделенных сообщений -->
+        <Style x:Key="LogTextStyleAlert" TargetType="TextBlock" BasedOn="{StaticResource LogTextStyle}">
+            <Setter Property="FontWeight" Value="Bold"/>
         </Style>
     </UserControl.Resources>
 

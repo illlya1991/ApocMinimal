@@ -78,79 +78,34 @@ public class InfoHandler : BaseActionHandler
     {
         // Физические
         logAction?.Invoke("  ФИЗИЧЕСКИЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
-        logAction?.Invoke($"    Выносливость:          {target.Stats.Endurance.FinalValue,3}  (база: {target.Stats.Endurance.FullBase})",
-            StatColor(target.Stats.Endurance.FinalValue));
-        logAction?.Invoke($"    Стойкость:             {target.Stats.Toughness.FinalValue,3}  (база: {target.Stats.Toughness.FullBase})",
-            StatColor(target.Stats.Toughness.FinalValue));
-        logAction?.Invoke($"    Сила:                  {target.Stats.Strength.FinalValue,3}  (база: {target.Stats.Strength.FullBase})",
-            StatColor(target.Stats.Strength.FinalValue));
-        logAction?.Invoke($"    Восстановление (физ):  {target.Stats.RecoveryPhys.FinalValue,3}  (база: {target.Stats.RecoveryPhys.FullBase})",
-            StatColor(target.Stats.RecoveryPhys.FinalValue));
-        logAction?.Invoke($"    Рефлексы:              {target.Stats.Reflexes.FinalValue,3}  (база: {target.Stats.Reflexes.FullBase})",
-            StatColor(target.Stats.Reflexes.FinalValue));
-        logAction?.Invoke($"    Ловкость:              {target.Stats.Agility.FinalValue,3}  (база: {target.Stats.Agility.FullBase})",
-            StatColor(target.Stats.Agility.FinalValue));
-        logAction?.Invoke($"    Адаптация:             {target.Stats.Adaptation.FinalValue,3}  (база: {target.Stats.Adaptation.FullBase})",
-            StatColor(target.Stats.Adaptation.FinalValue));
-        logAction?.Invoke($"    Регенерация:           {target.Stats.Regeneration.FinalValue,3}  (база: {target.Stats.Regeneration.FullBase})",
-            StatColor(target.Stats.Regeneration.FinalValue));
-        logAction?.Invoke($"    Сенсорика:             {target.Stats.Sensorics.FinalValue,3}  (база: {target.Stats.Sensorics.FullBase})",
-            StatColor(target.Stats.Sensorics.FinalValue));
-        logAction?.Invoke($"    Долголетие:            {target.Stats.Longevity.FinalValue,3}  (база: {target.Stats.Longevity.FullBase})",
-            StatColor(target.Stats.Longevity.FinalValue));
+        foreach (var stat in target.Stats.GetPhysicalStats())
+        {
+            logAction?.Invoke($"    {stat.Name,-20}: {stat.FinalValue,3}  (база: {stat.FullBase})", StatColor(stat.FinalValue));
+        }
 
         // Ментальные
         logAction?.Invoke("  МЕНТАЛЬНЫЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
-        logAction?.Invoke($"    Фокус:                 {target.Stats.Focus.FinalValue,3}  (база: {target.Stats.Focus.FullBase})",
-            StatColor(target.Stats.Focus.FinalValue));
-        logAction?.Invoke($"    Память:                {target.Stats.Memory.FinalValue,3}  (база: {target.Stats.Memory.FullBase})",
-            StatColor(target.Stats.Memory.FinalValue));
-        logAction?.Invoke($"    Логика:                {target.Stats.Logic.FinalValue,3}  (база: {target.Stats.Logic.FullBase})",
-            StatColor(target.Stats.Logic.FinalValue));
-        logAction?.Invoke($"    Дедукция:              {target.Stats.Deduction.FinalValue,3}  (база: {target.Stats.Deduction.FullBase})",
-            StatColor(target.Stats.Deduction.FinalValue));
-        logAction?.Invoke($"    Интеллект:             {target.Stats.Intelligence.FinalValue,3}  (база: {target.Stats.Intelligence.FullBase})",
-            StatColor(target.Stats.Intelligence.FinalValue));
-        logAction?.Invoke($"    Воля:                  {target.Stats.Will.FinalValue,3}  (база: {target.Stats.Will.FullBase})",
-            StatColor(target.Stats.Will.FinalValue));
-        logAction?.Invoke($"    Обучение:              {target.Stats.Learning.FinalValue,3}  (база: {target.Stats.Learning.FullBase})",
-            StatColor(target.Stats.Learning.FinalValue));
-        logAction?.Invoke($"    Гибкость:              {target.Stats.Flexibility.FinalValue,3}  (база: {target.Stats.Flexibility.FullBase})",
-            StatColor(target.Stats.Flexibility.FinalValue));
-        logAction?.Invoke($"    Интуиция:              {target.Stats.Intuition.FinalValue,3}  (база: {target.Stats.Intuition.FullBase})",
-            StatColor(target.Stats.Intuition.FinalValue));
-        logAction?.Invoke($"    Соц. интеллект:        {target.Stats.SocialIntel.FinalValue,3}  (база: {target.Stats.SocialIntel.FullBase})",
-            StatColor(target.Stats.SocialIntel.FinalValue));
-        logAction?.Invoke($"    Творчество:            {target.Stats.Creativity.FinalValue,3}  (база: {target.Stats.Creativity.FullBase})",
-            StatColor(target.Stats.Creativity.FinalValue));
-        logAction?.Invoke($"    Математика:            {target.Stats.Mathematics.FinalValue,3}  (база: {target.Stats.Mathematics.FullBase})",
-            StatColor(target.Stats.Mathematics.FinalValue));
+        foreach (var stat in target.Stats.GetMentalStats())
+        {
+            logAction?.Invoke($"    {stat.Name,-20}: {stat.FinalValue,3}  (база: {stat.FullBase})", StatColor(stat.FinalValue));
+        }
 
         // Энергетические
         logAction?.Invoke("  ЭНЕРГЕТИЧЕСКИЕ ХАРАКТЕРИСТИКИ", LogEntry.ColorDay);
-        logAction?.Invoke($"    Запас энергии:         {target.Stats.EnergyReserve.FinalValue,3}  (база: {target.Stats.EnergyReserve.FullBase})",
-            StatColor(target.Stats.EnergyReserve.FinalValue));
-        logAction?.Invoke($"    Восстановление (энерг):{target.Stats.EnergyRecovery.FinalValue,3}  (база: {target.Stats.EnergyRecovery.FullBase})",
-            StatColor(target.Stats.EnergyRecovery.FinalValue));
-        logAction?.Invoke($"    Контроль:              {target.Stats.Control.FinalValue,3}  (база: {target.Stats.Control.FullBase})",
-            StatColor(target.Stats.Control.FinalValue));
-        logAction?.Invoke($"    Концентрация:          {target.Stats.Concentration.FinalValue,3}  (база: {target.Stats.Concentration.FullBase})",
-            StatColor(target.Stats.Concentration.FinalValue));
-        logAction?.Invoke($"    Выход:                 {target.Stats.Output.FinalValue,3}  (база: {target.Stats.Output.FullBase})",
-            StatColor(target.Stats.Output.FinalValue));
-        logAction?.Invoke($"    Тонкость:              {target.Stats.Precision.FinalValue,3}  (база: {target.Stats.Precision.FullBase})",
-            StatColor(target.Stats.Precision.FinalValue));
-        logAction?.Invoke($"    Устойчивость (энерг):  {target.Stats.EnergyResist.FinalValue,3}  (база: {target.Stats.EnergyResist.FullBase})",
-            StatColor(target.Stats.EnergyResist.FinalValue));
-        logAction?.Invoke($"    Восприятие энергии:    {target.Stats.EnergySense.FinalValue,3}  (база: {target.Stats.EnergySense.FullBase})",
-            StatColor(target.Stats.EnergySense.FinalValue));
+        foreach (var stat in target.Stats.GetEnergyStats())
+        {
+            logAction?.Invoke($"    {stat.Name,-20}: {stat.FinalValue,3}  (база: {stat.FullBase})", StatColor(stat.FinalValue));
+        }
     }
 
+    private static string StatColor(int value)
+    {
+        if (value >= 75) return LogEntry.ColorSuccess;
+        if (value >= 50) return LogEntry.ColorNormal;
+        return LogEntry.ColorWarning;
+    }
     private static string HealthColor(double hp) =>
         hp < 30 ? LogEntry.ColorDanger : hp < 60 ? LogEntry.ColorWarning : LogEntry.ColorSuccess;
-
-    private static string StatColor(int value) =>
-        value >= 75 ? LogEntry.ColorSuccess : value >= 50 ? LogEntry.ColorNormal : LogEntry.ColorWarning;
 
     public InfoHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction)
         : base(db, rnd, logAction) { }
