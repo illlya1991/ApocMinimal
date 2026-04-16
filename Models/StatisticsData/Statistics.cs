@@ -159,12 +159,30 @@ namespace ApocMinimal.Models.StatisticsData
             ToughnessChar.IsCombat = true;
             ReflexesChar.IsCombat = true;
 
+            EnergyReserveChar.IsCombat = true;
+            EnergyRecoveryChar.IsCombat = true;
+            ControlChar.IsCombat = true;
+            ConcentrationChar.IsCombat = true;
+            OutputChar.IsCombat = true;
+            PrecisionChar.IsCombat = true;
+            EnergyResistChar.IsCombat = true;
+            EnergySenseChar.IsCombat = true;
+
             // IsSocial: характеристики, влияющие на социальные взаимодействия
             FocusChar.IsSocial = true;
             WillChar.IsSocial = true;
             FlexibilityChar.IsSocial = true;
             IntuitionChar.IsSocial = true;
             SocialIntelChar.IsSocial = true;
+
+            EnergyReserveChar.IsSocial = true;
+            EnergyRecoveryChar.IsSocial = true;
+            ControlChar.IsSocial = true;
+            ConcentrationChar.IsSocial = true;
+            OutputChar.IsSocial = true;
+            PrecisionChar.IsSocial = true;
+            EnergyResistChar.IsSocial = true;
+            EnergySenseChar.IsSocial = true;
         }
 
         // === ПОЛУЧЕНИЕ ХАРАКТЕРИСТИКИ ПО ID ===
@@ -198,27 +216,12 @@ namespace ApocMinimal.Models.StatisticsData
         }
 
         // === ПОЛУЧЕНИЕ ХАРАКТЕРИСТИК ПО ТИПУ ===
-        public List<Characteristic> GetPhysicalStats()
-        {
-            var result = new List<Characteristic>();
-            for (int i = 0; i < AllStats.Count; i++)
-                if (AllStats[i].Type == StatType.Physical) result.Add(AllStats[i]);
-            return result;
-        }
 
-        public List<Characteristic> GetMentalStats()
+        public List<Characteristic> GetStatsByType(StatType type)
         {
             var result = new List<Characteristic>();
             for (int i = 0; i < AllStats.Count; i++)
-                if (AllStats[i].Type == StatType.Mental) result.Add(AllStats[i]);
-            return result;
-        }
-
-        public List<Characteristic> GetEnergyStats()
-        {
-            var result = new List<Characteristic>();
-            for (int i = 0; i < AllStats.Count; i++)
-                if (AllStats[i].Type == StatType.Energy) result.Add(AllStats[i]);
+                if (AllStats[i].Type == type) result.Add(AllStats[i]);
             return result;
         }
 

@@ -264,9 +264,9 @@ public class GameUIService
 
         if (showAll)
         {
-            AddStatsCategory(panel, npc.Stats.GetPhysicalStats(), "ФИЗИЧЕСКИЕ");
-            AddStatsCategory(panel, npc.Stats.GetMentalStats(), "МЕНТАЛЬНЫЕ");
-            AddStatsCategory(panel, npc.Stats.GetEnergyStats(), "ЭНЕРГЕТИЧЕСКИЕ");
+            AddStatsCategory(panel, npc.Stats.GetStatsByType(StatType.Physical), "ФИЗИЧЕСКИЕ");
+            AddStatsCategory(panel, npc.Stats.GetStatsByType(StatType.Physical), "МЕНТАЛЬНЫЕ");
+            AddStatsCategory(panel, npc.Stats.GetStatsByType(StatType.Physical), "ЭНЕРГЕТИЧЕСКИЕ");
         }
 
         return panel;
