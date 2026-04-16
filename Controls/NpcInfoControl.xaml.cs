@@ -14,6 +14,7 @@ public partial class NpcInfoControl : UserControl
     private bool _showCloseButton = false;
 
     public event Action? Closed;
+    public event Action<string>? ModeChanged;
 
     public NpcInfoControl()
     {
@@ -99,6 +100,7 @@ public partial class NpcInfoControl : UserControl
         {
             _currentMode = mode;
             UpdateContent();
+            ModeChanged?.Invoke(mode);
         }
     }
 

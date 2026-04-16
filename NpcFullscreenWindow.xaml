@@ -97,31 +97,23 @@
         </Border>
 
         <!-- Основной контент -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <Grid x:Name="MainContent">
-                <!-- Режим просмотра (один NPC) -->
-                <ScrollViewer x:Name="ViewContent" VerticalScrollBarVisibility="Auto">
-                    <local:NpcInfoControl x:Name="SingleNpcInfo" Margin="20"/>
-                </ScrollViewer>
+        <Grid x:Name="MainContent">
+            <!-- Режим просмотра (один NPC) -->
+            <local:NpcInfoControl x:Name="SingleNpcInfo" Margin="20"/>
 
-                <!-- Режим сравнения (два NPC) -->
-                <Grid x:Name="CompareContent" Visibility="Collapsed">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" BorderBrush="#30363d" BorderThickness="0,0,1,0">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <local:NpcInfoControl x:Name="LeftNpcInfo" Margin="20"/>
-                        </ScrollViewer>
-                    </Border>
-                    <Border Grid.Column="1">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <local:NpcInfoControl x:Name="RightNpcInfo" Margin="20"/>
-                        </ScrollViewer>
-                    </Border>
-                </Grid>
+            <!-- Режим сравнения (два NPC) -->
+            <Grid x:Name="CompareContent" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderBrush="#30363d" BorderThickness="0,0,1,0">
+                    <local:NpcInfoControl x:Name="LeftNpcInfo" Margin="20"/>
+                </Border>
+                <Border Grid.Column="1">
+                    <local:NpcInfoControl x:Name="RightNpcInfo" Margin="20"/>
+                </Border>
             </Grid>
-        </ScrollViewer>
+        </Grid>
     </DockPanel>
 </Window>

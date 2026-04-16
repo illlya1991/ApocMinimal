@@ -48,9 +48,10 @@ namespace ApocMinimal
             LeftNpcInfo.SetHeaderVisible(false);
             RightNpcInfo.SetHeaderVisible(false);
 
-            // Настройка режимов сравнения
-            LeftNpcInfo.SetMode("full");
-            RightNpcInfo.SetMode("full");
+            // Синхронизация режимов при сравнении
+            bool _syncing = false;
+            LeftNpcInfo.ModeChanged += mode => { if (!_syncing) { _syncing = true; RightNpcInfo.SetMode(mode); _syncing = false; } };
+            RightNpcInfo.ModeChanged += mode => { if (!_syncing) { _syncing = true; LeftNpcInfo.SetMode(mode); _syncing = false; } };
 
             // Обновляем отображение
             UpdateSingleView();
@@ -63,7 +64,7 @@ namespace ApocMinimal
                 ViewSelectorPanel.Visibility = Visibility.Visible;
                 CompareSelectorPanel.Visibility = Visibility.Collapsed;
                 CompareOptions.Visibility = Visibility.Collapsed;
-                ViewContent.Visibility = Visibility.Visible;
+                SingleNpcInfo.Visibility = Visibility.Visible;
                 CompareContent.Visibility = Visibility.Collapsed;
                 UpdateSingleView();
             }
@@ -72,7 +73,7 @@ namespace ApocMinimal
                 ViewSelectorPanel.Visibility = Visibility.Collapsed;
                 CompareSelectorPanel.Visibility = Visibility.Visible;
                 CompareOptions.Visibility = Visibility.Visible;
-                ViewContent.Visibility = Visibility.Collapsed;
+                SingleNpcInfo.Visibility = Visibility.Collapsed;
                 CompareContent.Visibility = Visibility.Visible;
                 UpdateCompareView();
             }
