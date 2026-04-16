@@ -51,7 +51,6 @@ public class DatabaseManager
 
     public List<OneSave> ListSaves { get { return _ListSaves; } }
 
-    public int MaxSaves { get { return _maxSavesCount; } }
     public OneSave ThisSave { get { return _thisSave; } set { _thisSave = value; } }
 
     private void InitializeDatabase()
@@ -459,17 +458,6 @@ public class DatabaseManager
         }
     }
 
-    public void SaveLocation(Location loc)
-    {
-        using var cmd = new SQLiteCommand(
-            "UPDATE Locations SET Status=@st, MonsterTypeName=@mt, MapState=@ms WHERE Id=@id", _conn);
-        cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
-        cmd.Parameters.AddWithValue("@mt", loc.MonsterTypeName);
-        cmd.Parameters.AddWithValue("@ms", loc.MapState.ToString());
-        cmd.Parameters.AddWithValue("@id", loc.Id);
-        cmd.ExecuteNonQuery();
-    }
-
     public List<Technique> GetAllTechniques()
     {
         List<Technique> list = new List<Technique>();
@@ -844,27 +832,6 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@dr", q.DaysRemaining);
         cmd.Parameters.AddWithValue("@id", q.Id);
         cmd.ExecuteNonQuery();
-    }
-
-    public void InsertQuest(Quest q)
-    {
-        using var cmd = new SQLiteCommand(@"
-            INSERT INTO Quests
-              (Title,Description,Source,Status,AssignedNpcId,
-               DaysRequired,DaysRemaining,RewardResourceId,RewardAmount,FaithCost)
-            VALUES (@ti,@de,@so,@st,@an,@dq,@dr,@rr,@ra,@fc)", _conn);
-        cmd.Parameters.AddWithValue("@ti", q.Title);
-        cmd.Parameters.AddWithValue("@de", q.Description);
-        cmd.Parameters.AddWithValue("@so", q.Source.ToString());
-        cmd.Parameters.AddWithValue("@st", q.Status.ToString());
-        cmd.Parameters.AddWithValue("@an", q.AssignedNpcId);
-        cmd.Parameters.AddWithValue("@dq", q.DaysRequired);
-        cmd.Parameters.AddWithValue("@dr", q.DaysRemaining);
-        cmd.Parameters.AddWithValue("@rr", q.RewardResourceId);
-        cmd.Parameters.AddWithValue("@ra", q.RewardAmount);
-        cmd.Parameters.AddWithValue("@fc", q.FaithCost);
-        cmd.ExecuteNonQuery();
-        q.Id = (int)_conn.LastInsertRowId;
     }
 
     private void SeedTechniquesIfEmpty()
@@ -1399,27 +1366,6 @@ public class DatabaseManager
         return Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
     }
 
-    public List<Quest> GetAvailableQuests()
-    {
-        List<Quest> list = new List<Quest>();
-        using var cmd = new SQLiteCommand("SELECT * FROM Quests WHERE Status = 'Available' ORDER BY Id", _conn);
-        using var rdr = cmd.ExecuteReader();
-        while (rdr.Read())
-        {
-            Quest q = new Quest();
-            q.Id = rdr.GetInt32(rdr.GetOrdinal("Id"));
-            q.Title = rdr.GetString(rdr.GetOrdinal("Title"));
-            q.Description = rdr.GetString(rdr.GetOrdinal("Description"));
-            q.Status = QuestStatus.Available;
-            q.DaysRequired = rdr.GetInt32(rdr.GetOrdinal("DaysRequired"));
-            q.DaysRemaining = rdr.GetInt32(rdr.GetOrdinal("DaysRemaining"));
-            q.RewardResourceId = rdr.GetInt32(rdr.GetOrdinal("RewardResourceId"));
-            q.RewardAmount = rdr.GetDouble(rdr.GetOrdinal("RewardAmount"));
-            q.FaithCost = rdr.GetDouble(rdr.GetOrdinal("FaithCost"));
-            list.Add(q);
-        }
-        return list;
-    }
 }
 
 public class OneSave
