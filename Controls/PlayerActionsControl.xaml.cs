@@ -29,18 +29,20 @@ public partial class PlayerActionsControl : UserControl
         InitializeComponent();
         _viewModel = null!;
         _uiService = new GameUIService(Log);
-        // Не вызываем InitializeUI(), так как нет ViewModel
     }
+
     public PlayerActionsControl(GameViewModel viewModel) : this()
     {
         _viewModel = viewModel;
         InitializeUI();
     }
+
     public void SetViewModel(GameViewModel viewModel)
     {
         _viewModel = viewModel;
         InitializeUI();
     }
+
     private void Log(string text, string color)
     {
         LogAction?.Invoke(text, color);
@@ -49,8 +51,11 @@ public partial class PlayerActionsControl : UserControl
     private void InitializeUI()
     {
         ActionCombo.Items.Clear();
+
+        // Используем PlayerActionGroup из ViewModel
         foreach (var group in _viewModel.ActionGroups)
             ActionCombo.Items.Add(group);
+
         ActionCombo.SelectedIndex = -1;
 
         SubActionRow.Visibility = Visibility.Collapsed;
@@ -75,7 +80,7 @@ public partial class PlayerActionsControl : UserControl
 
     private void RefreshActionCombo()
     {
-        if (ActionCombo.SelectedItem is ActionGroup group)
+        if (ActionCombo.SelectedItem is PlayerActionGroup group)
         {
             var actions = _viewModel.GetActionsByGroup(group.Id);
             SubActionCombo.Items.Clear();
@@ -206,7 +211,7 @@ public partial class PlayerActionsControl : UserControl
 
     private void ActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ActionCombo.SelectedItem is not ActionGroup group) return;
+        if (ActionCombo.SelectedItem is not PlayerActionGroup group) return;
 
         SubActionRow.Visibility = Visibility.Visible;
         SubActionCombo.Items.Clear();
