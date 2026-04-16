@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Services;
 
 namespace ApocMinimal.Controls;
 
@@ -72,7 +73,10 @@ public partial class NpcSidebarControl : UserControl
         return rb;
     }
 
-    private void RadioButton_Checked(object sender, RoutedEventArgs e) => UpdateContent();
+    private void RadioButton_Checked(object sender, RoutedEventArgs e)
+    {
+        UpdateContent();
+    }
 
     private void AnimateShow()
     {
@@ -133,9 +137,13 @@ public partial class NpcSidebarControl : UserControl
     private void UpdateContent()
     {
         if (_currentNpc == null) return;
+
         while (SidebarContent.Children.Count > 1)
             SidebarContent.Children.RemoveAt(1);
-        SidebarContent.Children.Add(BuildInfoPanel(_currentNpc, GetSelectedMode()));
+
+        string mode = GetSelectedMode();
+        var infoPanel = BuildInfoPanel(_currentNpc, mode);
+        SidebarContent.Children.Add(infoPanel);
     }
 
     private string GetSelectedMode()
@@ -151,6 +159,7 @@ public partial class NpcSidebarControl : UserControl
     private StackPanel BuildInfoPanel(Npc npc, string mode)
     {
         var panel = new StackPanel();
+
         panel.Children.Add(new TextBlock
         {
             Text = $"{npc.Name} [{npc.GenderLabel}] {npc.Age} лет",
@@ -171,40 +180,39 @@ public partial class NpcSidebarControl : UserControl
 
     private void BuildFullInfo(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(CreateSectionHeader("ОСНОВНЫЕ ХАРАКТЕРИСТИКИ"));
-        panel.Children.Add(CreateInfoRow("HP:", $"{npc.Health:F0}", npc.Health < 30 ? "#f87171" : "#4ade80"));
-        panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stamina:F0}", npc.Stamina < 30 ? "#f87171" : "#60a5fa"));
-        panel.Children.Add(CreateInfoRow("Чакра:", $"{npc.Chakra:F0}", "#e879f9"));
-        panel.Children.Add(CreateInfoRow("Вера:", $"{npc.Faith:F0}", "#facc15"));
-        panel.Children.Add(CreateInfoRow("Страх:", $"{npc.Fear:F0}", npc.Fear > 70 ? "#f87171" : "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Доверие:", $"{npc.Trust:F0}", npc.Trust > 70 ? "#4ade80" : "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Инициатива:", $"{npc.Initiative:F0}", "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Уровень:", npc.FollowerLabel, "#d29922"));
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ОСНОВНЫЕ ХАРАКТЕРИСТИКИ"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("HP:", $"{npc.Health:F0}", npc.Health < 30 ? "#f87171" : "#4ade80"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Выносливость:", $"{npc.Stamina:F0}", npc.Stamina < 30 ? "#f87171" : "#60a5fa"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Чакра:", $"{npc.Chakra:F0}", "#e879f9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Вера:", $"{npc.Faith:F0}", "#facc15"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Страх:", $"{npc.Fear:F0}", npc.Fear > 70 ? "#f87171" : "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Доверие:", $"{npc.Trust:F0}", npc.Trust > 70 ? "#4ade80" : "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Инициатива:", $"{npc.Initiative:F0}", "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Уровень:", npc.FollowerLabel, "#d29922"));
 
-        panel.Children.Add(CreateSectionHeader("ЛИЧНОСТЬ"));
-        panel.Children.Add(CreateInfoRow("Черты:", BuildTraitsString(npc.CharTraits), "#d29922"));
-        panel.Children.Add(CreateInfoRow("Эмоции:", BuildEmotionsString(npc.Emotions), "#e879f9"));
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ЛИЧНОСТЬ"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Черты:", NpcInfoBuilder.BuildTraitsString(npc.CharTraits), "#d29922"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Эмоции:", NpcInfoBuilder.BuildEmotionsString(npc.Emotions), "#e879f9"));
 
-        panel.Children.Add(CreateSectionHeader("ЦЕЛИ"));
-        panel.Children.Add(CreateInfoRow("Цель:", npc.Goal, "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Мечта:", npc.Dream, "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Желание:", npc.Desire, "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ЦЕЛИ"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Цель:", npc.Goal, "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Мечта:", npc.Dream, "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Желание:", npc.Desire, "#c9d1d9"));
 
         if (npc.Specializations.Count > 0)
-            panel.Children.Add(CreateInfoRow("Специализации:", string.Join(", ", npc.Specializations), "#56d364"));
+            panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Специализации:", string.Join(", ", npc.Specializations), "#56d364"));
 
-        panel.Children.Add(CreateSectionHeader("ПОТРЕБНОСТИ (срочные)"));
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ПОТРЕБНОСТИ (срочные)"));
         for (int i = 0; i < npc.Needs.Count; i++)
         {
             var need = npc.Needs[i];
             if (!need.IsUrgent && !need.IsCritical) continue;
-            panel.Children.Add(CreateInfoRow(
+            panel.Children.Add(NpcInfoBuilder.CreateInfoRow(
                 $"  {need.Name}:",
                 $"{need.Value:F0}%",
                 need.IsCritical ? "#f87171" : "#fbbf24"));
         }
 
-        // Исправленный Expander: контент привязан через .Content =
         var statsExpander = new Expander
         {
             Header = "ХАРАКТЕРИСТИКИ",
@@ -215,19 +223,19 @@ public partial class NpcSidebarControl : UserControl
             Margin = new Thickness(0, 10, 0, 5)
         };
         var statsInner = new StackPanel { Margin = new Thickness(15, 0, 0, 0) };
-        AddAllStats(statsInner, npc);
+        NpcInfoBuilder.AddAllStats(statsInner, npc);
         statsExpander.Content = statsInner;
         panel.Children.Add(statsExpander);
     }
 
     private void BuildDetailedInfo(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(CreateSectionHeader("ФИЗИЧЕСКИЕ"));
-        AddPhysicalStats(panel, npc);
-        panel.Children.Add(CreateSectionHeader("МЕНТАЛЬНЫЕ"));
-        AddMentalStats(panel, npc);
-        panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
-        AddEnergyStats(panel, npc);
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ФИЗИЧЕСКИЕ"));
+        NpcInfoBuilder.AddPhysicalStats(panel, npc);
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("МЕНТАЛЬНЫЕ"));
+        NpcInfoBuilder.AddMentalStats(panel, npc);
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
+        NpcInfoBuilder.AddEnergyStats(panel, npc);
     }
 
     private void BuildCompactInfo(StackPanel panel, Npc npc)
@@ -263,137 +271,32 @@ public partial class NpcSidebarControl : UserControl
 
     private void BuildCombatInfo(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(CreateSectionHeader("БОЕВЫЕ ХАРАКТЕРИСТИКИ"));
-        panel.Children.Add(CreateInfoRow("Сила:", $"{npc.Stats.Strength}", GetStatColor(npc.Stats.Strength)));
-        panel.Children.Add(CreateInfoRow("Ловкость:", $"{npc.Stats.Agility}", GetStatColor(npc.Stats.Agility)));
-        panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stats.Endurance}", GetStatColor(npc.Stats.Endurance)));
-        panel.Children.Add(CreateInfoRow("Стойкость:", $"{npc.Stats.Toughness}", GetStatColor(npc.Stats.Toughness)));
-        panel.Children.Add(CreateInfoRow("Рефлексы:", $"{npc.Stats.Reflexes}", GetStatColor(npc.Stats.Reflexes)));
-        panel.Children.Add(CreateInfoRow("Боевая инициатива:", $"{npc.CombatInitiative:F0}", "#c9d1d9"));
-        panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
-        panel.Children.Add(CreateInfoRow("Запас энергии:", $"{npc.Stats.EnergyReserve}", GetStatColor(npc.Stats.EnergyReserve)));
-        panel.Children.Add(CreateInfoRow("Контроль:", $"{npc.Stats.Control}", GetStatColor(npc.Stats.Control)));
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("БОЕВЫЕ ХАРАКТЕРИСТИКИ"));
+        NpcInfoBuilder.AddCombatStats(panel, npc);
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
+        NpcInfoBuilder.AddEnergyStats(panel, npc);
     }
 
     private void BuildSocialInfo(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(CreateSectionHeader("СОЦИАЛЬНЫЕ ХАРАКТЕРИСТИКИ"));
-        panel.Children.Add(CreateInfoRow("Доверие:", $"{npc.Trust:F0}", npc.Trust > 70 ? "#4ade80" : "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Вера:", $"{npc.Faith:F0}", "#facc15"));
-        panel.Children.Add(CreateInfoRow("Уровень последователя:", npc.FollowerLabel, "#d29922"));
-        panel.Children.Add(CreateInfoRow("Черты:", BuildTraitsString(npc.CharTraits), "#d29922"));
-        panel.Children.Add(CreateInfoRow("Эмоции:", BuildEmotionsString(npc.Emotions), "#e879f9"));
-        panel.Children.Add(CreateInfoRow("Цель:", npc.Goal, "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Мечта:", npc.Dream, "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("СОЦИАЛЬНЫЕ ХАРАКТЕРИСТИКИ"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Доверие:", $"{npc.Trust:F0}", npc.Trust > 70 ? "#4ade80" : "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Вера:", $"{npc.Faith:F0}", "#facc15"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Уровень последователя:", npc.FollowerLabel, "#d29922"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Черты:", NpcInfoBuilder.BuildTraitsString(npc.CharTraits), "#d29922"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Эмоции:", NpcInfoBuilder.BuildEmotionsString(npc.Emotions), "#e879f9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Цель:", npc.Goal, "#c9d1d9"));
+        panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Мечта:", npc.Dream, "#c9d1d9"));
+
         if (npc.Specializations.Count > 0)
-            panel.Children.Add(CreateInfoRow("Специализации:", string.Join(", ", npc.Specializations), "#56d364"));
+            panel.Children.Add(NpcInfoBuilder.CreateInfoRow("Специализации:", string.Join(", ", npc.Specializations), "#56d364"));
+
+        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("СОЦИАЛЬНЫЕ СТАТЫ"));
+        NpcInfoBuilder.AddSocialStats(panel, npc);
     }
 
-    private static string BuildTraitsString(List<CharacterTrait> traits)
+    private void CloseSidebar_Click(object sender, RoutedEventArgs e)
     {
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < traits.Count; i++)
-        {
-            if (i > 0) sb.Append(", ");
-            sb.Append(traits[i].ToLabel());
-        }
-        return sb.ToString();
+        Hide();
     }
-
-    private static string BuildEmotionsString(List<Emotion> emotions)
-    {
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < emotions.Count; i++)
-        {
-            if (i > 0) sb.Append(" | ");
-            sb.Append(emotions[i].Name);
-            sb.Append(' ');
-            sb.Append(emotions[i].Percentage.ToString("F0"));
-            sb.Append('%');
-        }
-        return sb.ToString();
-    }
-
-    private static TextBlock CreateSectionHeader(string title) => new TextBlock
-    {
-        Text = title,
-        Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!,
-        FontSize = 11,
-        FontWeight = FontWeights.SemiBold,
-        Margin = new Thickness(0, 10, 0, 5)
-    };
-
-    private static Grid CreateInfoRow(string label, string value, string colorHex)
-    {
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120, GridUnitType.Pixel) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-        var labelBlock = new TextBlock
-        {
-            Text = label,
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e")!,
-            FontSize = 12,
-            Margin = new Thickness(0, 2, 0, 2)
-        };
-        var valueBlock = new TextBlock
-        {
-            Text = value,
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(colorHex)!,
-            FontSize = 12,
-            Margin = new Thickness(5, 2, 0, 2)
-        };
-
-        grid.Children.Add(labelBlock);
-        grid.Children.Add(valueBlock);
-        Grid.SetColumn(valueBlock, 1);
-        return grid;
-    }
-
-    private static string GetStatColor(int value) =>
-        value >= 75 ? "#4ade80" : value >= 50 ? "#c9d1d9" : "#fbbf24";
-
-    private static void AddAllStats(StackPanel panel, Npc npc)
-    {
-        AddPhysicalStats(panel, npc);
-        AddMentalStats(panel, npc);
-        AddEnergyStats(panel, npc);
-    }
-
-    private static void AddPhysicalStats(StackPanel panel, Npc npc)
-    {
-        panel.Children.Add(new TextBlock
-        {
-            Text = "ФИЗИЧЕСКИЕ:",
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!
-        });
-        foreach (var stat in npc.Stats.GetPhysicalStats())
-            panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue)));
-    }
-
-    private static void AddMentalStats(StackPanel panel, Npc npc)
-    {
-        panel.Children.Add(new TextBlock
-        {
-            Text = "МЕНТАЛЬНЫЕ:",
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!,
-            Margin = new Thickness(0, 10, 0, 0)
-        });
-        foreach (var stat in npc.Stats.GetMentalStats())
-            panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue)));
-    }
-
-    private static void AddEnergyStats(StackPanel panel, Npc npc)
-    {
-        panel.Children.Add(new TextBlock
-        {
-            Text = "ЭНЕРГЕТИЧЕСКИЕ:",
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#60a5fa")!,
-            Margin = new Thickness(0, 10, 0, 0)
-        });
-        foreach (var stat in npc.Stats.GetEnergyStats())
-            panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue)));
-    }
-
-    private void CloseSidebar_Click(object sender, RoutedEventArgs e) => Hide();
 }

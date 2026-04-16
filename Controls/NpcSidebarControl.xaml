@@ -7,7 +7,7 @@
              d:DesignHeight="450" d:DesignWidth="350">
 
     <Border Background="#0d1117" BorderBrush="#30363d" BorderThickness="1,0,0,0"
-            Visibility="Collapsed" x:Name="SidebarRoot">
+            Width="350" Visibility="Collapsed" x:Name="SidebarRoot">
         <DockPanel>
             <!-- Заголовок -->
             <Border DockPanel.Dock="Top" Background="#161b22" BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="10,6">

@@ -69,15 +69,16 @@
         <!-- LEFT PANEL: NPC LIST -->
         <local:NpcListControl x:Name="NpcListControl" DockPanel.Dock="Left" Width="260"/>
 
-        <!-- RIGHT SIDEBAR: NPC INFO (выезжает справа от лога) -->
-        <local:NpcSidebarControl x:Name="NpcSidebarControl" DockPanel.Dock="Right" Width="350"/>
-
-        <!-- CENTER: LOG -->
-        <DockPanel>
-            <local:LogControl x:Name="LogControl" />
-        </DockPanel>
-
-        <!-- RIGHT PANEL: PLAYER ACTIONS (вкладки) -->
-        <local:PlayerActionsControl x:Name="PlayerActionsControl" DockPanel.Dock="Right" Width="310"/>
+        <!-- CENTER + RIGHT: Grid — sidebar не перекрывает панель действий -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="310"/>
+            </Grid.ColumnDefinitions>
+            <local:LogControl           x:Name="LogControl"           Grid.Column="0"/>
+            <local:NpcSidebarControl    x:Name="NpcSidebarControl"    Grid.Column="1"/>
+            <local:PlayerActionsControl x:Name="PlayerActionsControl" Grid.Column="2"/>
+        </Grid>
     </DockPanel>
 </Window>

@@ -254,6 +254,7 @@ public partial class PlayerActionsControl : UserControl
                 "Npc" => BuildNpcComboBox(param),
                 "Resource" => BuildResourceComboBox(param),
                 "Number" => BuildNumberBox(param),
+                "NumberSlider" => BuildNumberBox(param),
                 "Text" => BuildTextBox(param),
                 _ => new TextBlock { Text = $"Тип: {param.ParamType?.Name}", Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f87171")! }
             };
@@ -385,6 +386,7 @@ public partial class PlayerActionsControl : UserControl
                 "Npc" => GetSelectedNpc(control),
                 "Resource" => GetSelectedResource(control),
                 "Number" => GetNumberValue(control),
+                "NumberSlider" => GetNumberValue(control),
                 "Text" => GetTextValue(control),
                 _ => null
             };

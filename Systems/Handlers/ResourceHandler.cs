@@ -45,9 +45,8 @@ public class ResourceHandler : BaseActionHandler
         if (!parameters.ContainsKey("resourceName") || parameters["resourceName"] == null)
             return "Не указан ресурс";
 
-        var resourceName = parameters["resourceName"].ToString();
-        var resource = resources.FirstOrDefault(r => r.Name == resourceName);
-        if (resource == null) return $"Ресурс '{resourceName}' не найден";
+        Resource? resource = parameters["resourceName"] as Resource;
+        if (resource == null) return "Не указан ресурс";
 
         if (!parameters.ContainsKey("amount") || parameters["amount"] == null)
             return "Не указано количество";

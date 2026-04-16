@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Services;
 
 namespace ApocMinimal
 {
@@ -24,7 +25,6 @@ namespace ApocMinimal
             InitializeComponent();
             _npcs = npcs.Where(n => n.IsAlive).ToList();
 
-            // Заполняем комбобоксы
             foreach (var npc in _npcs)
             {
                 NpcSelector.Items.Add(npc);
@@ -39,7 +39,6 @@ namespace ApocMinimal
                 NpcSelectorRight.SelectedIndex = _npcs.Count > 1 ? 1 : 0;
             }
 
-            // Подписываемся на переключение вкладок
             TabView.Checked += (s, e) => SwitchMode("view");
             TabCompare.Checked += (s, e) => SwitchMode("compare");
         }
@@ -84,7 +83,6 @@ namespace ApocMinimal
             if (sender is RadioButton rb && rb.Tag is string mode)
             {
                 _currentDisplayMode = mode;
-
                 if (TabView.IsChecked == true)
                     UpdateViewContent();
                 else
@@ -110,15 +108,10 @@ namespace ApocMinimal
         private void UpdateCompareContent()
         {
             if (_leftNpc == null || _rightNpc == null) return;
-
             CompareLeftPanel.Children.Clear();
             CompareRightPanel.Children.Clear();
-
-            var leftPanel = BuildNpcInfoPanel(_leftNpc, _currentDisplayMode, true, _rightNpc);
-            var rightPanel = BuildNpcInfoPanel(_rightNpc, _currentDisplayMode, true, _leftNpc);
-
-            CompareLeftPanel.Children.Add(leftPanel);
-            CompareRightPanel.Children.Add(rightPanel);
+            CompareLeftPanel.Children.Add(BuildNpcInfoPanel(_leftNpc, _currentDisplayMode, true, _rightNpc));
+            CompareRightPanel.Children.Add(BuildNpcInfoPanel(_rightNpc, _currentDisplayMode, true, _leftNpc));
         }
 
         private StackPanel BuildNpcInfoPanel(Npc npc, string mode, bool isCompare = false, Npc? otherNpc = null)
@@ -136,21 +129,11 @@ namespace ApocMinimal
 
             switch (mode)
             {
-                case "full":
-                    BuildFullInfo(panel, npc, isCompare, otherNpc);
-                    break;
-                case "detailed":
-                    BuildDetailedInfo(panel, npc, isCompare, otherNpc);
-                    break;
-                case "compact":
-                    BuildCompactInfo(panel, npc, isCompare, otherNpc);
-                    break;
-                case "combat":
-                    BuildCombatInfo(panel, npc, isCompare, otherNpc);
-                    break;
-                case "social":
-                    BuildSocialInfo(panel, npc, isCompare, otherNpc);
-                    break;
+                case "full": BuildFullInfo(panel, npc, isCompare, otherNpc); break;
+                case "detailed": BuildDetailedInfo(panel, npc, isCompare, otherNpc); break;
+                case "compact": BuildCompactInfo(panel, npc, isCompare, otherNpc); break;
+                case "combat": BuildCombatInfo(panel, npc, isCompare, otherNpc); break;
+                case "social": BuildSocialInfo(panel, npc, isCompare, otherNpc); break;
             }
 
             return panel;
@@ -178,9 +161,7 @@ namespace ApocMinimal
             panel.Children.Add(CreateInfoRow("Желание:", npc.Desire, "#c9d1d9", isCompare, otherNpc?.Desire, (a, b) => a == b));
 
             if (npc.Specializations.Any())
-            {
                 panel.Children.Add(CreateInfoRow("Специализации:", string.Join(", ", npc.Specializations), "#56d364", isCompare, otherNpc != null ? string.Join(", ", otherNpc.Specializations) : null, (a, b) => a == b));
-            }
 
             panel.Children.Add(CreateSectionHeader("ПОТРЕБНОСТИ"));
             foreach (var need in npc.Needs.Where(n => n.IsUrgent || n.IsCritical))
@@ -199,10 +180,8 @@ namespace ApocMinimal
         {
             panel.Children.Add(CreateSectionHeader("ФИЗИЧЕСКИЕ"));
             AddPhysicalStats(panel, npc, isCompare, otherNpc);
-
             panel.Children.Add(CreateSectionHeader("МЕНТАЛЬНЫЕ"));
             AddMentalStats(panel, npc, isCompare, otherNpc);
-
             panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
             AddEnergyStats(panel, npc, isCompare, otherNpc);
         }
@@ -233,7 +212,6 @@ namespace ApocMinimal
         {
             panel.Children.Add(CreateSectionHeader("БОЕВЫЕ ХАРАКТЕРИСТИКИ"));
             AddCombatStats(panel, npc, isCompare, otherNpc);
-
             panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
             AddEnergyCombatStats(panel, npc, isCompare, otherNpc);
         }
@@ -255,12 +233,20 @@ namespace ApocMinimal
 
         private void AddCombatStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
         {
-            panel.Children.Add(CreateInfoRow("Сила:", $"{npc.Stats.Strength}", GetStatColor(npc.Stats.Strength), isCompare, otherNpc?.Stats.Strength, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Ловкость:", $"{npc.Stats.Agility}", GetStatColor(npc.Stats.Agility), isCompare, otherNpc?.Stats.Agility, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stats.Endurance}", GetStatColor(npc.Stats.Endurance), isCompare, otherNpc?.Stats.Endurance, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Стойкость:", $"{npc.Stats.Toughness}", GetStatColor(npc.Stats.Toughness), isCompare, otherNpc?.Stats.Toughness, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Рефлексы:", $"{npc.Stats.Reflexes}", GetStatColor(npc.Stats.Reflexes), isCompare, otherNpc?.Stats.Reflexes, (a, b) => a == b));
-            panel.Children.Add(CreateInfoRow("Боевая инициатива:", $"{npc.CombatInitiative:F0}", "#c9d1d9", isCompare, otherNpc?.CombatInitiative, (a, b) => a == b));
+            var stats = npc.Stats.GetCombatStats();
+            for (int i = 0; i < stats.Count; i++)
+            {
+                var stat = stats[i];
+                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
+                panel.Children.Add(CreateInfoRow(
+                    $"  {stat.Name}:",
+                    $"{stat.FinalValue}",
+                    GetStatColor(stat.FinalValue),
+                    isCompare,
+                    otherValue,
+                    (a, b) => a?.ToString() == b?.ToString()));
+            }
+            panel.Children.Add(CreateInfoRow("Боевая инициатива:", $"{npc.CombatInitiative:F0}", "#c9d1d9", isCompare, otherNpc?.CombatInitiative, (a, b) => a?.ToString() == b?.ToString()));
         }
 
         private void AddEnergyCombatStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
@@ -284,7 +270,7 @@ namespace ApocMinimal
                 };
             }
 
-            var expander = new Expander
+            return new Expander
             {
                 Header = title,
                 IsExpanded = false,
@@ -293,7 +279,6 @@ namespace ApocMinimal
                 FontWeight = FontWeights.SemiBold,
                 Margin = new Thickness(0, 10, 0, 0)
             };
-            return expander;
         }
 
         private Grid CreateInfoRow(string label, string value, string defaultColor, bool isCompare = false, object? otherValue = null, Func<object?, object?, bool>? compareFunc = null)
@@ -311,15 +296,11 @@ namespace ApocMinimal
             });
 
             string finalColor = defaultColor;
-
             if (isCompare && otherValue != null && compareFunc != null)
             {
                 bool isEqual = compareFunc(value, otherValue);
-
-                if (_highlightSame && isEqual)
-                    finalColor = "#4ade80";
-                else if (_highlightDifferent && !isEqual)
-                    finalColor = "#f87171";
+                if (_highlightSame && isEqual) finalColor = "#4ade80";
+                else if (_highlightDifferent && !isEqual) finalColor = "#f87171";
             }
 
             grid.Children.Add(new TextBlock
@@ -334,23 +315,16 @@ namespace ApocMinimal
             return grid;
         }
 
-        private string GetStatColor(int value) => value >= 75 ? "#4ade80" : value >= 50 ? "#c9d1d9" : "#fbbf24";
+        private string GetStatColor(int value) => NpcInfoBuilder.GetStatColor(value);
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
-
 
         private void AddPhysicalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
         {
             foreach (var stat in npc.Stats.GetPhysicalStats())
             {
                 int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
-                panel.Children.Add(CreateInfoRow(
-                    $"  {stat.Name}:",
-                    $"{stat}",
-                    GetStatColor(stat.FinalValue),
-                    isCompare,
-                    otherValue,
-                    (a, b) => a?.ToString() == b?.ToString()));
+                panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
             }
         }
 
@@ -359,13 +333,7 @@ namespace ApocMinimal
             foreach (var stat in npc.Stats.GetMentalStats())
             {
                 int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
-                panel.Children.Add(CreateInfoRow(
-                    $"  {stat.Name}:",
-                    $"{stat}",
-                    GetStatColor(stat.FinalValue),
-                    isCompare,
-                    otherValue,
-                    (a, b) => a?.ToString() == b?.ToString()));
+                panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
             }
         }
 
@@ -374,13 +342,7 @@ namespace ApocMinimal
             foreach (var stat in npc.Stats.GetEnergyStats())
             {
                 int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
-                panel.Children.Add(CreateInfoRow(
-                    $"  {stat.Name}:",
-                    $"{stat}",
-                    GetStatColor(stat.FinalValue),
-                    isCompare,
-                    otherValue,
-                    (a, b) => a?.ToString() == b?.ToString()));
+                panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
             }
         }
 

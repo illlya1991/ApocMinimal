@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ApocMinimal.Models.StatisticsData;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,6 +11,9 @@ namespace ApocMinimal.Models.StatisticsData
         public string Name { get; set; }
         public StatType Type { get; set; }
         public int StatNumber { get; set; } // 1-30
+        public bool IsCombat { get; set; }
+        public bool IsSocial { get; set; }
+        public int SortOrder { get; set; }  // порядок внутри типа (Physical 1-10, Mental 1-12, Energy 1-8)
 
         private int _baseValue;
         public int BaseValue

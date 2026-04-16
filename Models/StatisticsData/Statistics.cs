@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ApocMinimal.Models.StatisticsData;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -131,6 +132,35 @@ namespace ApocMinimal.Models.StatisticsData
                 EnergyReserveChar, EnergyRecoveryChar, ControlChar, ConcentrationChar, OutputChar,
                 PrecisionChar, EnergyResistChar, EnergySenseChar
             };
+
+            // SortOrder = позиция внутри типа
+            EnduranceChar.SortOrder = 1; ToughnessChar.SortOrder = 2; StrengthChar.SortOrder = 3;
+            RecoveryPhysChar.SortOrder = 4; ReflexesChar.SortOrder = 5; AgilityChar.SortOrder = 6;
+            AdaptationChar.SortOrder = 7; RegenerationChar.SortOrder = 8; SensoricsChar.SortOrder = 9;
+            LongevityChar.SortOrder = 10;
+
+            FocusChar.SortOrder = 1; MemoryChar.SortOrder = 2; LogicChar.SortOrder = 3;
+            DeductionChar.SortOrder = 4; IntelligenceChar.SortOrder = 5; WillChar.SortOrder = 6;
+            LearningChar.SortOrder = 7; FlexibilityChar.SortOrder = 8; IntuitionChar.SortOrder = 9;
+            SocialIntelChar.SortOrder = 10; CreativityChar.SortOrder = 11; MathematicsChar.SortOrder = 12;
+
+            EnergyReserveChar.SortOrder = 1; EnergyRecoveryChar.SortOrder = 2; ControlChar.SortOrder = 3;
+            ConcentrationChar.SortOrder = 4; OutputChar.SortOrder = 5; PrecisionChar.SortOrder = 6;
+            EnergyResistChar.SortOrder = 7; EnergySenseChar.SortOrder = 8;
+
+            // IsCombat: боевые физические характеристики
+            StrengthChar.IsCombat = true;
+            AgilityChar.IsCombat = true;
+            EnduranceChar.IsCombat = true;
+            ToughnessChar.IsCombat = true;
+            ReflexesChar.IsCombat = true;
+
+            // IsSocial: характеристики, влияющие на социальные взаимодействия
+            FocusChar.IsSocial = true;
+            WillChar.IsSocial = true;
+            FlexibilityChar.IsSocial = true;
+            IntuitionChar.IsSocial = true;
+            SocialIntelChar.IsSocial = true;
         }
 
         // === ПОЛУЧЕНИЕ ХАРАКТЕРИСТИКИ ПО ID ===
@@ -164,15 +194,47 @@ namespace ApocMinimal.Models.StatisticsData
         }
 
         // === ПОЛУЧЕНИЕ ХАРАКТЕРИСТИК ПО ТИПУ ===
-        public List<Characteristic> GetPhysicalStats() => AllStats.Where(s => s.Type == StatType.Physical).ToList();
-        public List<Characteristic> GetMentalStats() => AllStats.Where(s => s.Type == StatType.Mental).ToList();
-        public List<Characteristic> GetEnergyStats() => AllStats.Where(s => s.Type == StatType.Energy).ToList();
-
-        // === ПОЛУЧЕНИЕ ХАРАКТЕРИСТИК ДЛЯ БОЯ ===
-        public List<Characteristic> GetCombatStats() => new List<Characteristic>
+        public List<Characteristic> GetPhysicalStats()
         {
-            StrengthChar, AgilityChar, EnduranceChar, ToughnessChar, ReflexesChar
-        };
+            var result = new List<Characteristic>();
+            for (int i = 0; i < AllStats.Count; i++)
+                if (AllStats[i].Type == StatType.Physical) result.Add(AllStats[i]);
+            return result;
+        }
+
+        public List<Characteristic> GetMentalStats()
+        {
+            var result = new List<Characteristic>();
+            for (int i = 0; i < AllStats.Count; i++)
+                if (AllStats[i].Type == StatType.Mental) result.Add(AllStats[i]);
+            return result;
+        }
+
+        public List<Characteristic> GetEnergyStats()
+        {
+            var result = new List<Characteristic>();
+            for (int i = 0; i < AllStats.Count; i++)
+                if (AllStats[i].Type == StatType.Energy) result.Add(AllStats[i]);
+            return result;
+        }
+
+        // === ПОЛУЧЕНИЕ БОЕВЫХ ХАРАКТЕРИСТИК ===
+        public List<Characteristic> GetCombatStats()
+        {
+            var result = new List<Characteristic>();
+            for (int i = 0; i < AllStats.Count; i++)
+                if (AllStats[i].IsCombat) result.Add(AllStats[i]);
+            return result;
+        }
+
+        // === ПОЛУЧЕНИЕ СОЦИАЛЬНЫХ ХАРАКТЕРИСТИК ===
+        public List<Characteristic> GetSocialStats()
+        {
+            var result = new List<Characteristic>();
+            for (int i = 0; i < AllStats.Count; i++)
+                if (AllStats[i].IsSocial) result.Add(AllStats[i]);
+            return result;
+        }
 
         // === ПОЛУЧЕНИЕ СЛОВАРЯ ФИНАЛЬНЫХ ЗНАЧЕНИЙ ===
         public Dictionary<string, int> GetFinalValuesByName()
@@ -197,9 +259,7 @@ namespace ApocMinimal.Models.StatisticsData
         {
             var finalValues = GetFinalValuesById();
             foreach (var stat in AllStats)
-            {
                 stat.UpdateDependentModifiers(finalValues);
-            }
         }
 
         // === ОБНОВЛЕНИЕ ВРЕМЕНИ ===
