@@ -1,3 +1,5 @@
+// ActionSystem.cs - обновленный импорт и использование
+
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
@@ -15,7 +17,6 @@ public class ActionLogEntry
 /// <summary>
 /// AI action selection: each NPC performs up to 23 actions per day
 /// (max 3 special). Actions chosen based on needs and stats.
-/// Day starts 00:00, each action ~1 hour.
 /// </summary>
 public static class ActionSystem
 {
@@ -32,7 +33,7 @@ public static class ActionSystem
         int totalActions = 0;
         int specialActions = 0;
         double staminaLeft = npc.Stamina;
-        int currentHour = 0;   // 00:00 → 22:00
+        int currentHour = 0;
 
         // Трус: 50% шанс пропустить день
         if (npc.Trait == NpcTrait.Coward && rnd.NextDouble() < 0.50)
@@ -54,34 +55,57 @@ public static class ActionSystem
         while (totalActions < maxActions && staminaLeft > 2)
         {
             var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
-            GameAction? action = null;
+            NpcAction? action = null;
 
             if (urgentNeed != null)
             {
-                action = ActionCatalog.Basic
-                    .Where(a => a.SatisfiedNeeds.ContainsKey(urgentNeed.Name)
-                             && MeetsStatRequirements(npc, a)
-                             && staminaLeft >= a.StaminaCost)
-                    .OrderByDescending(a => a.SatisfiedNeeds[urgentNeed.Name])
-                    .FirstOrDefault();
+                // Поиск в базовых действиях
+                for (int i = 0; i < NpcActionCatalog.Basic.Length; i++)
+                {
+                    NpcAction a = NpcActionCatalog.Basic[i];
+                    if (a.SatisfiedNeeds.ContainsKey(urgentNeed.Name) &&
+                        MeetsStatRequirements(npc, a) &&
+                        staminaLeft >= a.StaminaCost)
+                    {
+                        if (action == null || a.SatisfiedNeeds[urgentNeed.Name] > action.SatisfiedNeeds[urgentNeed.Name])
+                        {
+                            action = a;
+                        }
+                    }
+                }
             }
 
             if (action == null && specialActions < MaxSpecialPerDay && urgentNeed != null)
             {
-                action = ActionCatalog.Special
-                    .Where(a => a.SatisfiedNeeds.ContainsKey(urgentNeed.Name)
-                             && MeetsStatRequirements(npc, a)
-                             && staminaLeft >= a.StaminaCost)
-                    .OrderByDescending(a => a.SatisfiedNeeds[urgentNeed.Name])
-                    .FirstOrDefault();
-                if (action != null) specialActions++;
+                // Поиск в специальных действиях
+                for (int i = 0; i < NpcActionCatalog.Special.Length; i++)
+                {
+                    NpcAction a = NpcActionCatalog.Special[i];
+                    if (a.SatisfiedNeeds.ContainsKey(urgentNeed.Name) &&
+                        MeetsStatRequirements(npc, a) &&
+                        staminaLeft >= a.StaminaCost)
+                    {
+                        if (action == null || a.SatisfiedNeeds[urgentNeed.Name] > action.SatisfiedNeeds[urgentNeed.Name])
+                        {
+                            action = a;
+                            specialActions++;
+                        }
+                    }
+                }
             }
 
             if (action == null)
             {
-                var candidates = ActionCatalog.Basic
-                    .Where(a => MeetsStatRequirements(npc, a) && staminaLeft >= a.StaminaCost)
-                    .ToList();
+                // Выбираем случайное базовое действие
+                List<NpcAction> candidates = new List<NpcAction>();
+                for (int i = 0; i < NpcActionCatalog.Basic.Length; i++)
+                {
+                    NpcAction a = NpcActionCatalog.Basic[i];
+                    if (MeetsStatRequirements(npc, a) && staminaLeft >= a.StaminaCost)
+                    {
+                        candidates.Add(a);
+                    }
+                }
                 if (candidates.Count == 0) break;
                 action = candidates[rnd.Next(candidates.Count)];
             }
@@ -89,8 +113,11 @@ public static class ActionSystem
             staminaLeft -= action.StaminaCost;
             npc.Stamina = Math.Clamp(npc.Stamina - action.StaminaCost, 0, 100);
 
-            foreach (var (needName, amount) in action.SatisfiedNeeds)
-                NeedSystem.SatisfyNeed(npc, needName, amount);
+            // Удовлетворение потребностей
+            foreach (var kvp in action.SatisfiedNeeds)
+            {
+                NeedSystem.SatisfyNeed(npc, kvp.Key, kvp.Value);
+            }
 
             npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{currentHour:00}:00] {action.Name}"));
 
@@ -109,24 +136,30 @@ public static class ActionSystem
         NeedSystem.ApplyDailyDecay(npc);
         NeedSystem.ApplyPenalties(npc);
 
-        foreach (var need in npc.Needs.Where(n => n.IsCritical))
-            log.Add(new ActionLogEntry
+        for (int i = 0; i < npc.Needs.Count; i++)
+        {
+            Need need = npc.Needs[i];
+            if (need.IsCritical)
             {
-                Time = "23:00",
-                Text = $"[!] Критическая нужда: {need.Name} ({need.Value:F0}%)",
-                Color = "#f87171",
-                IsAlert = true,
-            });
+                log.Add(new ActionLogEntry
+                {
+                    Time = "23:00",
+                    Text = $"[!] Критическая нужда: {need.Name} ({need.Value:F0}%)",
+                    Color = "#f87171",
+                    IsAlert = true,
+                });
+            }
+        }
 
         return log;
     }
 
-    private static bool MeetsStatRequirements(Npc npc, GameAction action)
+    private static bool MeetsStatRequirements(Npc npc, NpcAction action)
     {
-        foreach (var (statId, minVal) in action.RequiredStats)
+        foreach (var kvp in action.RequiredStats)
         {
-            int currentValue = npc.Stats.GetStatValue(statId);
-            if (currentValue < minVal)
+            int currentValue = npc.Stats.GetStatValue(kvp.Key);
+            if (currentValue < kvp.Value)
                 return false;
         }
         return true;

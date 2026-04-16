@@ -230,12 +230,7 @@ public partial class NpcSidebarControl : UserControl
 
     private void BuildDetailedInfo(StackPanel panel, Npc npc)
     {
-        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ФИЗИЧЕСКИЕ"));
-        NpcInfoBuilder.AddPhysicalStats(panel, npc);
-        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("МЕНТАЛЬНЫЕ"));
-        NpcInfoBuilder.AddMentalStats(panel, npc);
-        panel.Children.Add(NpcInfoBuilder.CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
-        NpcInfoBuilder.AddEnergyStats(panel, npc);
+        NpcInfoBuilder.AddDetailedStats(panel, npc);
     }
 
     private void BuildCompactInfo(StackPanel panel, Npc npc)

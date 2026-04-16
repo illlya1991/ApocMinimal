@@ -1,4 +1,4 @@
-﻿// ActionManager.cs - оптимизированная версия
+﻿// ActionManager.cs
 
 using System;
 using System.Collections.Generic;
@@ -16,8 +16,8 @@ public class ActionManager
     private readonly DatabaseManager _db;
     private readonly Random _rnd;
 
-    private List<ActionGroup> _groups = new List<ActionGroup>();
-    private List<GameActionDb> _actions = new List<GameActionDb>();
+    private List<PlayerActionGroup> _groups = new List<PlayerActionGroup>();
+    private List<PlayerGameAction> _actions = new List<PlayerGameAction>();
     private List<HandlerEntry> _handlers = new List<HandlerEntry>();
 
     private class HandlerEntry
@@ -36,17 +36,17 @@ public class ActionManager
 
     private void LoadActions()
     {
-        _groups = _db.GetActionGroups();
-        _actions = _db.GetAllGameActions();
+        _groups = _db.GetPlayerActionGroups();
+        _actions = _db.GetAllPlayerGameActions();
 
-        List<ParamType> paramTypes = _db.GetParamTypes();
+        List<PlayerParamType> paramTypes = _db.GetPlayerParamTypes();
 
         for (int i = 0; i < _actions.Count; i++)
         {
-            GameActionDb action = _actions[i];
-            action.Parameters = _db.GetActionParams(action.Id);
-            action.ParamMappings = _db.GetHandlerParamMappings(action.Id);
-            action.ResultTemplate = _db.GetResultTemplate(action.Id);
+            PlayerGameAction action = _actions[i];
+            action.Parameters = _db.GetPlayerActionParams(action.Id);
+            action.ParamMappings = _db.GetPlayerHandlerParamMappings(action.Id);
+            action.ResultTemplate = _db.GetPlayerResultTemplate(action.Id);
 
             for (int j = 0; j < _groups.Count; j++)
             {
@@ -59,7 +59,7 @@ public class ActionManager
 
             for (int j = 0; j < action.Parameters.Count; j++)
             {
-                ActionParam param = action.Parameters[j];
+                PlayerActionParam param = action.Parameters[j];
                 for (int k = 0; k < paramTypes.Count; k++)
                 {
                     if (paramTypes[k].Id == param.ParamTypeId)
@@ -74,7 +74,6 @@ public class ActionManager
 
     private void InitializeHandlers(Action<string, string> logAction)
     {
-        _handlers.Add(new HandlerEntry { Name = "InfoHandler", Handler = new InfoHandler(_db, _rnd, logAction) });
         _handlers.Add(new HandlerEntry { Name = "InteractionHandler", Handler = new InteractionHandler(_db, _rnd, logAction) });
         _handlers.Add(new HandlerEntry { Name = "ResourceHandler", Handler = new ResourceHandler(_db, _rnd, logAction) });
         _handlers.Add(new HandlerEntry { Name = "QuestHandler", Handler = new QuestHandler(_db, _rnd, logAction) });
@@ -82,14 +81,14 @@ public class ActionManager
         _handlers.Add(new HandlerEntry { Name = "ManagementHandler", Handler = new ManagementHandler(_db, _rnd, logAction) });
     }
 
-    public List<ActionGroup> GetGroups()
+    public List<PlayerActionGroup> GetGroups()
     {
         return _groups;
     }
 
-    public List<GameActionDb> GetActionsByGroup(int groupId)
+    public List<PlayerGameAction> GetActionsByGroup(int groupId)
     {
-        List<GameActionDb> result = new List<GameActionDb>();
+        List<PlayerGameAction> result = new List<PlayerGameAction>();
         for (int i = 0; i < _actions.Count; i++)
         {
             if (_actions[i].GroupId == groupId)
@@ -98,12 +97,12 @@ public class ActionManager
         return result;
     }
 
-    public List<GameActionDb> GetAllActions()
+    public List<PlayerGameAction> GetAllActions()
     {
         return _actions;
     }
 
-    public GameActionDb? GetActionByKey(string key)
+    public PlayerGameAction? GetActionByKey(string key)
     {
         for (int i = 0; i < _actions.Count; i++)
         {
@@ -114,7 +113,7 @@ public class ActionManager
     }
 
     public string ExecuteAction(
-        GameActionDb action,
+        PlayerGameAction action,
         Dictionary<string, object> parameterValues,
         Player player,
         List<Npc> npcs,
@@ -132,11 +131,10 @@ public class ActionManager
         }
 
         if (handler == null)
-            return $"Обробник '{action.HandlerMethod}' не знайдено";
+            return $"Обработчик '{action.HandlerMethod}' не найден";
 
         Dictionary<string, object> extendedParams = new Dictionary<string, object>();
 
-        // Копируем вручную без LINQ
         foreach (var kvp in parameterValues)
         {
             extendedParams[kvp.Key] = kvp.Value;

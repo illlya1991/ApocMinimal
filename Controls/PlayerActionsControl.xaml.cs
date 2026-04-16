@@ -221,7 +221,7 @@ public partial class PlayerActionsControl : UserControl
 
     private void SubActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (SubActionCombo.SelectedItem is not GameActionDb action)
+        if (SubActionCombo.SelectedItem is not PlayerGameAction action)
         {
             _viewModel.SelectedAction = null;
             ParametersPanel.Children.Clear();
@@ -234,7 +234,7 @@ public partial class PlayerActionsControl : UserControl
         ParametersPanel.Visibility = Visibility.Visible;
     }
 
-    private void BuildParametersUI(GameActionDb action)
+    private void BuildParametersUI(PlayerGameAction action)
     {
         ParametersPanel.Children.Clear();
         _dynamicComboBoxes.Clear();
@@ -263,7 +263,7 @@ public partial class PlayerActionsControl : UserControl
         }
     }
 
-    private ComboBox BuildNpcComboBox(ActionParam param)
+    private ComboBox BuildNpcComboBox(PlayerActionParam param)
     {
         var combo = new ComboBox { Style = (Style)FindResource("LightCombo"), Tag = param.ParamKey };
         foreach (var npc in _viewModel.AliveNpcs)
@@ -273,7 +273,7 @@ public partial class PlayerActionsControl : UserControl
         return combo;
     }
 
-    private ComboBox BuildResourceComboBox(ActionParam param)
+    private ComboBox BuildResourceComboBox(PlayerActionParam param)
     {
         var combo = new ComboBox { Style = (Style)FindResource("LightCombo"), Tag = param.ParamKey };
         foreach (var res in _viewModel.Resources)
@@ -283,7 +283,7 @@ public partial class PlayerActionsControl : UserControl
         return combo;
     }
 
-    private TextBox BuildNumberBox(ActionParam param) => new()
+    private TextBox BuildNumberBox(PlayerActionParam param) => new()
     {
         Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#21262d")!,
         Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#c9d1d9")!,
@@ -293,7 +293,7 @@ public partial class PlayerActionsControl : UserControl
         Text = string.IsNullOrEmpty(param.DefaultValue) ? "1" : param.DefaultValue
     };
 
-    private TextBox BuildTextBox(ActionParam param) => new()
+    private TextBox BuildTextBox(PlayerActionParam param) => new()
     {
         Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#21262d")!,
         Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#c9d1d9")!,
@@ -372,7 +372,7 @@ public partial class PlayerActionsControl : UserControl
         }
     }
 
-    private Dictionary<string, object> CollectParameterValues(GameActionDb action)
+    private Dictionary<string, object> CollectParameterValues(PlayerGameAction action)
     {
         var values = new Dictionary<string, object>();
 

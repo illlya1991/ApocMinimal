@@ -37,9 +37,9 @@ public class GameActionDb
 
     // Навігаційні властивості
     public ActionGroup? Group { get; set; }
-    public List<ActionParam> Parameters { get; set; } = new();
-    public List<HandlerParamMapping> ParamMappings { get; set; } = new();
-    public ResultTemplate? ResultTemplate { get; set; }
+    public List<PlayerActionParam> Parameters { get; set; } = new();
+    public List<PlayerHandlerParamMapping> ParamMappings { get; set; } = new();
+    public PlayerResultTemplate? ResultTemplate { get; set; }
 
     public override string ToString()
     {

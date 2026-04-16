@@ -72,8 +72,22 @@ public class GameViewModel : INotifyPropertyChanged
     public int AliveNpcsCount => _npcs.Count(n => n.IsAlive);
     public int MaxActiveFollowers => _player?.MaxActiveFollowers ?? 0;
 
-    public List<ActionGroup> ActionGroups { get; private set; } = new();
-    public GameActionDb? SelectedAction { get; set; }
+    public List<PlayerActionGroup> ActionGroups { get; private set; } = new();
+    public PlayerGameAction? SelectedAction { get; set; }
+
+    public GameViewModel(DatabaseManager db, Action<string, string> logAction)
+    {
+        _db = db;
+        _actionManager = new ActionManager(_db, _rnd, logAction);
+        LoadData();
+        ActionGroups = _actionManager.GetGroups();
+    }
+
+    public List<PlayerGameAction> GetActionsByGroup(int groupId) =>
+        _actionManager.GetActionsByGroup(groupId);
+
+    public string ExecuteAction(PlayerGameAction action, Dictionary<string, object> parameters) =>
+        _actionManager.ExecuteAction(action, parameters, _player, _npcs, _resources, _quests);
 
     // Properties for UI binding
     public List<Npc> AllNpcs => _npcs;
@@ -84,14 +98,6 @@ public class GameViewModel : INotifyPropertyChanged
     public List<Location> Locations => _locations;
     public IEnumerable<Technique> UnlockedTechniques => _player?.UnlockedTechniques ?? Enumerable.Empty<Technique>();
     public Technique[] AllTechniques => Player.AllTechniques;
-
-    public GameViewModel(DatabaseManager db, Action<string, string> logAction)
-    {
-        _db = db;
-        _actionManager = new ActionManager(_db, _rnd, logAction);
-        LoadData();
-        ActionGroups = _actionManager.GetGroups();
-    }
 
     private void LoadData()
     {
@@ -138,12 +144,6 @@ public class GameViewModel : INotifyPropertyChanged
     {
         _db.SaveNpc(npc);
     }
-
-    public List<GameActionDb> GetActionsByGroup(int groupId) =>
-        _actionManager.GetActionsByGroup(groupId);
-
-    public string ExecuteAction(GameActionDb action, Dictionary<string, object> parameters) =>
-        _actionManager.ExecuteAction(action, parameters, _player, _npcs, _resources, _quests);
 
     public void ProcessEndOfDay(Action<string, string> logAction)
     {

@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Models.StatisticsData;
 using ApocMinimal.Services;
 
 namespace ApocMinimal
@@ -172,18 +173,294 @@ namespace ApocMinimal
 
             panel.Children.Add(CreateSectionHeader("ХАРАКТЕРИСТИКИ", true));
             var statsPanel = new StackPanel { Margin = new Thickness(15, 0, 0, 0) };
-            AddAllStats(statsPanel, npc, isCompare, otherNpc);
+            // Используем правильные методы без лишних заголовков
+            AddPhysicalStats(statsPanel, npc, isCompare, otherNpc);
+            AddMentalStats(statsPanel, npc, isCompare, otherNpc);
+            AddEnergyStats(statsPanel, npc, isCompare, otherNpc);
             panel.Children.Add(statsPanel);
         }
 
+        // NpcFullscreenWindow.xaml.cs - исправленный метод BuildDetailedInfo
+
         private void BuildDetailedInfo(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
         {
+            // Для режима сравнения показываем обычные статы (без модификаторов)
+            if (isCompare)
+            {
+                panel.Children.Add(CreateSectionHeader("ФИЗИЧЕСКИЕ"));
+                AddPhysicalStats(panel, npc, isCompare, otherNpc);
+
+                panel.Children.Add(CreateSectionHeader("МЕНТАЛЬНЫЕ"));
+                AddMentalStats(panel, npc, isCompare, otherNpc);
+
+                panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
+                AddEnergyStats(panel, npc, isCompare, otherNpc);
+            }
+            else
+            {
+                // Для одиночного просмотра - детальный режим с модификаторами
+                AddDetailedStatsToPanel(panel, npc);
+            }
+        }
+
+        // Добавить этот метод в NpcFullscreenWindow.xaml.cs
+        private void AddDetailedStatsToPanel(StackPanel panel, Npc npc)
+        {
+            // Физические
             panel.Children.Add(CreateSectionHeader("ФИЗИЧЕСКИЕ"));
-            AddPhysicalStats(panel, npc, isCompare, otherNpc);
+            List<Characteristic> physicalStats = npc.Stats.GetPhysicalStats();
+            for (int i = 0; i < physicalStats.Count; i++)
+            {
+                Characteristic stat = physicalStats[i];
+                string combatIcon = stat.IsCombat ? "⚔ " : "  ";
+                string socialIcon = stat.IsSocial ? "💬 " : "  ";
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "  " + combatIcon + socialIcon + stat.Name + ":",
+                    Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e"),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 4, 0, 2)
+                });
+
+                // Форматируем отклонение со знаком
+                string deviationText;
+                if (stat.Deviation > 0)
+                    deviationText = "+" + stat.Deviation.ToString();
+                else if (stat.Deviation < 0)
+                    deviationText = stat.Deviation.ToString();
+                else
+                    deviationText = " 0";
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "      База: " + stat.BaseValue.ToString().PadLeft(3) +
+                           " | Откл.: " + deviationText.PadLeft(3) +
+                           " | Полн.база: " + stat.FullBase.ToString().PadLeft(3) +
+                           " | Итог: " + stat.FinalValue.ToString().PadLeft(3),
+                    Foreground = GetStatColorBrush(stat.FinalValue),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 0, 0, 2)
+                });
+
+                List<PermanentModifier> permMods = stat.GetModifiersByType<PermanentModifier>();
+                for (int j = 0; j < permMods.Count; j++)
+                {
+                    PermanentModifier mod = permMods[j];
+                    if (mod.IsActive())
+                    {
+                        string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = "        [П] " + mod.Name + ": " + modSign + mod.Value.ToString() + " (" + mod.Source + ")",
+                            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#facc15"),
+                            FontSize = 10,
+                            Margin = new Thickness(0, 0, 0, 1)
+                        });
+                    }
+                }
+
+                List<IndependentModifier> indMods = stat.GetModifiersByType<IndependentModifier>();
+                for (int j = 0; j < indMods.Count; j++)
+                {
+                    IndependentModifier mod = indMods[j];
+                    if (mod.IsActive())
+                    {
+                        string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
+                        string timeLeft = "";
+                        if (mod.TimeUnit == TimeUnit.Days)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " дн.)";
+                        }
+                        else if (mod.TimeUnit == TimeUnit.Hours)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " ч.)";
+                        }
+                        else if (mod.TimeUnit == TimeUnit.CombatTurns)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " ходов)";
+                        }
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = "        [В] " + mod.Name + ": " + modSign + mod.Value.ToString() + timeLeft + " (" + mod.Source + ")",
+                            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#fbbf24"),
+                            FontSize = 10,
+                            Margin = new Thickness(0, 0, 0, 1)
+                        });
+                    }
+                }
+            }
+
+            // Ментальные
             panel.Children.Add(CreateSectionHeader("МЕНТАЛЬНЫЕ"));
-            AddMentalStats(panel, npc, isCompare, otherNpc);
+            List<Characteristic> mentalStats = npc.Stats.GetMentalStats();
+            for (int i = 0; i < mentalStats.Count; i++)
+            {
+                Characteristic stat = mentalStats[i];
+                string combatIcon = stat.IsCombat ? "⚔ " : "  ";
+                string socialIcon = stat.IsSocial ? "💬 " : "  ";
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "  " + combatIcon + socialIcon + stat.Name + ":",
+                    Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e"),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 4, 0, 2)
+                });
+
+                string deviationText;
+                if (stat.Deviation > 0)
+                    deviationText = "+" + stat.Deviation.ToString();
+                else if (stat.Deviation < 0)
+                    deviationText = stat.Deviation.ToString();
+                else
+                    deviationText = " 0";
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "      База: " + stat.BaseValue.ToString().PadLeft(3) +
+                           " | Откл.: " + deviationText.PadLeft(3) +
+                           " | Полн.база: " + stat.FullBase.ToString().PadLeft(3) +
+                           " | Итог: " + stat.FinalValue.ToString().PadLeft(3),
+                    Foreground = GetStatColorBrush(stat.FinalValue),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 0, 0, 2)
+                });
+
+                List<PermanentModifier> permMods = stat.GetModifiersByType<PermanentModifier>();
+                for (int j = 0; j < permMods.Count; j++)
+                {
+                    PermanentModifier mod = permMods[j];
+                    if (mod.IsActive())
+                    {
+                        string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = "        [П] " + mod.Name + ": " + modSign + mod.Value.ToString() + " (" + mod.Source + ")",
+                            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#facc15"),
+                            FontSize = 10,
+                            Margin = new Thickness(0, 0, 0, 1)
+                        });
+                    }
+                }
+
+                List<IndependentModifier> indMods = stat.GetModifiersByType<IndependentModifier>();
+                for (int j = 0; j < indMods.Count; j++)
+                {
+                    IndependentModifier mod = indMods[j];
+                    if (mod.IsActive())
+                    {
+                        string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
+                        string timeLeft = "";
+                        if (mod.TimeUnit == TimeUnit.Days)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " дн.)";
+                        }
+                        else if (mod.TimeUnit == TimeUnit.Hours)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " ч.)";
+                        }
+                        else if (mod.TimeUnit == TimeUnit.CombatTurns)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " ходов)";
+                        }
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = "        [В] " + mod.Name + ": " + modSign + mod.Value.ToString() + timeLeft + " (" + mod.Source + ")",
+                            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#fbbf24"),
+                            FontSize = 10,
+                            Margin = new Thickness(0, 0, 0, 1)
+                        });
+                    }
+                }
+            }
+
+            // Энергетические
             panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
-            AddEnergyStats(panel, npc, isCompare, otherNpc);
+            List<Characteristic> energyStats = npc.Stats.GetEnergyStats();
+            for (int i = 0; i < energyStats.Count; i++)
+            {
+                Characteristic stat = energyStats[i];
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "  " + stat.Name + ":",
+                    Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e"),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 4, 0, 2)
+                });
+
+                string deviationText;
+                if (stat.Deviation > 0)
+                    deviationText = "+" + stat.Deviation.ToString();
+                else if (stat.Deviation < 0)
+                    deviationText = stat.Deviation.ToString();
+                else
+                    deviationText = " 0";
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "      База: " + stat.BaseValue.ToString().PadLeft(3) +
+                           " | Откл.: " + deviationText.PadLeft(3) +
+                           " | Полн.база: " + stat.FullBase.ToString().PadLeft(3) +
+                           " | Итог: " + stat.FinalValue.ToString().PadLeft(3),
+                    Foreground = GetStatColorBrush(stat.FinalValue),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 0, 0, 2)
+                });
+
+                List<PermanentModifier> permMods = stat.GetModifiersByType<PermanentModifier>();
+                for (int j = 0; j < permMods.Count; j++)
+                {
+                    PermanentModifier mod = permMods[j];
+                    if (mod.IsActive())
+                    {
+                        string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = "        [П] " + mod.Name + ": " + modSign + mod.Value.ToString() + " (" + mod.Source + ")",
+                            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#facc15"),
+                            FontSize = 10,
+                            Margin = new Thickness(0, 0, 0, 1)
+                        });
+                    }
+                }
+
+                List<IndependentModifier> indMods = stat.GetModifiersByType<IndependentModifier>();
+                for (int j = 0; j < indMods.Count; j++)
+                {
+                    IndependentModifier mod = indMods[j];
+                    if (mod.IsActive())
+                    {
+                        string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
+                        string timeLeft = "";
+                        if (mod.TimeUnit == TimeUnit.Days)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " дн.)";
+                        }
+                        else if (mod.TimeUnit == TimeUnit.Hours)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " ч.)";
+                        }
+                        else if (mod.TimeUnit == TimeUnit.CombatTurns)
+                        {
+                            timeLeft = " (ост. " + mod.Remaining.ToString() + " ходов)";
+                        }
+                        panel.Children.Add(new TextBlock
+                        {
+                            Text = "        [В] " + mod.Name + ": " + modSign + mod.Value.ToString() + timeLeft + " (" + mod.Source + ")",
+                            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#fbbf24"),
+                            FontSize = 10,
+                            Margin = new Thickness(0, 0, 0, 1)
+                        });
+                    }
+                }
+            }
+        }
+        private SolidColorBrush GetStatColorBrush(int value)
+        {
+            string hex = GetStatColor(value);
+            return (SolidColorBrush)new BrushConverter().ConvertFromString(hex);
         }
 
         private void BuildCompactInfo(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
@@ -319,38 +596,47 @@ namespace ApocMinimal
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-        private void AddPhysicalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
-        {
-            foreach (var stat in npc.Stats.GetPhysicalStats())
-            {
-                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
-                panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
-            }
-        }
-
-        private void AddMentalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
-        {
-            foreach (var stat in npc.Stats.GetMentalStats())
-            {
-                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
-                panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
-            }
-        }
-
-        private void AddEnergyStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
-        {
-            foreach (var stat in npc.Stats.GetEnergyStats())
-            {
-                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
-                panel.Children.Add(CreateInfoRow($"  {stat.Name}:", $"{stat}", GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
-            }
-        }
-
         private void AddAllStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
         {
             AddPhysicalStats(panel, npc, isCompare, otherNpc);
             AddMentalStats(panel, npc, isCompare, otherNpc);
             AddEnergyStats(panel, npc, isCompare, otherNpc);
+        }
+
+        // NpcFullscreenWindow.xaml.cs - исправленные методы
+
+        private void AddPhysicalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
+        {
+            var stats = npc.Stats.GetPhysicalStats();
+            for (int i = 0; i < stats.Count; i++)
+            {
+                var stat = stats[i];
+                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
+                // Убираем лишние пробелы перед названием
+                panel.Children.Add(CreateInfoRow(stat.Name + ":", stat.FinalValue.ToString(), GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
+            }
+        }
+
+        private void AddMentalStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
+        {
+            var stats = npc.Stats.GetMentalStats();
+            for (int i = 0; i < stats.Count; i++)
+            {
+                var stat = stats[i];
+                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
+                panel.Children.Add(CreateInfoRow(stat.Name + ":", stat.FinalValue.ToString(), GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
+            }
+        }
+
+        private void AddEnergyStats(StackPanel panel, Npc npc, bool isCompare, Npc? otherNpc)
+        {
+            var stats = npc.Stats.GetEnergyStats();
+            for (int i = 0; i < stats.Count; i++)
+            {
+                var stat = stats[i];
+                int otherValue = otherNpc?.Stats.GetStatValue(stat.Name) ?? 0;
+                panel.Children.Add(CreateInfoRow(stat.Name + ":", stat.FinalValue.ToString(), GetStatColor(stat.FinalValue), isCompare, otherValue, (a, b) => a?.ToString() == b?.ToString()));
+            }
         }
     }
 }
