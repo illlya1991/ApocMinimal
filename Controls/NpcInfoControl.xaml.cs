@@ -12,9 +12,19 @@ public partial class NpcInfoControl : UserControl
     private string _currentMode = "full";
     private bool _showHeader = false;
     private bool _showCloseButton = false;
+    private Npc? _compareNpc = null;
+    private bool _compareHlSame = false;
+    private bool _compareHlDiff = false;
 
     public event Action? Closed;
     public event Action<string>? ModeChanged;
+
+    public void SetCompareContext(Npc? compareNpc, bool hlSame, bool hlDiff)
+    {
+        _compareNpc = compareNpc;
+        _compareHlSame = hlSame;
+        _compareHlDiff = hlDiff;
+    }
 
     public NpcInfoControl()
     {
@@ -118,6 +128,9 @@ public partial class NpcInfoControl : UserControl
 
     private StackPanel BuildInfoPanel(Npc npc, string mode)
     {
+        if (_compareNpc != null && (_compareHlSame || _compareHlDiff) && mode == "full")
+            return NpcInfoBuilder.BuildFullInfoPanelWithCompare(npc, _compareNpc, _compareHlSame, _compareHlDiff);
+
         switch (mode)
         {
             case "full":

@@ -91,6 +91,8 @@ namespace ApocMinimal
         {
             if (NpcSelectorLeft.SelectedItem is Npc leftNpc && NpcSelectorRight.SelectedItem is Npc rightNpc)
             {
+                LeftNpcInfo.SetCompareContext(rightNpc, _highlightSame, _highlightDifferent);
+                RightNpcInfo.SetCompareContext(leftNpc, _highlightSame, _highlightDifferent);
                 LeftNpcInfo.ShowNpc(leftNpc);
                 RightNpcInfo.ShowNpc(rightNpc);
             }

@@ -52,9 +52,11 @@ public static class NpcInfoBuilder
         };
     }
 
-    public static Grid CreateInfoRow(string label, string value, string colorHex, double leftMargin = 0)
+    public static Grid CreateInfoRow(string label, string value, string colorHex, double leftMargin = 0, string? bgHex = null)
     {
         Grid grid = new Grid();
+        if (bgHex != null)
+            grid.Background = GetBrush(bgHex);
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140, GridUnitType.Pixel) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -78,6 +80,139 @@ public static class NpcInfoBuilder
         grid.Children.Add(valueBlock);
         Grid.SetColumn(valueBlock, 1);
         return grid;
+    }
+
+    // ============================================================
+    // Сравнение (compare helpers)
+    // ============================================================
+
+    private static bool NumSame(double a, double b) => Math.Abs(a - b) <= 5;
+    private static bool TextSame(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private static string? CmpBg(bool areSame, bool hlSame, bool hlDiff)
+    {
+        if (areSame && hlSame) return "#0d2a0d";
+        if (!areSame && hlDiff) return "#2a0d0d";
+        return null;
+    }
+
+    private static string NumValue(double val, double other) =>
+        val == other ? val.ToString("F0")
+        : val > other ? $"{val:F0} (▲{val - other:+0;+0})"
+        : $"{val:F0} (▼{val - other:+0;+0})";
+
+    public static StackPanel BuildCompareHighlightLegend(bool hlSame, bool hlDiff)
+    {
+        StackPanel p = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+        if (hlSame)
+        {
+            Border b = new Border { Background = GetBrush("#0d2a0d"), Width = 12, Height = 12, CornerRadius = new CornerRadius(2), Margin = new Thickness(0, 0, 4, 0) };
+            p.Children.Add(b);
+            p.Children.Add(new TextBlock { Text = "одинаковые", Foreground = GetBrush("#4ade80"), FontSize = 11, Margin = new Thickness(0, 0, 12, 0) });
+        }
+        if (hlDiff)
+        {
+            Border b = new Border { Background = GetBrush("#2a0d0d"), Width = 12, Height = 12, CornerRadius = new CornerRadius(2), Margin = new Thickness(0, 0, 4, 0) };
+            p.Children.Add(b);
+            p.Children.Add(new TextBlock { Text = "различаются", Foreground = GetBrush("#f87171"), FontSize = 11 });
+        }
+        return p;
+    }
+
+    public static void AddStatsByTypeCompare(StackPanel panel, Npc npc, Npc other, StatType type, bool hlSame, bool hlDiff)
+    {
+        List<Characteristic> stats = npc.Stats.GetStatsByType(type);
+        List<Characteristic> otherStats = other.Stats.GetStatsByType(type);
+        for (int i = 0; i < stats.Count; i++)
+        {
+            Characteristic stat = stats[i];
+            double otherVal = i < otherStats.Count ? otherStats[i].FinalValue : 0;
+            string? bg = CmpBg(NumSame(stat.FinalValue, otherVal), hlSame, hlDiff);
+            string display = NumValue(stat.FinalValue, otherVal);
+            panel.Children.Add(CreateInfoRow(stat.Name + ":", display, GetStatColor(stat.FinalValue), 0, bg));
+        }
+    }
+
+    public static StackPanel BuildFullInfoPanelWithCompare(Npc npc, Npc other, bool hlSame, bool hlDiff)
+    {
+        StackPanel panel = new StackPanel();
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"{npc.Name} [{npc.GenderLabel}] {npc.Age} лет",
+            FontSize = 16,
+            FontWeight = FontWeights.Bold,
+            Foreground = GetBrush("#60a5fa"),
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        if (hlSame || hlDiff)
+            panel.Children.Add(BuildCompareHighlightLegend(hlSame, hlDiff));
+
+        string? N(double a, double b) => CmpBg(NumSame(a, b), hlSame, hlDiff);
+        string? T(string a, string b) => CmpBg(TextSame(a, b), hlSame, hlDiff);
+
+        panel.Children.Add(CreateSectionHeader("ОСНОВНЫЕ ХАРАКТЕРИСТИКИ"));
+        panel.Children.Add(CreateInfoRow("HP:", NumValue(npc.Health, other.Health), npc.Health < 30 ? "#f87171" : "#4ade80", 0, N(npc.Health, other.Health)));
+        panel.Children.Add(CreateInfoRow("Выносливость:", NumValue(npc.Stamina, other.Stamina), npc.Stamina < 30 ? "#f87171" : "#60a5fa", 0, N(npc.Stamina, other.Stamina)));
+        panel.Children.Add(CreateInfoRow("Чакра:", NumValue(npc.Chakra, other.Chakra), "#e879f9", 0, N(npc.Chakra, other.Chakra)));
+        panel.Children.Add(CreateInfoRow("Вера:", NumValue(npc.Faith, other.Faith), "#facc15", 0, N(npc.Faith, other.Faith)));
+        panel.Children.Add(CreateInfoRow("Страх:", NumValue(npc.Fear, other.Fear), npc.Fear > 70 ? "#f87171" : "#c9d1d9", 0, N(npc.Fear, other.Fear)));
+        panel.Children.Add(CreateInfoRow("Доверие:", NumValue(npc.Trust, other.Trust), npc.Trust > 70 ? "#4ade80" : "#c9d1d9", 0, N(npc.Trust, other.Trust)));
+        panel.Children.Add(CreateInfoRow("Инициатива:", NumValue(npc.Initiative, other.Initiative), "#c9d1d9", 0, N(npc.Initiative, other.Initiative)));
+        panel.Children.Add(CreateInfoRow("Уровень:", npc.FollowerLabel, "#d29922", 0, T(npc.FollowerLabel, other.FollowerLabel)));
+
+        panel.Children.Add(CreateSectionHeader("ЛИЧНОСТЬ"));
+        string traitsA = BuildTraitsString(npc.CharTraits);
+        string traitsB = BuildTraitsString(other.CharTraits);
+        panel.Children.Add(CreateInfoRow("Черты:", traitsA, "#d29922", 0, T(traitsA, traitsB)));
+        string emotA = BuildEmotionsString(npc.Emotions);
+        string emotB = BuildEmotionsString(other.Emotions);
+        panel.Children.Add(CreateInfoRow("Эмоции:", emotA, "#e879f9", 0, T(emotA, emotB)));
+
+        panel.Children.Add(CreateSectionHeader("ЦЕЛИ"));
+        panel.Children.Add(CreateInfoRow("Цель:", npc.Goal, "#c9d1d9", 0, T(npc.Goal, other.Goal)));
+        panel.Children.Add(CreateInfoRow("Мечта:", npc.Dream, "#c9d1d9", 0, T(npc.Dream, other.Dream)));
+        panel.Children.Add(CreateInfoRow("Желание:", npc.Desire, "#c9d1d9", 0, T(npc.Desire, other.Desire)));
+
+        if (npc.Specializations.Count > 0 || other.Specializations.Count > 0)
+        {
+            string specA = BuildSpecializationsString(npc.Specializations);
+            string specB = BuildSpecializationsString(other.Specializations);
+            panel.Children.Add(CreateInfoRow("Специализации:", specA, "#56d364", 0, T(specA, specB)));
+        }
+
+        panel.Children.Add(CreateSectionHeader("ПОТРЕБНОСТИ (срочные)"));
+        bool hasUrgent = false;
+        for (int i = 0; i < npc.Needs.Count; i++)
+        {
+            Need need = npc.Needs[i];
+            if (need.IsUrgent || need.IsCritical)
+            {
+                hasUrgent = true;
+                Need? otherNeed = null;
+                for (int j = 0; j < other.Needs.Count; j++)
+                    if (other.Needs[j].Name == need.Name) { otherNeed = other.Needs[j]; break; }
+                string? bg = otherNeed != null ? N(need.Value, otherNeed.Value) : (hlDiff ? "#2a0d0d" : null);
+                string display = otherNeed != null ? NumValue(need.Value, otherNeed.Value) : $"{need.Value:F0}%";
+                panel.Children.Add(CreateInfoRow($"  {need.Name}:", display, need.IsCritical ? "#f87171" : "#fbbf24", 0, bg));
+            }
+        }
+        if (!hasUrgent)
+            panel.Children.Add(new TextBlock { Text = "  Нет срочных потребностей", Foreground = GetBrush("#4ade80"), FontSize = 11, Margin = new Thickness(0, 2, 0, 2) });
+
+        Expander statsExpander = CreateCollapsibleSection("ХАРАКТЕРИСТИКИ", true);
+        StackPanel statsPanel = new StackPanel { Margin = new Thickness(15, 0, 0, 0) };
+        statsPanel.Children.Add(CreateSectionHeader("ФИЗИЧЕСКИЕ"));
+        AddStatsByTypeCompare(statsPanel, npc, other, StatType.Physical, hlSame, hlDiff);
+        statsPanel.Children.Add(CreateSectionHeader("МЕНТАЛЬНЫЕ"));
+        AddStatsByTypeCompare(statsPanel, npc, other, StatType.Mental, hlSame, hlDiff);
+        statsPanel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
+        AddStatsByTypeCompare(statsPanel, npc, other, StatType.Energy, hlSame, hlDiff);
+        statsExpander.Content = statsPanel;
+        panel.Children.Add(statsExpander);
+
+        return panel;
     }
 
     public static Expander CreateCollapsibleSection(string header, bool IsExpanded = false)
