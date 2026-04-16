@@ -1,6 +1,5 @@
 using ApocMinimal.Models.StatisticsData;
 using ApocMinimal.Models.PersonData.NpcData;
-using ApocMinimal.Models.StatisticsData;
 using System.Text.Json.Serialization;
 
 namespace ApocMinimal.Models.PersonData;

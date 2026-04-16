@@ -8,6 +8,7 @@ namespace ApocMinimal.Models.StatisticsData
     /// <summary>
     /// Контейнер всех 30 характеристик NPC с прямым доступом к свойствам
     /// </summary>
+    [Serializable]
     public class Statistics
     {
         // === ФИЗИЧЕСКИЕ (10) ===
@@ -84,6 +85,9 @@ namespace ApocMinimal.Models.StatisticsData
         public List<Characteristic> AllStats { get; private set; }
 
         // === КОНСТРУКТОР ===
+        public Statistics() : this(100)
+        {
+        }
         public Statistics(int defaultBaseValue = 100)
         {
             // Физические

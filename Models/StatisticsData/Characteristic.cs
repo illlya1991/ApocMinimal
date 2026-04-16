@@ -82,7 +82,18 @@ namespace ApocMinimal.Models.StatisticsData
         public void AddModifier(Modifier modifier) => _modifiers.Add(modifier);
         public bool RemoveModifier(string modifierId) => _modifiers.RemoveAll(m => m.Id == modifierId) > 0;
         public void RemoveModifiersFromSource(string source) => _modifiers.RemoveAll(m => m.Source == source);
-        public List<T> GetModifiersByType<T>() where T : Modifier => _modifiers.OfType<T>().ToList();
+        public List<T> GetModifiersByType<T>() where T : Modifier
+        {
+            List<T> result = new List<T>();
+            for (int i = 0; i < _modifiers.Count; i++)
+            {
+                if (_modifiers[i] is T typedModifier)
+                {
+                    result.Add(typedModifier);
+                }
+            }
+            return result;
+        }
         public void ClearModifiers() => _modifiers.Clear();
 
         public void UpdateDependentModifiers(Dictionary<string, int> statFinalValues)

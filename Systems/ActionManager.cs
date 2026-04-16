@@ -1,4 +1,6 @@
-﻿using System;
+﻿// ActionManager.cs - оптимизированная версия
+
+using System;
 using System.Collections.Generic;
 using ApocMinimal.Database;
 using ApocMinimal.Models.GameActions;
@@ -9,17 +11,14 @@ using ApocMinimal.Systems.Handlers;
 
 namespace ApocMinimal.Systems;
 
-/// <summary>
-/// Менеджер дій гравця
-/// </summary>
 public class ActionManager
 {
     private readonly DatabaseManager _db;
     private readonly Random _rnd;
 
-    private List<ActionGroup> _groups = new();
-    private List<GameActionDb> _actions = new();
-    private List<HandlerEntry> _handlers = new();
+    private List<ActionGroup> _groups = new List<ActionGroup>();
+    private List<GameActionDb> _actions = new List<GameActionDb>();
+    private List<HandlerEntry> _handlers = new List<HandlerEntry>();
 
     private class HandlerEntry
     {
@@ -40,30 +39,32 @@ public class ActionManager
         _groups = _db.GetActionGroups();
         _actions = _db.GetAllGameActions();
 
-        var paramTypes = _db.GetParamTypes();
+        List<ParamType> paramTypes = _db.GetParamTypes();
 
-        foreach (var action in _actions)
+        for (int i = 0; i < _actions.Count; i++)
         {
+            GameActionDb action = _actions[i];
             action.Parameters = _db.GetActionParams(action.Id);
             action.ParamMappings = _db.GetHandlerParamMappings(action.Id);
             action.ResultTemplate = _db.GetResultTemplate(action.Id);
 
-            for (int i = 0; i < _groups.Count; i++)
+            for (int j = 0; j < _groups.Count; j++)
             {
-                if (_groups[i].Id == action.GroupId)
+                if (_groups[j].Id == action.GroupId)
                 {
-                    action.Group = _groups[i];
+                    action.Group = _groups[j];
                     break;
                 }
             }
 
-            foreach (var param in action.Parameters)
+            for (int j = 0; j < action.Parameters.Count; j++)
             {
-                for (int i = 0; i < paramTypes.Count; i++)
+                ActionParam param = action.Parameters[j];
+                for (int k = 0; k < paramTypes.Count; k++)
                 {
-                    if (paramTypes[i].Id == param.ParamTypeId)
+                    if (paramTypes[k].Id == param.ParamTypeId)
                     {
-                        param.ParamType = paramTypes[i];
+                        param.ParamType = paramTypes[k];
                         break;
                     }
                 }
@@ -81,11 +82,14 @@ public class ActionManager
         _handlers.Add(new HandlerEntry { Name = "ManagementHandler", Handler = new ManagementHandler(_db, _rnd, logAction) });
     }
 
-    public List<ActionGroup> GetGroups() => _groups;
+    public List<ActionGroup> GetGroups()
+    {
+        return _groups;
+    }
 
     public List<GameActionDb> GetActionsByGroup(int groupId)
     {
-        var result = new List<GameActionDb>();
+        List<GameActionDb> result = new List<GameActionDb>();
         for (int i = 0; i < _actions.Count; i++)
         {
             if (_actions[i].GroupId == groupId)
@@ -94,13 +98,17 @@ public class ActionManager
         return result;
     }
 
-    public List<GameActionDb> GetAllActions() => _actions;
+    public List<GameActionDb> GetAllActions()
+    {
+        return _actions;
+    }
 
     public GameActionDb? GetActionByKey(string key)
     {
         for (int i = 0; i < _actions.Count; i++)
         {
-            if (_actions[i].ActionKey == key) return _actions[i];
+            if (_actions[i].ActionKey == key)
+                return _actions[i];
         }
         return null;
     }
@@ -126,26 +134,34 @@ public class ActionManager
         if (handler == null)
             return $"Обробник '{action.HandlerMethod}' не знайдено";
 
-        var extendedParams = new Dictionary<string, object>(parameterValues);
+        Dictionary<string, object> extendedParams = new Dictionary<string, object>();
+
+        // Копируем вручную без LINQ
+        foreach (var kvp in parameterValues)
+        {
+            extendedParams[kvp.Key] = kvp.Value;
+        }
         extendedParams["_actionKey"] = action.ActionKey;
 
-        var result = handler.Execute(extendedParams, player, npcs, resources, quests);
+        string result = handler.Execute(extendedParams, player, npcs, resources, quests);
 
         if (action.ResultTemplate != null && !string.IsNullOrEmpty(action.ResultTemplate.SuccessTemplate))
+        {
             result = FormatWithTemplate(action.ResultTemplate.SuccessTemplate, parameterValues, result);
+        }
 
         return result;
     }
 
     private string FormatWithTemplate(string template, Dictionary<string, object> values, string defaultResult)
     {
-        var result = template;
+        string result = template;
         foreach (var kvp in values)
         {
-            var valueStr = kvp.Value?.ToString() ?? "null";
+            string valueStr = kvp.Value?.ToString() ?? "null";
             result = result.Replace($"{{{kvp.Key}}}", valueStr);
         }
-        return result != template ? result : defaultResult;
+        return (result != template) ? result : defaultResult;
     }
 
     public List<object> GetDataSource(
@@ -155,34 +171,46 @@ public class ActionManager
         List<Resource> resources,
         List<Quest> quests)
     {
-        var result = new List<object>();
+        List<object> result = new List<object>();
 
         if (sourceName == "alive_npcs")
         {
             for (int i = 0; i < npcs.Count; i++)
-                if (npcs[i].IsAlive) result.Add(npcs[i]);
+            {
+                if (npcs[i].IsAlive)
+                    result.Add(npcs[i]);
+            }
         }
         else if (sourceName == "resources_all")
         {
             for (int i = 0; i < resources.Count; i++)
+            {
                 result.Add(resources[i]);
+            }
         }
         else if (sourceName == "resources_food")
         {
             for (int i = 0; i < resources.Count; i++)
+            {
                 if (resources[i].Name == "Еда" || resources[i].Name == "Вода")
                     result.Add(resources[i]);
+            }
         }
         else if (sourceName == "available_quests")
         {
             for (int i = 0; i < quests.Count; i++)
-                if (quests[i].Status == QuestStatus.Available) result.Add(quests[i]);
+            {
+                if (quests[i].Status == QuestStatus.Available)
+                    result.Add(quests[i]);
+            }
         }
         else if (sourceName == "available_techniques")
         {
-            var techniques = _db.GetTechniquesByAltarLevel(player.AltarLevel);
+            List<Technique> techniques = _db.GetTechniquesByAltarLevel(player.AltarLevel);
             for (int i = 0; i < techniques.Count; i++)
+            {
                 result.Add(techniques[i]);
+            }
         }
 
         return result;
