@@ -1,5 +1,6 @@
 using ApocMinimal.Models.StatisticsData;
 using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Models.StatisticsData;
 using System.Text.Json.Serialization;
 
 namespace ApocMinimal.Models.PersonData;
@@ -30,52 +31,38 @@ public class Npc
     // ── VITALS ──────────────────────────────────────────────────────────────
     public double Health { get; set; } = 100;
     public double Faith { get; set; }
-    public double Stamina { get; set; } = 100;  // 0–100, restored each day
-    public double Chakra { get; set; } = 50;   // 0–100, energy resource
-
-    /// <summary>0–100: how much this NPC fears the current situation.</summary>
+    public double Stamina { get; set; } = 100;
+    public double Chakra { get; set; } = 50;
     public double Fear { get; set; } = 10;
-    /// <summary>0–100: trust in the player (divine entity).</summary>
     public double Trust { get; set; } = 50;
-    /// <summary>0–100: initiative (chance to act first, take quests proactively).</summary>
     public double Initiative { get; set; } = 50;
-    /// <summary>0–100: combat initiative (determines attack order in battle).</summary>
     public double CombatInitiative { get; set; } = 50;
 
     // ── ROLE & PROGRESSION ──────────────────────────────────────────────────
     public NpcTrait Trait { get; set; }
-    public int FollowerLevel { get; set; }  // 0–5
-
-    /// <summary>2 character traits.</summary>
+    public int FollowerLevel { get; set; }
     public List<CharacterTrait> CharTraits { get; set; } = new();
-
-    /// <summary>Up to 50 specializations (skill names).</summary>
     public List<string> Specializations { get; set; } = new();
 
     // ── PSYCHOLOGY ──────────────────────────────────────────────────────────
-    /// <summary>Exactly 3 emotions summing to 100%.</summary>
     public List<Emotion> Emotions { get; set; } = new();
-
-    public string Goal { get; set; } = "";  // короткосрочная цель
-    public string Dream { get; set; } = "";  // долгосрочная мечта
-    public string Desire { get; set; } = "";  // текущее желание
+    public string Goal { get; set; } = "";
+    public string Dream { get; set; } = "";
+    public string Desire { get; set; } = "";
 
     // ── NEEDS ───────────────────────────────────────────────────────────────
-    /// <summary>10 basic + up to 10 special needs.</summary>
     public List<Need> Needs { get; set; } = new();
 
     // ── STATS ───────────────────────────────────────────────────────────────
-    /// <summary>30 characteristics keyed by StatDefs ID (1–30), values 0–100.</summary>
     public Statistics Stats { get; set; } = new Statistics(100);
 
-    // ── TASK (legacy, kept for DB compatibility) ─────────────────────────────
+    // ── TASK ─────────────────────────────────────────────────────────────────
     public string ActiveTask { get; set; } = "";
     public int TaskDaysLeft { get; set; }
     public int TaskRewardResId { get; set; }
     public double TaskRewardAmt { get; set; }
 
     // ── MEMORY ──────────────────────────────────────────────────────────────
-    /// <summary>Last 50 memory entries (serialised separately).</summary>
     [JsonIgnore]
     public List<MemoryEntry> Memory { get; set; } = new();
 
@@ -83,9 +70,27 @@ public class Npc
     public bool IsAlive => Health > 0;
     public bool HasTask => !string.IsNullOrEmpty(ActiveTask);
 
-    // Hunger/Thirst are now Needs; these helpers find them.
-    [JsonIgnore] public double Hunger => Needs.FirstOrDefault(n => n.Name == "Еда")?.Value ?? 0;
-    [JsonIgnore] public double Thirst => Needs.FirstOrDefault(n => n.Name == "Вода")?.Value ?? 0;
+    [JsonIgnore]
+    public double Hunger
+    {
+        get
+        {
+            for (int i = 0; i < Needs.Count; i++)
+                if (Needs[i].Name == "Еда") return Needs[i].Value;
+            return 0;
+        }
+    }
+
+    [JsonIgnore]
+    public double Thirst
+    {
+        get
+        {
+            for (int i = 0; i < Needs.Count; i++)
+                if (Needs[i].Name == "Вода") return Needs[i].Value;
+            return 0;
+        }
+    }
 
     public string TraitLabel => Trait switch
     {
@@ -124,9 +129,6 @@ public class Npc
         }
     }
 
-    /// <summary>
-    /// Adds a memory entry, keeping at most 50 entries.
-    /// </summary>
     public void Remember(MemoryEntry entry)
     {
         Memory.Add(entry);
@@ -134,13 +136,8 @@ public class Npc
             Memory.RemoveAt(0);
     }
 
-    public override string ToString()
-    {
-        return Name;
-    }
+    public override string ToString() => Name;
 }
-
-// ── STATIC TABLES ────────────────────────────────────────────────────────────
 
 public static class NpcGoals
 {

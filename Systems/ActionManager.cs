@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using ApocMinimal.Database;
 using ApocMinimal.Models.GameActions;
-using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
@@ -21,8 +19,13 @@ public class ActionManager
 
     private List<ActionGroup> _groups = new();
     private List<GameActionDb> _actions = new();
-    private Dictionary<string, GameActionDb> _actionMap = new();
-    private Dictionary<string, BaseActionHandler> _handlers = new();
+    private List<HandlerEntry> _handlers = new();
+
+    private class HandlerEntry
+    {
+        public string Name { get; set; } = "";
+        public BaseActionHandler Handler { get; set; } = null!;
+    }
 
     public ActionManager(DatabaseManager db, Random rnd, Action<string, string> logAction)
     {
@@ -36,90 +39,100 @@ public class ActionManager
     {
         _groups = _db.GetActionGroups();
         _actions = _db.GetAllGameActions();
-        _actionMap = _actions.ToDictionary(a => a.ActionKey, a => a);
+
+        var paramTypes = _db.GetParamTypes();
 
         foreach (var action in _actions)
         {
             action.Parameters = _db.GetActionParams(action.Id);
             action.ParamMappings = _db.GetHandlerParamMappings(action.Id);
             action.ResultTemplate = _db.GetResultTemplate(action.Id);
-            action.Group = _groups.FirstOrDefault(g => g.Id == action.GroupId);
 
-            // Завантажуємо типи параметрів
-            var paramTypes = _db.GetParamTypes();
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                if (_groups[i].Id == action.GroupId)
+                {
+                    action.Group = _groups[i];
+                    break;
+                }
+            }
+
             foreach (var param in action.Parameters)
             {
-                param.ParamType = paramTypes.FirstOrDefault(pt => pt.Id == param.ParamTypeId);
+                for (int i = 0; i < paramTypes.Count; i++)
+                {
+                    if (paramTypes[i].Id == param.ParamTypeId)
+                    {
+                        param.ParamType = paramTypes[i];
+                        break;
+                    }
+                }
             }
         }
     }
 
     private void InitializeHandlers(Action<string, string> logAction)
     {
-        // Универсальные обработчики по группам
-        _handlers["InfoHandler"] = new InfoHandler(_db, _rnd, logAction);
-        _handlers["InteractionHandler"] = new InteractionHandler(_db, _rnd, logAction);
-        _handlers["ResourceHandler"] = new ResourceHandler(_db, _rnd, logAction);
-        _handlers["QuestHandler"] = new QuestHandler(_db, _rnd, logAction);      // ✅ Полная реализация
-        _handlers["TechniqueHandler"] = new TechniqueHandler(_db, _rnd, logAction); // ✅ Полная реализация
-        _handlers["ManagementHandler"] = new ManagementHandler(_db, _rnd, logAction); // ✅ Полная реализация
+        _handlers.Add(new HandlerEntry { Name = "InfoHandler", Handler = new InfoHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "InteractionHandler", Handler = new InteractionHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "ResourceHandler", Handler = new ResourceHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "QuestHandler", Handler = new QuestHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "TechniqueHandler", Handler = new TechniqueHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "ManagementHandler", Handler = new ManagementHandler(_db, _rnd, logAction) });
     }
 
-    /// <summary>
-    /// Отримати групи дій (для першого комбобокса)
-    /// </summary>
     public List<ActionGroup> GetGroups() => _groups;
 
-    /// <summary>
-    /// Отримати дії в групі
-    /// </summary>
     public List<GameActionDb> GetActionsByGroup(int groupId)
     {
-        return _actions.Where(a => a.GroupId == groupId).ToList();
+        var result = new List<GameActionDb>();
+        for (int i = 0; i < _actions.Count; i++)
+        {
+            if (_actions[i].GroupId == groupId)
+                result.Add(_actions[i]);
+        }
+        return result;
     }
 
-    /// <summary>
-    /// Отримати всі дії
-    /// </summary>
     public List<GameActionDb> GetAllActions() => _actions;
 
-    /// <summary>
-    /// Отримати дію за ключем
-    /// </summary>
     public GameActionDb? GetActionByKey(string key)
     {
-        return _actionMap.GetValueOrDefault(key);
+        for (int i = 0; i < _actions.Count; i++)
+        {
+            if (_actions[i].ActionKey == key) return _actions[i];
+        }
+        return null;
     }
 
-    /// <summary>
-    /// Виконати дію
-    /// </summary>
     public string ExecuteAction(
-    GameActionDb action,
-    Dictionary<string, object> parameterValues,
-    Player player,
-    List<Npc> npcs,
-    List<Resource> resources,
-    List<Quest> quests)
+        GameActionDb action,
+        Dictionary<string, object> parameterValues,
+        Player player,
+        List<Npc> npcs,
+        List<Resource> resources,
+        List<Quest> quests)
     {
-        // Получаем обработчик
-        if (!_handlers.ContainsKey(action.HandlerMethod))
+        BaseActionHandler? handler = null;
+        for (int i = 0; i < _handlers.Count; i++)
+        {
+            if (_handlers[i].Name == action.HandlerMethod)
+            {
+                handler = _handlers[i].Handler;
+                break;
+            }
+        }
+
+        if (handler == null)
             return $"Обробник '{action.HandlerMethod}' не знайдено";
 
-        var handler = _handlers[action.HandlerMethod];
-
-        // Добавляем ActionKey в параметры для универсальных хендлеров
         var extendedParams = new Dictionary<string, object>(parameterValues);
         extendedParams["_actionKey"] = action.ActionKey;
 
-        // Выполняем
         var result = handler.Execute(extendedParams, player, npcs, resources, quests);
 
-        // Применяем шаблон если есть
         if (action.ResultTemplate != null && !string.IsNullOrEmpty(action.ResultTemplate.SuccessTemplate))
-        {
             result = FormatWithTemplate(action.ResultTemplate.SuccessTemplate, parameterValues, result);
-        }
 
         return result;
     }
@@ -134,19 +147,44 @@ public class ActionManager
         }
         return result != template ? result : defaultResult;
     }
-    /// <summary>
-    /// Получить данные для источника
-    /// </summary>
-    public List<object> GetDataSource(string sourceName, Player player, List<Npc> npcs, List<Resource> resources, List<Quest> quests)
+
+    public List<object> GetDataSource(
+        string sourceName,
+        Player player,
+        List<Npc> npcs,
+        List<Resource> resources,
+        List<Quest> quests)
     {
-        return sourceName switch
+        var result = new List<object>();
+
+        if (sourceName == "alive_npcs")
         {
-            "alive_npcs" => npcs.Where(n => n.IsAlive).Cast<object>().ToList(),
-            "resources_all" => resources.Cast<object>().ToList(),
-            "resources_food" => resources.Where(r => r.Name == "Еда" || r.Name == "Вода").Cast<object>().ToList(),
-            "available_quests" => quests.Where(q => q.Status == QuestStatus.Available).Cast<object>().ToList(),
-            "available_techniques" => _db.GetTechniquesByAltarLevel(player.AltarLevel).Cast<object>().ToList(),
-            _ => new List<object>()
-        };
+            for (int i = 0; i < npcs.Count; i++)
+                if (npcs[i].IsAlive) result.Add(npcs[i]);
+        }
+        else if (sourceName == "resources_all")
+        {
+            for (int i = 0; i < resources.Count; i++)
+                result.Add(resources[i]);
+        }
+        else if (sourceName == "resources_food")
+        {
+            for (int i = 0; i < resources.Count; i++)
+                if (resources[i].Name == "Еда" || resources[i].Name == "Вода")
+                    result.Add(resources[i]);
+        }
+        else if (sourceName == "available_quests")
+        {
+            for (int i = 0; i < quests.Count; i++)
+                if (quests[i].Status == QuestStatus.Available) result.Add(quests[i]);
+        }
+        else if (sourceName == "available_techniques")
+        {
+            var techniques = _db.GetTechniquesByAltarLevel(player.AltarLevel);
+            for (int i = 0; i < techniques.Count; i++)
+                result.Add(techniques[i]);
+        }
+
+        return result;
     }
 }
