@@ -119,6 +119,21 @@ public static class ActionSystem
 
     private static NpcAction? SelectAction(Npc npc, Random rnd, ref int specialCount)
     {
+        // 0. Stamina-based sleep/rest — физическое истощение важнее всего
+        double staminaPct = npc.MaxStamina > 0 ? npc.Stamina / npc.MaxStamina : 0;
+        if (staminaPct < 0.25)
+        {
+            // Очень устал → сон
+            var sleepAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Sleep);
+            if (sleepAct != null) return sleepAct;
+        }
+        else if (staminaPct < 0.45)
+        {
+            // Устал → отдых
+            var restAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Rest);
+            if (restAct != null) return restAct;
+        }
+
         var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
 
         // 1. Critical need (<20% satisfaction) → pick best matching basic action

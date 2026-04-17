@@ -14,7 +14,7 @@ public static class NeedSystem
     {
         [(int)BasicNeedId.Food]    = 8,
         [(int)BasicNeedId.Water]   = 10,
-        [(int)BasicNeedId.Sleep]   = 7,
+        [(int)BasicNeedId.Sleep]   = 25,
         [(int)BasicNeedId.Heat]    = 5,
         [(int)BasicNeedId.Hygiene] = 4,
         [(int)BasicNeedId.Toilet]  = 12,

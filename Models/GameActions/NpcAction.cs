@@ -53,7 +53,7 @@ public static class NpcActionCatalog
                 StatGrowthIds=new Dictionary<int, double> { [1]=0.3, [7]=0.2 } },                  // Выносливость, Адаптация
         new NpcAction { Id=3,  Name="Поспать",             Category=ActionCategory.Basic, StaminaCost=0, ActionType=NpcActionType.Sleep,
                 Description="Восстанавливает силы и закрывает потребность во сне.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Сон"] = 40, ["Отдых"] = 20 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Сон"] = 12.5, ["Отдых"] = 5 },
                 StatGrowthIds=new Dictionary<int, double> { [24]=0.4, [8]=0.3 } },                 // Восстановление энергии, Регенерация
         new NpcAction { Id=4,  Name="Разжечь огонь",       Category=ActionCategory.Basic, StaminaCost=8,
                 Description="Добывает тепло для группы.",
