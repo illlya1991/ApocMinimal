@@ -135,13 +135,14 @@ public static class NeedSystem
     public static Need? GetMostUrgentNeed(Npc npc) =>
         npc.Needs.OrderByDescending(n => n.Value * n.Level).FirstOrDefault(n => !n.IsSatisfied);
 
-    /// <summary>Restore stamina at start of day (full restore, reduced if sleep-deprived).</summary>
+    /// <summary>
+    /// Ночной сон (22:00–06:00 = 8 часов).
+    /// Восстановление = 8 × 12.5 × RecoveryPhys × MaxStamina / 10000
+    /// При RecoveryPhys=100, MaxStamina=100 → +100 (полное восстановление).
+    /// </summary>
     public static void RestoreStamina(Npc npc)
     {
-        double restore = npc.MaxStamina;
-        var sleep = npc.Needs.FirstOrDefault(n => n.Id == (int)BasicNeedId.Sleep);
-        if (sleep != null && sleep.Value > 60)
-            restore *= 0.6;  // tired: start at 60%
-        npc.Stamina = Math.Clamp(restore, 0, npc.MaxStamina);
+        double nightRestore = 8 * 12.5 * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0;
+        npc.Stamina = Math.Clamp(npc.Stamina + nightRestore, 0, npc.MaxStamina);
     }
 }

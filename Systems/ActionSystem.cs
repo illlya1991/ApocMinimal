@@ -51,15 +51,22 @@ public static class ActionSystem
         int specialActions = 0;
         int hoursUsed = 0;
 
-        while (hoursUsed < maxHours && npc.Stamina > 2)
+        while (hoursUsed < maxHours)
         {
             int hour = DayStartHour + hoursUsed;
 
             NpcAction? action = SelectAction(npc, rnd, ref specialActions);
             if (action == null) break;
 
-            // Apply stamina cost (negative cost = rest/sleep → restores stamina)
-            npc.Stamina = Math.Clamp(npc.Stamina - action.StaminaCost, 0, npc.MaxStamina);
+            // Восстановление/трата выносливости по формуле
+            double staminaDelta = action.ActionType switch
+            {
+                NpcActionType.Sleep => 12.5 * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0,
+                NpcActionType.Rest  => 7.5  * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0,
+                NpcActionType.Idle  => 5.0  * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0,
+                _                   => -(action.StaminaCost) + 1.0 * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0
+            };
+            npc.Stamina = Math.Clamp(npc.Stamina + staminaDelta, 0, npc.MaxStamina);
 
             // Satisfy needs
             foreach (var kvp in action.SatisfiedNeeds)

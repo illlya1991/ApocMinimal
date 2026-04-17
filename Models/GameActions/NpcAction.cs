@@ -5,6 +5,7 @@ using System.Collections.Generic;
 namespace ApocMinimal.Models.GameActions;
 
 public enum ActionCategory { Basic, Special }
+public enum NpcActionType { Normal, Sleep, Rest, Idle }
 
 /// <summary>
 /// Действие, которое NPC может выполнять в течение дня.
@@ -17,7 +18,10 @@ public class NpcAction
     public ActionCategory Category { get; set; }
     public string Description { get; set; } = "";
 
-    /// <summary>Стоимость выносливости (0–30).</summary>
+    /// <summary>Тип действия для расчёта восстановления выносливости.</summary>
+    public NpcActionType ActionType { get; set; } = NpcActionType.Normal;
+
+    /// <summary>Стоимость выносливости в час (только для Normal-действий).</summary>
     public double StaminaCost { get; set; }
 
     /// <summary>Какие потребности удовлетворяет это действие (NeedName → величина удовлетворения).</summary>
@@ -47,7 +51,7 @@ public static class NpcActionCatalog
                 Description="Собирает питьевую воду.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Вода"] = 30 },
                 StatGrowthIds=new Dictionary<int, double> { [1]=0.3, [7]=0.2 } },                  // Выносливость, Адаптация
-        new NpcAction { Id=3,  Name="Поспать",             Category=ActionCategory.Basic, StaminaCost=-30,
+        new NpcAction { Id=3,  Name="Поспать",             Category=ActionCategory.Basic, StaminaCost=0, ActionType=NpcActionType.Sleep,
                 Description="Восстанавливает силы и закрывает потребность во сне.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Сон"] = 40, ["Отдых"] = 20 },
                 StatGrowthIds=new Dictionary<int, double> { [24]=0.4, [8]=0.3 } },                 // Восстановление энергии, Регенерация
@@ -65,7 +69,7 @@ public static class NpcActionCatalog
                 Description="Проверяет периметр, снижает тревогу.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Безопасность"] = 20 },
                 StatGrowthIds=new Dictionary<int, double> { [9]=0.3, [19]=0.3 } },                 // Сенсорика, Интуиция
-        new NpcAction { Id=8,  Name="Отдохнуть",           Category=ActionCategory.Basic, StaminaCost=-15,
+        new NpcAction { Id=8,  Name="Отдохнуть",           Category=ActionCategory.Basic, StaminaCost=0, ActionType=NpcActionType.Rest,
                 Description="Короткий отдых без сна.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Отдых"] = 30 },
                 StatGrowthIds=new Dictionary<int, double> { [24]=0.2, [4]=0.2 } },                 // Восстановление энергии, Восстановление физ
@@ -163,7 +167,7 @@ public static class NpcActionCatalog
         new NpcAction { Id=103, Name="Организовать развлечение",Category=ActionCategory.Special, StaminaCost=8,
                 Description="Устраивает досуг для группы.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Развлечения"] = 40 } },
-        new NpcAction { Id=104, Name="Медитировать",          Category=ActionCategory.Special, StaminaCost=-10,
+        new NpcAction { Id=104, Name="Медитировать",          Category=ActionCategory.Special, StaminaCost=0, ActionType=NpcActionType.Rest,
                 Description="Глубокое расслабление, восстанавливает чакру.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Медитация"] = 50 },
                 RequiredStats=new Dictionary<int, double> { [21] = 35 },
@@ -209,7 +213,7 @@ public static class NpcActionCatalog
                 Description="Речь или демонстрация, повышает Признание.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Признание"] = 50 },
                 RequiredStats=new Dictionary<int, double> { [14] = 40 } },
-        new NpcAction { Id=116, Name="Побыть в одиночестве",  Category=ActionCategory.Special, StaminaCost=-5,
+        new NpcAction { Id=116, Name="Побыть в одиночестве",  Category=ActionCategory.Special, StaminaCost=0, ActionType=NpcActionType.Idle,
                 Description="Восстановление без контакта с людьми.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Одиночество"] = 55 } },
         new NpcAction { Id=117, Name="Сыграть в карты",       Category=ActionCategory.Special, StaminaCost=5,
