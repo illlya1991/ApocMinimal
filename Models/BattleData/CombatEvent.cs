@@ -2,6 +2,17 @@ namespace ApocMinimal.Models.BattleData;
 
 public enum CombatResult { AttackerWins, DefenderWins, Draw, Escaped }
 
+public enum SpecialMoveType
+{
+    None,
+    CriticalHit,    // ×2 damage
+    Dodge,          // defender takes no damage
+    StaminaBlow,    // drains defender stamina
+    ChakraBurst,    // chakra-powered attack ×1.5 + chakra drain
+    Disarm,         // attacker loses 20% damage next round
+    Taunt,          // +5 damage both sides next round
+}
+
 public class CombatRound
 {
     public int RoundNumber { get; set; }
@@ -10,6 +21,7 @@ public class CombatRound
     public double DamageDealt { get; set; }
     public double AttackerHpAfter { get; set; }
     public double DefenderHpAfter { get; set; }
+    public SpecialMoveType Special { get; set; } = SpecialMoveType.None;
     public string Description { get; set; } = "";
 }
 

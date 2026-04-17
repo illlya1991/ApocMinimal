@@ -13,7 +13,8 @@ public static class CombatSystem
     private const int MaxRounds = 50;
 
     /// <summary>
-    /// Resolve a 1v1 combat between two NPCs.
+    /// Resolve a 1v1 combat between two NPCs. Up to 50 rounds.
+    /// Includes special moves: critical hits, dodges, stamina blows, chakra bursts.
     /// </summary>
     public static CombatEvent Resolve1v1(Npc attacker, Npc defender, Random rnd, int day)
     {
@@ -24,56 +25,63 @@ public static class CombatSystem
             DefenderName = defender.Name,
         };
 
-        double atkHp = attacker.Health;
-        double defHp = defender.Health;
+        double atkHp  = attacker.Health;
+        double defHp  = defender.Health;
+        double damageMod = 1.0; // modified by special moves
 
         for (int round = 1; round <= MaxRounds; round++)
         {
             if (atkHp <= 0 || defHp <= 0) break;
 
-            // Attacker strikes
-            double atkDamage = CalcDamage(attacker, defender, rnd);
-            defHp = Math.Max(0, defHp - atkDamage);
+            // ── Attacker strikes ──────────────────────────────────────────
+            var (atkDamage, atkSpecial, atkDesc) = ResolveStrike(attacker, defender, rnd, damageMod);
+            defHp      = Math.Max(0, defHp - atkDamage);
+            damageMod  = ApplySpecialEffect(atkSpecial, attacker, defender, ref atkHp);
 
-            var roundA = new CombatRound
+            combat.Rounds.Add(new CombatRound
             {
-                RoundNumber      = round,
-                AttackerName     = attacker.Name,
-                DefenderName     = defender.Name,
-                DamageDealt      = atkDamage,
-                AttackerHpAfter  = atkHp,
-                DefenderHpAfter  = defHp,
-                Description      = $"Раунд {round}: {attacker.Name} наносит {atkDamage:F1}% урона ({defender.Name}: {defHp:F1}%)",
-            };
-            combat.Rounds.Add(roundA);
+                RoundNumber     = round,
+                AttackerName    = attacker.Name,
+                DefenderName    = defender.Name,
+                DamageDealt     = atkDamage,
+                AttackerHpAfter = atkHp,
+                DefenderHpAfter = defHp,
+                Special         = atkSpecial,
+                Description     = $"Раунд {round}: {attacker.Name} {atkDesc} {atkDamage:F1}% ({defender.Name}: {defHp:F1}%)",
+            });
 
             if (defHp <= 0) break;
 
-            // Defender counter-strikes
-            double defDamage = CalcDamage(defender, attacker, rnd);
+            // ── Defender counter-strikes ──────────────────────────────────
+            var (defDamage, defSpecial, defDesc) = ResolveStrike(defender, attacker, rnd, 1.0);
             atkHp = Math.Max(0, atkHp - defDamage);
+            ApplySpecialEffect(defSpecial, defender, attacker, ref defHp);
 
-            var roundD = new CombatRound
+            combat.Rounds.Add(new CombatRound
             {
-                RoundNumber      = round,
-                AttackerName     = defender.Name,
-                DefenderName     = attacker.Name,
-                DamageDealt      = defDamage,
-                AttackerHpAfter  = defHp,
-                DefenderHpAfter  = atkHp,
-                Description      = $"  Ответ: {defender.Name} наносит {defDamage:F1}% урона ({attacker.Name}: {atkHp:F1}%)",
-            };
-            combat.Rounds.Add(roundD);
+                RoundNumber     = round,
+                AttackerName    = defender.Name,
+                DefenderName    = attacker.Name,
+                DamageDealt     = defDamage,
+                AttackerHpAfter = defHp,
+                DefenderHpAfter = atkHp,
+                Special         = defSpecial,
+                Description     = $"  Ответ: {defender.Name} {defDesc} {defDamage:F1}% ({attacker.Name}: {atkHp:F1}%)",
+            });
 
-            // Escape check (Coward or Fear > 70)
-            if (attacker.Trait == NpcTrait.Coward && rnd.NextDouble() < 0.25)
+            // ── Morale check: escape ──────────────────────────────────────
+            if (attacker.Trait == NpcTrait.Coward && atkHp < 30 && rnd.NextDouble() < 0.35)
             {
                 combat.Result = CombatResult.Escaped;
+                combat.Rounds.Add(new CombatRound
+                {
+                    RoundNumber = round, AttackerName = attacker.Name,
+                    Description = $"  {attacker.Name} (Трус) бежит с поля боя!",
+                });
                 break;
             }
         }
 
-        // Apply final HP
         attacker.Health = atkHp;
         defender.Health = defHp;
 
@@ -111,6 +119,65 @@ public static class CombatSystem
     }
 
     // ── Private ─────────────────────────────────────────────────────────────
+
+    private static (double damage, SpecialMoveType special, string desc) ResolveStrike(
+        Npc attacker, Npc defender, Random rnd, double mod)
+    {
+        double damage = CalcDamage(attacker, defender, rnd) * mod;
+        var special = SpecialMoveType.None;
+        string desc = "наносит";
+
+        double roll = rnd.NextDouble();
+
+        // Critical hit: 10% + Reflexes bonus
+        double critChance = 0.10 + attacker.Stats.Reflexes / 1000.0;
+        if (roll < critChance)
+        {
+            damage  *= 2;
+            special  = SpecialMoveType.CriticalHit;
+            desc     = "критически бьёт на";
+        }
+        // Dodge: 8% + Agility bonus
+        else if (roll < critChance + 0.08 + defender.Stats.Agility / 1000.0)
+        {
+            damage  = 0;
+            special = SpecialMoveType.Dodge;
+            desc     = "промахивается —";
+        }
+        // Chakra burst: 5% if has chakra
+        else if (roll < critChance + 0.13 && attacker.Chakra > 20)
+        {
+            damage  *= 1.5;
+            special  = SpecialMoveType.ChakraBurst;
+            desc     = "выбрасывает чакру на";
+        }
+        // Stamina blow: 5%
+        else if (roll < critChance + 0.18)
+        {
+            special = SpecialMoveType.StaminaBlow;
+            desc    = "бьёт по выносливости на";
+        }
+
+        return (Math.Round(Math.Clamp(damage, 0, 30), 1), special, desc);
+    }
+
+    /// <summary>Apply side-effects of special moves. Returns new damageMod for next round.</summary>
+    private static double ApplySpecialEffect(
+        SpecialMoveType special, Npc attacker, Npc defender, ref double attackerHp)
+    {
+        switch (special)
+        {
+            case SpecialMoveType.ChakraBurst:
+                attacker.Chakra = Math.Max(0, attacker.Chakra - 15);
+                break;
+            case SpecialMoveType.StaminaBlow:
+                defender.Stamina = Math.Max(0, defender.Stamina - 20);
+                break;
+            case SpecialMoveType.Taunt:
+                return 1.3; // next round both deal more damage
+        }
+        return 1.0;
+    }
 
     private static double CalcDamage(Npc attacker, Npc defender, Random rnd)
     {
