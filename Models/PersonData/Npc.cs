@@ -61,6 +61,12 @@ public class Npc
     public int TaskRewardResId { get; set; }
     public double TaskRewardAmt { get; set; }
 
+    // ── INVENTORY ───────────────────────────────────────────────────────────
+    public List<NpcInventoryItem> Inventory { get; set; } = new();
+
+    // ── INJURIES ────────────────────────────────────────────────────────────
+    public List<Injury> Injuries { get; set; } = new();
+
     // ── MEMORY ──────────────────────────────────────────────────────────────
     [JsonIgnore]
     public List<MemoryEntry> Memory { get; set; } = new();

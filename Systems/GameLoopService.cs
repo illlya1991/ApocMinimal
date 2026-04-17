@@ -58,6 +58,7 @@ public static class GameLoopService
         ProcessLeaderBonus(result, npcs);
         ProcessFaithGeneration(result, player, npcs);
         ProcessDailyNeeds(result, player, npcs, resources, catalog);
+        ProcessInjuryHealing(result, npcs);
 
         return result;
     }
@@ -183,6 +184,17 @@ public static class GameLoopService
             "Голод наносит урон!", 5);
         ConsumeResourceGroup(result, npcs, alive, waterResources, BasicNeedId.Water,
             "Обезвоживание наносит урон!", 8);
+    }
+
+    private static void ProcessInjuryHealing(DayResult result, List<Npc> npcs)
+    {
+        for (int i = 0; i < npcs.Count; i++)
+        {
+            if (!npcs[i].IsAlive || npcs[i].Injuries.Count == 0) continue;
+            var logs = InjurySystem.AdvanceDay(npcs[i]);
+            for (int j = 0; j < logs.Count; j++)
+                result.Logs.Add((logs[j], false));
+        }
     }
 
     private static void ConsumeResourceGroup(
