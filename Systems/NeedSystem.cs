@@ -135,13 +135,13 @@ public static class NeedSystem
     public static Need? GetMostUrgentNeed(Npc npc) =>
         npc.Needs.OrderByDescending(n => n.Value * n.Level).FirstOrDefault(n => !n.IsSatisfied);
 
-    /// <summary>Restore stamina at start of day.</summary>
+    /// <summary>Restore stamina at start of day (capped to MaxStamina).</summary>
     public static void RestoreStamina(Npc npc)
     {
-        double restBonus = 100;
+        double restBonus = npc.MaxStamina;
         var sleep = npc.Needs.FirstOrDefault(n => n.Id == (int)BasicNeedId.Sleep);
         if (sleep != null && sleep.Value > 50)
             restBonus -= (sleep.Value - 50) * 0.8;
-        npc.Stamina = Math.Clamp(npc.Stamina + restBonus * 0.5, 0, 100);
+        npc.Stamina = Math.Clamp(npc.Stamina + restBonus * 0.5, 0, npc.MaxStamina);
     }
 }

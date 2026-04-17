@@ -1,5 +1,3 @@
-// ActionSystem.cs - обновленный импорт и использование
-
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
@@ -15,12 +13,15 @@ public class ActionLogEntry
 }
 
 /// <summary>
-/// AI action selection: each NPC performs up to 23 actions per day
-/// (max 3 special). Actions chosen based on needs and stats.
+/// NPC action selection for the 17-hour daily cycle (06:00–22:00).
+/// Priority: critical need → active quest → weighted random.
+/// Max 3 special actions per day. Stat growth applied after each action.
 /// </summary>
 public static class ActionSystem
 {
-    private const int MaxActionsPerDay = 23;
+    private const int DayStartHour  = 6;   // 06:00
+    private const int DayEndHour    = 22;  // 22:00 (last slot)
+    private const int MaxHoursPerDay = DayEndHour - DayStartHour + 1; // 17
     private const int MaxSpecialPerDay = 3;
 
     public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day)
@@ -30,18 +31,13 @@ public static class ActionSystem
 
         NeedSystem.RestoreStamina(npc);
 
-        int totalActions = 0;
-        int specialActions = 0;
-        double staminaLeft = npc.Stamina;
-        int currentHour = 0;
-
         // Трус: 50% шанс пропустить день
         if (npc.Trait == NpcTrait.Coward && rnd.NextDouble() < 0.50)
         {
             log.Add(new ActionLogEntry
             {
-                Time = "00:00",
-                Text = $"{npc.Name} (Трус) отказался действовать.",
+                Time  = $"{DayStartHour:00}:00",
+                Text  = $"{npc.Name} (Трус) отказался действовать.",
                 Color = "#fbbf24",
             });
             NeedSystem.ApplyDailyDecay(npc);
@@ -49,90 +45,48 @@ public static class ActionSystem
             return log;
         }
 
-        int maxActions = MaxActionsPerDay;
-        if (npc.CharTraits.Contains(CharacterTrait.Lazy)) maxActions -= 10;
+        int maxHours = MaxHoursPerDay;
+        if (npc.CharTraits.Contains(CharacterTrait.Lazy)) maxHours -= 5;
 
-        while (totalActions < maxActions && staminaLeft > 2)
+        int specialActions = 0;
+        int hoursUsed = 0;
+
+        while (hoursUsed < maxHours && npc.Stamina > 2)
         {
-            var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
-            NpcAction? action = null;
+            int hour = DayStartHour + hoursUsed;
 
-            if (urgentNeed != null)
-            {
-                // Поиск в базовых действиях
-                for (int i = 0; i < NpcActionCatalog.Basic.Length; i++)
-                {
-                    NpcAction a = NpcActionCatalog.Basic[i];
-                    if (a.SatisfiedNeeds.ContainsKey(urgentNeed.Name) &&
-                        MeetsStatRequirements(npc, a) &&
-                        staminaLeft >= a.StaminaCost)
-                    {
-                        if (action == null || a.SatisfiedNeeds[urgentNeed.Name] > action.SatisfiedNeeds[urgentNeed.Name])
-                        {
-                            action = a;
-                        }
-                    }
-                }
-            }
+            NpcAction? action = SelectAction(npc, rnd, ref specialActions);
+            if (action == null) break;
 
-            if (action == null && specialActions < MaxSpecialPerDay && urgentNeed != null)
-            {
-                // Поиск в специальных действиях
-                for (int i = 0; i < NpcActionCatalog.Special.Length; i++)
-                {
-                    NpcAction a = NpcActionCatalog.Special[i];
-                    if (a.SatisfiedNeeds.ContainsKey(urgentNeed.Name) &&
-                        MeetsStatRequirements(npc, a) &&
-                        staminaLeft >= a.StaminaCost)
-                    {
-                        if (action == null || a.SatisfiedNeeds[urgentNeed.Name] > action.SatisfiedNeeds[urgentNeed.Name])
-                        {
-                            action = a;
-                            specialActions++;
-                        }
-                    }
-                }
-            }
+            // Apply stamina cost (negative cost = rest/sleep → restores stamina)
+            npc.Stamina = Math.Clamp(npc.Stamina - action.StaminaCost, 0, npc.MaxStamina);
 
-            if (action == null)
-            {
-                // Выбираем случайное базовое действие
-                List<NpcAction> candidates = new List<NpcAction>();
-                for (int i = 0; i < NpcActionCatalog.Basic.Length; i++)
-                {
-                    NpcAction a = NpcActionCatalog.Basic[i];
-                    if (MeetsStatRequirements(npc, a) && staminaLeft >= a.StaminaCost)
-                    {
-                        candidates.Add(a);
-                    }
-                }
-                if (candidates.Count == 0) break;
-                action = candidates[rnd.Next(candidates.Count)];
-            }
-
-            staminaLeft -= action.StaminaCost;
-            npc.Stamina = Math.Clamp(npc.Stamina - action.StaminaCost, 0, 100);
-
-            // Удовлетворение потребностей
+            // Satisfy needs
             foreach (var kvp in action.SatisfiedNeeds)
-            {
                 NeedSystem.SatisfyNeed(npc, kvp.Key, kvp.Value);
+
+            // Stat growth
+            var growth = StatGrowthSystem.Apply(npc, action, rnd);
+            string growthSuffix = "";
+            if (growth.Count > 0)
+            {
+                string parts = string.Join(", ", growth.Select(g => $"+{g.Gain} {g.StatName}"));
+                growthSuffix = $" [{parts}]";
             }
 
-            npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{currentHour:00}:00] {action.Name}"));
+            npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{hour:00}:00] {action.Name}"));
 
             log.Add(new ActionLogEntry
             {
-                Time = $"{currentHour:00}:00",
-                Text = action.Name,
+                Time  = $"{hour:00}:00",
+                Text  = action.Name + growthSuffix,
                 Color = action.Category == ActionCategory.Special ? "#e879f9" : "#c9d1d9",
             });
 
-            totalActions++;
-            currentHour = Math.Min(currentHour + 1, 22);
+            hoursUsed++;
         }
 
-        // Предупреждения о критических потребностях
+        // End-of-day: decay and penalties
         NeedSystem.ApplyDailyDecay(npc);
         NeedSystem.ApplyPenalties(npc);
 
@@ -143,9 +97,9 @@ public static class ActionSystem
             {
                 log.Add(new ActionLogEntry
                 {
-                    Time = "23:00",
-                    Text = $"[!] Критическая нужда: {need.Name} ({need.Value:F0}%)",
-                    Color = "#f87171",
+                    Time    = "23:00",
+                    Text    = $"[!] Критическая нужда: {need.Name} ({need.Value:F0}%)",
+                    Color   = "#f87171",
                     IsAlert = true,
                 });
             }
@@ -154,13 +108,110 @@ public static class ActionSystem
         return log;
     }
 
+    // ── Selection logic ──────────────────────────────────────────────────────
+
+    private static NpcAction? SelectAction(Npc npc, Random rnd, ref int specialCount)
+    {
+        var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
+
+        // 1. Critical need (<20% satisfaction) → pick best matching basic action
+        if (urgentNeed != null && urgentNeed.Value < 20)
+        {
+            NpcAction? needAction = FindBestForNeed(NpcActionCatalog.Basic, npc, urgentNeed.Name);
+            if (needAction != null) return needAction;
+        }
+
+        // 2. Active quest → prefer actions related to it (simple stub: do random basic)
+        if (npc.HasTask)
+        {
+            NpcAction? questAction = FindTaskAction(npc, rnd);
+            if (questAction != null) return questAction;
+        }
+
+        // 3. Urgent need (any unsatisfied) → try to address it
+        if (urgentNeed != null)
+        {
+            NpcAction? needAction = FindBestForNeed(NpcActionCatalog.Basic, npc, urgentNeed.Name);
+            if (needAction != null) return needAction;
+
+            // Try special actions for the need
+            if (specialCount < MaxSpecialPerDay)
+            {
+                NpcAction? special = FindBestForNeed(NpcActionCatalog.Special, npc, urgentNeed.Name);
+                if (special != null) { specialCount++; return special; }
+            }
+        }
+
+        // 4. Weighted random from all available basic actions
+        return WeightedRandom(NpcActionCatalog.Basic, npc, rnd);
+    }
+
+    private static NpcAction? FindBestForNeed(NpcAction[] catalog, Npc npc, string needName)
+    {
+        NpcAction? best = null;
+        double bestScore = -1;
+        for (int i = 0; i < catalog.Length; i++)
+        {
+            NpcAction a = catalog[i];
+            if (!a.SatisfiedNeeds.ContainsKey(needName)) continue;
+            if (!MeetsStatRequirements(npc, a)) continue;
+            if (npc.Stamina < a.StaminaCost) continue;
+            double score = a.SatisfiedNeeds[needName];
+            if (score > bestScore) { bestScore = score; best = a; }
+        }
+        return best;
+    }
+
+    private static NpcAction? FindTaskAction(Npc npc, Random rnd)
+    {
+        // Prefer actions that grow physical stats (reflects doing assigned work)
+        var candidates = new List<NpcAction>();
+        for (int i = 0; i < NpcActionCatalog.Basic.Length; i++)
+        {
+            NpcAction a = NpcActionCatalog.Basic[i];
+            if (MeetsStatRequirements(npc, a) && npc.Stamina >= a.StaminaCost && a.StaminaCost > 8)
+                candidates.Add(a);
+        }
+        return candidates.Count > 0 ? candidates[rnd.Next(candidates.Count)] : null;
+    }
+
+    private static NpcAction? WeightedRandom(NpcAction[] catalog, Npc npc, Random rnd)
+    {
+        // Build candidate list with weights; prefer actions NPC can do and that address mild needs
+        var pool = new List<(NpcAction action, double weight)>();
+        for (int i = 0; i < catalog.Length; i++)
+        {
+            NpcAction a = catalog[i];
+            if (!MeetsStatRequirements(npc, a)) continue;
+            if (npc.Stamina < a.StaminaCost) continue;
+
+            double w = 1.0;
+            foreach (var kvp in a.SatisfiedNeeds)
+            {
+                var need = npc.Needs.FirstOrDefault(n => n.Name == kvp.Key);
+                if (need != null && !need.IsSatisfied) w += kvp.Value / 20.0;
+            }
+            pool.Add((a, w));
+        }
+
+        if (pool.Count == 0) return null;
+
+        double total = pool.Sum(p => p.weight);
+        double pick  = rnd.NextDouble() * total;
+        double acc   = 0;
+        for (int i = 0; i < pool.Count; i++)
+        {
+            acc += pool[i].weight;
+            if (pick <= acc) return pool[i].action;
+        }
+        return pool[pool.Count - 1].action;
+    }
+
     private static bool MeetsStatRequirements(Npc npc, NpcAction action)
     {
         foreach (var kvp in action.RequiredStats)
         {
-            int currentValue = npc.Stats.GetStatValue(kvp.Key);
-            if (currentValue < kvp.Value)
-                return false;
+            if (npc.Stats.GetStatValue(kvp.Key) < kvp.Value) return false;
         }
         return true;
     }
