@@ -20,6 +20,7 @@ public partial class LogControl : UserControl
     private LogSectionItem? _currentPlayerSection;
     private LogSectionItem? _currentNpcSection;
     private LogSectionItem? _currentSystemSection;
+    private bool _routeToNpc = false; // после заголовка "── Имя ──" маршрутизируем в NPC-секцию
 
     public LogControl()
     {
@@ -100,6 +101,7 @@ public partial class LogControl : UserControl
         _currentPlayerSection = null;
         _currentNpcSection = null;
         _currentSystemSection = null;
+        _routeToNpc = false;
 
         ScrollToBottom();
     }
@@ -112,7 +114,7 @@ public partial class LogControl : UserControl
         }
     }
 
-    private void EnsureCurrentSection(ref LogSectionItem? section, string title, string icon)
+    private void EnsureCurrentSection(ref LogSectionItem? section, string title, string icon, bool collapsed = false)
     {
         if (_currentDay == null)
         {
@@ -121,7 +123,7 @@ public partial class LogControl : UserControl
 
         if (section == null)
         {
-            section = new LogSectionItem { Title = title, Icon = icon, IsExpanded = true };
+            section = new LogSectionItem { Title = title, Icon = icon, IsExpanded = !collapsed };
 
             var sectionButton = new Button
             {
@@ -131,7 +133,8 @@ public partial class LogControl : UserControl
             };
 
             var sectionContent = new StackPanel { Margin = new Thickness(15, 2, 0, 4) };
-            sectionContent.Visibility = Visibility.Visible;
+            sectionContent.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+            UpdateButtonArrow(sectionButton, !collapsed);
 
             sectionButton.Click += (s, e) =>
             {
@@ -175,13 +178,19 @@ public partial class LogControl : UserControl
         }
         else if (text.Contains("──") || text.Contains("────────────────"))
         {
-            EnsureCurrentSection(ref _currentNpcSection, "Информация об NPC", "📋");
-            AddTextToSection(_currentNpcSection, text, colorHex);
+            // Заголовок НПС — создаём новую секцию на каждого НПС, свёрнутую
+            _currentNpcSection = null;
+            _routeToNpc = true;
+            string npcTitle = text.Replace("──", "").Trim();
+            if (string.IsNullOrWhiteSpace(npcTitle)) npcTitle = "НПС";
+            EnsureCurrentSection(ref _currentNpcSection, npcTitle, "🧑", collapsed: true);
+            // заголовок не добавляем — он уже в кнопке секции
         }
         else if (text.Contains("Алтарь") || text.Contains("веры") || text.Contains("ОВ") ||
                  text.Contains("алтарь") || text.Contains("Вера") || text.Contains("Система") ||
                  text.Contains("Мир загружен") || text.Contains("Выживших:"))
         {
+            _routeToNpc = false;
             EnsureCurrentSection(ref _currentSystemSection, "Система", "⚙");
             AddTextToSection(_currentSystemSection, text, colorHex);
         }
@@ -190,11 +199,17 @@ public partial class LogControl : UserControl
                  text.Contains("HP:") || text.Contains("Чакра:") || text.Contains("Эмоции:") ||
                  text.Contains("Черты:") || text.Contains("Цель:") || text.Contains("Мечта:"))
         {
-            EnsureCurrentSection(ref _currentNpcSection, "Информация об NPC", "📋");
+            EnsureCurrentSection(ref _currentNpcSection, "Информация об NPC", "📋", collapsed: true);
+            AddTextToSection(_currentNpcSection, text, colorHex);
+        }
+        else if (_routeToNpc && _currentNpcSection != null)
+        {
+            // Строки действий НПС после заголовка — идут в его секцию
             AddTextToSection(_currentNpcSection, text, colorHex);
         }
         else
         {
+            _routeToNpc = false;
             EnsureCurrentSection(ref _currentPlayerSection, "Действия", "🎮");
             AddTextToSection(_currentPlayerSection, text, colorHex);
         }
@@ -213,6 +228,7 @@ public partial class LogControl : UserControl
         _currentPlayerSection = null;
         _currentNpcSection = null;
         _currentSystemSection = null;
+        _routeToNpc = false;
         _autoScroll = true;
     }
 

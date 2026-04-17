@@ -260,6 +260,7 @@ public partial class PlayerActionsControl : UserControl
                 "Npc"          => BuildNpcComboBox(param),
                 "Resource"     => BuildResourceComboBox(param),
                 "Technique"    => BuildTechniqueComboBox(param),
+                "Quest"        => BuildQuestComboBox(param),
                 "Number"       => BuildNumberBox(param),
                 "NumberSlider" => BuildNumberBox(param),
                 "Text"         => BuildTextBox(param),
@@ -295,6 +296,16 @@ public partial class PlayerActionsControl : UserControl
         var combo = new ComboBox { Style = (Style)FindResource("LightCombo"), Tag = param.ParamKey };
         foreach (var tech in _viewModel.UnlockedTechniques)
             combo.Items.Add(tech.Name);
+        if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+        _dynamicComboBoxes.Add(combo);
+        return combo;
+    }
+
+    private ComboBox BuildQuestComboBox(PlayerActionParam param)
+    {
+        var combo = new ComboBox { Style = (Style)FindResource("LightCombo"), Tag = param.ParamKey };
+        foreach (var q in _viewModel.AvailableQuests)
+            combo.Items.Add(q.Title);
         if (combo.Items.Count > 0) combo.SelectedIndex = 0;
         _dynamicComboBoxes.Add(combo);
         return combo;
@@ -403,6 +414,7 @@ public partial class PlayerActionsControl : UserControl
                 "Npc"          => GetSelectedNpc(control),
                 "Resource"     => GetSelectedResource(control),
                 "Technique"    => GetSelectedTechnique(control),
+                "Quest"        => GetSelectedQuest(control),
                 "Number"       => GetNumberValue(control),
                 "NumberSlider" => GetNumberValue(control),
                 "Text"         => GetTextValue(control),
@@ -467,6 +479,16 @@ public partial class PlayerActionsControl : UserControl
         {
             var name = combo.SelectedItem.ToString();
             return _viewModel.UnlockedTechniques.FirstOrDefault(t => t.Name == name);
+        }
+        return null;
+    }
+
+    private Quest? GetSelectedQuest(FrameworkElement control)
+    {
+        if (control is ComboBox combo && combo.SelectedItem != null)
+        {
+            var title = combo.SelectedItem.ToString();
+            return _viewModel.AvailableQuests.FirstOrDefault(q => q.Title == title);
         }
         return null;
     }
