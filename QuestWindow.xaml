@@ -220,9 +220,6 @@
                         <DockPanel>
                             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
                                 <TextBlock Text="ОПУБЛИКОВАНО" Style="{StaticResource PanelTitle}" VerticalAlignment="Center"/>
-                                <Button DockPanel.Dock="Right" Content="Снять" Style="{StaticResource ActionBtn}"
-                                        Background="#3a1a1a" Foreground="#f87171"
-                                        Click="Unpublish_Click"/>
                             </DockPanel>
                             <DataGrid x:Name="PublishedGrid" Style="{StaticResource DarkDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DarkDataGridColumnHeader}"
