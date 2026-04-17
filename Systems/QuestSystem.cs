@@ -14,39 +14,10 @@ public static class QuestSystem
 
     /// <summary>
     /// Generate a pool of AI quests for the current day (1–3 new quests).
+    /// Uses QuestGenerator for procedural template-substituted titles.
     /// </summary>
     public static List<Quest> GenerateDailyQuests(List<Resource> resources, Random rnd)
-    {
-        var result = new List<Quest>();
-        int count  = rnd.Next(1, 4);
-
-        var templates = QuestTemplates.All
-            .OrderBy(_ => rnd.Next())
-            .Take(count);
-
-        foreach (var t in templates)
-        {
-            // Pick a reward resource based on what's in supply
-            int resId = t.ResId > 0 && t.ResId <= resources.Count
-                ? resources[t.ResId - 1].Id
-                : (resources.Count > 0 ? resources[rnd.Next(resources.Count)].Id : 0);
-
-            result.Add(new Quest
-            {
-                Id              = _nextId++,
-                Title           = t.Title,
-                Description     = t.Desc,
-                Source          = QuestSource.AI,
-                Status          = QuestStatus.Available,
-                DaysRequired    = t.Days,
-                DaysRemaining   = t.Days,
-                RewardResourceId= resId,
-                RewardAmount    = t.Reward,
-                FaithCost       = t.FaithCost,
-            });
-        }
-        return result;
-    }
+        => QuestGenerator.GenerateDailyQuests(resources, rnd);
 
     /// <summary>
     /// Auto-assign available quests to idle NPCs.

@@ -32,11 +32,21 @@ public class Player
     public int AltarLevel { get; set; } = 1;   // 1–10
     public int CurrentDay { get; set; }
 
-    // ── Stage F fields ────────────────────────────────────────────────
+    // ── Barrier & territory ───────────────────────────────────────────
+    /// <summary>Barrier level 1–10 (separate from altar). Determines radius and BaseUnits.</summary>
+    public int BarrierLevel { get; set; } = 1;
     /// <summary>Altar can project a protective barrier of this radius (0 = none).</summary>
     public double BarrierSize { get; set; }
     /// <summary>Number of controlled location IDs.</summary>
     public int TerritoryControl { get; set; }
+    /// <summary>IDs of location nodes under player control.</summary>
+    public List<int> ControlledZoneIds { get; set; } = new();
+
+    /// <summary>
+    /// Base units available per day: AltarLevel × BarrierLevel × (BarrierLevel+1) / 2.
+    /// Represents patrol/defense capacity derived from altar and barrier investment.
+    /// </summary>
+    public int BaseUnits => AltarLevel * (BarrierLevel * (BarrierLevel + 1)) / 2;
 
     // ── Player action hour ────────────────────────────────────────────
     /// <summary>How many direct player actions were taken today.</summary>
