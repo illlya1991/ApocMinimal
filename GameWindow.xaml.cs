@@ -112,4 +112,12 @@ public partial class GameWindow : Window
         var fullscreenWindow = new NpcFullscreenWindow(_viewModel.AllNpcs);
         fullscreenWindow.ShowDialog();
     }
+
+    private void QuestsBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var questWindow = new QuestWindow(_viewModel, Log);
+        questWindow.ShowDialog();
+        _viewModel.Refresh();
+        RefreshAll();
+    }
 }

@@ -50,6 +50,8 @@ public class DatabaseManager
 
     public OneSave ThisSave { get { return _thisSave; } set { _thisSave = value; } }
 
+    public string CurrentSaveId => Path.GetFileNameWithoutExtension(_thisSave._fileName);
+
     private void InitializeDatabase()
     {
         for (int i = 0; i < _ListSaves.Count; i++)
@@ -250,6 +252,9 @@ public class DatabaseManager
             q.RewardResourceId = rdr.GetInt32(rdr.GetOrdinal("RewardResourceId"));
             q.RewardAmount = rdr.GetDouble(rdr.GetOrdinal("RewardAmount"));
             q.FaithCost = rdr.GetDouble(rdr.GetOrdinal("FaithCost"));
+            string questTypeStr = GetStringOrDefault(rdr, "QuestType", "OneTime");
+            q.QuestType = Enum.TryParse<QuestType>(questTypeStr, out var qt) ? qt : QuestType.OneTime;
+            q.LibraryId = GetIntOrDefault(rdr, "LibraryId");
             list.Add(q);
         }
         return list;
@@ -900,6 +905,132 @@ public class DatabaseManager
                 config[key] = d;
         }
         return config;
+    }
+
+    public List<QuestCatalogEntry> GetQuestCatalog(int altarLevel)
+    {
+        var list = new List<QuestCatalogEntry>();
+        if (!IsTableExistsSafe("QuestCatalog")) return list;
+        using var cmd = new SQLiteCommand("SELECT * FROM QuestCatalog WHERE MinAltarLevel <= @al ORDER BY OvCost", _conn);
+        cmd.Parameters.AddWithValue("@al", altarLevel);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read())
+        {
+            var entry = new QuestCatalogEntry
+            {
+                Id = rdr.GetInt32(rdr.GetOrdinal("Id")),
+                Title = rdr.GetString(rdr.GetOrdinal("Title")),
+                Description = GetStringOrDefault(rdr, "Description"),
+                OvCost = GetDoubleOrDefault(rdr, "OvCost"),
+                MinAltarLevel = GetIntOrDefault(rdr, "MinAltarLevel", 1),
+                MaxRepeats = GetIntOrDefault(rdr, "MaxRepeats", 1),
+                DaysRequired = GetIntOrDefault(rdr, "DaysRequired", 3),
+                RewardResource = GetStringOrDefault(rdr, "RewardResource"),
+                RewardAmount = GetDoubleOrDefault(rdr, "RewardAmount"),
+                Category = GetStringOrDefault(rdr, "Category"),
+            };
+            string typeStr = GetStringOrDefault(rdr, "QuestType", "OneTime");
+            entry.QuestType = Enum.TryParse<QuestType>(typeStr, out var qt) ? qt : QuestType.OneTime;
+            list.Add(entry);
+        }
+        return list;
+    }
+
+    public List<PlayerLibraryEntry> GetPlayerLibrary(string saveId)
+    {
+        var list = new List<PlayerLibraryEntry>();
+        if (!IsTableExistsSafe("PlayerQuestLibrary")) return list;
+        using var cmd = new SQLiteCommand("SELECT * FROM PlayerQuestLibrary WHERE SaveId = @sid", _conn);
+        cmd.Parameters.AddWithValue("@sid", saveId);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read())
+        {
+            var entry = new PlayerLibraryEntry
+            {
+                Id = rdr.GetInt32(rdr.GetOrdinal("Id")),
+                SaveId = GetStringOrDefault(rdr, "SaveId"),
+                CatalogId = GetIntOrDefault(rdr, "CatalogId"),
+                PublishesLeft = GetIntOrDefault(rdr, "PublishesLeft"),
+                TimesCompleted = GetIntOrDefault(rdr, "TimesCompleted"),
+            };
+            list.Add(entry);
+        }
+
+        var catalogAll = GetQuestCatalog(999);
+        var catalogMap = new Dictionary<int, QuestCatalogEntry>();
+        for (int i = 0; i < catalogAll.Count; i++)
+            catalogMap[catalogAll[i].Id] = catalogAll[i];
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (catalogMap.TryGetValue(list[i].CatalogId, out var cat))
+                list[i].Catalog = cat;
+        }
+        return list;
+    }
+
+    public void PurchaseQuest(string saveId, QuestCatalogEntry catalog)
+    {
+        int publishesLeft = catalog.QuestType == QuestType.Eternal ? -1 : catalog.MaxRepeats;
+        using var cmd = new SQLiteCommand(
+            "INSERT INTO PlayerQuestLibrary (SaveId, CatalogId, PublishesLeft, TimesCompleted) VALUES (@sid, @cid, @pl, 0)", _conn);
+        cmd.Parameters.AddWithValue("@sid", saveId);
+        cmd.Parameters.AddWithValue("@cid", catalog.Id);
+        cmd.Parameters.AddWithValue("@pl", publishesLeft);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void UpdateLibraryEntry(PlayerLibraryEntry entry)
+    {
+        using var cmd = new SQLiteCommand(
+            "UPDATE PlayerQuestLibrary SET PublishesLeft=@pl, TimesCompleted=@tc WHERE Id=@id", _conn);
+        cmd.Parameters.AddWithValue("@pl", entry.PublishesLeft);
+        cmd.Parameters.AddWithValue("@tc", entry.TimesCompleted);
+        cmd.Parameters.AddWithValue("@id", entry.Id);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void SaveQuestFull(Quest q)
+    {
+        if (q.Id == 0)
+        {
+            using var ins = new SQLiteCommand(@"
+                INSERT INTO Quests (Title, Description, Source, Status, AssignedNpcId, DaysRequired, DaysRemaining, RewardResourceId, RewardAmount, FaithCost, QuestType, LibraryId)
+                VALUES (@ti,@de,@so,@st,@an,@dre,@drm,@rri,@ra,@fc,@qt,@li)", _conn);
+            ins.Parameters.AddWithValue("@ti", q.Title);
+            ins.Parameters.AddWithValue("@de", q.Description);
+            ins.Parameters.AddWithValue("@so", q.Source.ToString());
+            ins.Parameters.AddWithValue("@st", q.Status.ToString());
+            ins.Parameters.AddWithValue("@an", q.AssignedNpcId);
+            ins.Parameters.AddWithValue("@dre", q.DaysRequired);
+            ins.Parameters.AddWithValue("@drm", q.DaysRemaining);
+            ins.Parameters.AddWithValue("@rri", q.RewardResourceId);
+            ins.Parameters.AddWithValue("@ra", q.RewardAmount);
+            ins.Parameters.AddWithValue("@fc", q.FaithCost);
+            ins.Parameters.AddWithValue("@qt", q.QuestType.ToString());
+            ins.Parameters.AddWithValue("@li", q.LibraryId);
+            ins.ExecuteNonQuery();
+            q.Id = (int)_conn.LastInsertRowId;
+        }
+        else
+        {
+            using var upd = new SQLiteCommand(@"
+                UPDATE Quests SET Status=@st, AssignedNpcId=@an, DaysRemaining=@drm, QuestType=@qt, LibraryId=@li WHERE Id=@id", _conn);
+            upd.Parameters.AddWithValue("@st", q.Status.ToString());
+            upd.Parameters.AddWithValue("@an", q.AssignedNpcId);
+            upd.Parameters.AddWithValue("@drm", q.DaysRemaining);
+            upd.Parameters.AddWithValue("@qt", q.QuestType.ToString());
+            upd.Parameters.AddWithValue("@li", q.LibraryId);
+            upd.Parameters.AddWithValue("@id", q.Id);
+            upd.ExecuteNonQuery();
+        }
+    }
+
+    public void DeleteQuest(int questId)
+    {
+        using var cmd = new SQLiteCommand("DELETE FROM Quests WHERE Id=@id", _conn);
+        cmd.Parameters.AddWithValue("@id", questId);
+        cmd.ExecuteNonQuery();
     }
 
 }

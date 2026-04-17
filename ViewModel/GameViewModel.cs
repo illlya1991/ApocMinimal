@@ -24,6 +24,8 @@ public class GameViewModel : INotifyPropertyChanged
     private List<Location> _locations = new();
     private Dictionary<string, ResourceCatalogEntry> _catalog = new();
     private Dictionary<string, double> _gameConfig = new();
+    private List<QuestCatalogEntry> _questCatalog = new();
+    private List<PlayerLibraryEntry> _playerLibrary = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -101,6 +103,11 @@ public class GameViewModel : INotifyPropertyChanged
     public IEnumerable<Technique> UnlockedTechniques => _player?.UnlockedTechniques ?? Enumerable.Empty<Technique>();
     public Technique[] AllTechniques => Player.AllTechniques;
 
+    public List<QuestCatalogEntry> QuestShop => _questCatalog.Where(q => q.MinAltarLevel <= AltarLevel).ToList();
+    public List<PlayerLibraryEntry> PurchasedQuests => _playerLibrary;
+    public List<Quest> PublishedQuests => _quests.Where(q => q.Status == QuestStatus.Available).ToList();
+    public List<Quest> CompletedQuests => _quests.Where(q => q.Status == QuestStatus.Completed).ToList();
+
     private void LoadData()
     {
         _player = _db.GetPlayer()!;
@@ -115,12 +122,156 @@ public class GameViewModel : INotifyPropertyChanged
             _catalog[catalogList[i].Name] = catalogList[i];
 
         _gameConfig = _db.GetGameConfig();
+        _questCatalog = _db.GetQuestCatalog(999);
+        _playerLibrary = _db.GetPlayerLibrary(_db.CurrentSaveId);
 
         CurrentDay = _player.CurrentDay;
         FaithPoints = _player.FaithPoints;
         AltarLevel = _player.AltarLevel;
         ActionsToday = _player.PlayerActionsToday;
         BarrierSize = _player.BarrierSize;
+    }
+
+    public void ReloadQuestLibrary()
+    {
+        _questCatalog = _db.GetQuestCatalog(999);
+        _playerLibrary = _db.GetPlayerLibrary(_db.CurrentSaveId);
+    }
+
+    public string BuyQuest(QuestCatalogEntry entry)
+    {
+        if (_player.FaithPoints < entry.OvCost)
+            return $"Недостаточно ОВ (нужно {entry.OvCost:F0}, есть {_player.FaithPoints:F0})";
+
+        bool alreadyOwned = false;
+        for (int i = 0; i < _playerLibrary.Count; i++)
+        {
+            if (_playerLibrary[i].CatalogId == entry.Id && entry.QuestType == QuestType.OneTime)
+            {
+                alreadyOwned = true;
+                break;
+            }
+        }
+        if (alreadyOwned)
+            return "Этот квест уже куплен";
+
+        _player.FaithPoints -= entry.OvCost;
+        _db.SavePlayer(_player);
+        _db.PurchaseQuest(_db.CurrentSaveId, entry);
+        ReloadQuestLibrary();
+        FaithPoints = _player.FaithPoints;
+        return $"Куплен квест «{entry.Title}» за {entry.OvCost:F0} ОВ";
+    }
+
+    public string PublishQuest(PlayerLibraryEntry entry)
+    {
+        if (!entry.CanPublish)
+            return "Нет доступных публикаций";
+
+        var catalog = entry.Catalog;
+        if (catalog == null)
+            return "Данные квеста не найдены";
+
+        int rewardResId = 0;
+        if (!string.IsNullOrEmpty(catalog.RewardResource))
+        {
+            var res = _resources.FirstOrDefault(r => r.Name == catalog.RewardResource);
+            if (res != null) rewardResId = res.Id;
+        }
+
+        var quest = new Quest
+        {
+            Title = catalog.Title,
+            Description = catalog.Description,
+            Source = QuestSource.Player,
+            Status = QuestStatus.Available,
+            DaysRequired = catalog.DaysRequired,
+            DaysRemaining = catalog.DaysRequired,
+            RewardResourceId = rewardResId,
+            RewardAmount = catalog.RewardAmount,
+            FaithCost = 0,
+            QuestType = catalog.QuestType,
+            LibraryId = entry.Id,
+        };
+
+        _db.SaveQuestFull(quest);
+        _quests.Add(quest);
+
+        if (entry.PublishesLeft != -1)
+            entry.PublishesLeft--;
+        _db.UpdateLibraryEntry(entry);
+        ReloadQuestLibrary();
+
+        return $"Квест «{quest.Title}» опубликован";
+    }
+
+    public string UnpublishQuest(Quest quest)
+    {
+        if (quest.Status != QuestStatus.Available)
+            return "Можно снять только опубликованный квест";
+
+        if (quest.LibraryId > 0)
+        {
+            var entry = _playerLibrary.FirstOrDefault(e => e.Id == quest.LibraryId);
+            if (entry != null && entry.Catalog != null)
+            {
+                if (entry.PublishesLeft != -1)
+                    entry.PublishesLeft++;
+                _db.UpdateLibraryEntry(entry);
+            }
+        }
+
+        _db.DeleteQuest(quest.Id);
+        _quests.Remove(quest);
+        ReloadQuestLibrary();
+        return $"Квест «{quest.Title}» снят";
+    }
+
+    public List<string> CollectCompletedQuests()
+    {
+        var logs = new List<string>();
+        var completed = _quests.Where(q => q.Status == QuestStatus.Completed).ToList();
+
+        for (int i = 0; i < completed.Count; i++)
+        {
+            var quest = completed[i];
+            if (quest.RewardResourceId > 0 && quest.RewardAmount > 0)
+            {
+                var res = _resources.FirstOrDefault(r => r.Id == quest.RewardResourceId);
+                if (res != null)
+                {
+                    res.Amount += quest.RewardAmount;
+                    _db.SaveResource(res);
+                    logs.Add($"Получено: +{quest.RewardAmount:F0} {res.Name} за «{quest.Title}»");
+                }
+            }
+            else
+            {
+                logs.Add($"Принято: «{quest.Title}»");
+            }
+
+            if (quest.LibraryId > 0)
+            {
+                var entry = _playerLibrary.FirstOrDefault(e => e.Id == quest.LibraryId);
+                if (entry != null && entry.Catalog != null)
+                {
+                    entry.TimesCompleted++;
+                    var qt = entry.Catalog.QuestType;
+                    if (qt == QuestType.Repeatable || qt == QuestType.Eternal)
+                    {
+                        if (entry.PublishesLeft != -1)
+                            entry.PublishesLeft++;
+                    }
+                    _db.UpdateLibraryEntry(entry);
+                }
+            }
+
+            _db.DeleteQuest(quest.Id);
+            _quests.Remove(quest);
+        }
+
+        ReloadQuestLibrary();
+        return logs;
     }
 
     public void Refresh()
@@ -134,6 +285,10 @@ public class GameViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ActiveQuests));
         OnPropertyChanged(nameof(Locations));
         OnPropertyChanged(nameof(UnlockedTechniques));
+        OnPropertyChanged(nameof(QuestShop));
+        OnPropertyChanged(nameof(PurchasedQuests));
+        OnPropertyChanged(nameof(PublishedQuests));
+        OnPropertyChanged(nameof(CompletedQuests));
     }
 
     public void SaveAll()

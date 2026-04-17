@@ -24,6 +24,9 @@ public class Quest
 
     /// <summary>Required minimum NPC stat for auto-assignment (StatId → minValue, 0 = any).</summary>
     public Dictionary<int, double> RequiredStats { get; set; } = new();
+
+    public QuestType QuestType { get; set; } = QuestType.OneTime;
+    public int LibraryId { get; set; } = 0;
 }
 
 public static class QuestTemplates
