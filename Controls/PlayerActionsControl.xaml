@@ -86,17 +86,6 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- QUESTS TAB -->
-            <ScrollViewer x:Name="PanelQuests" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
-                <StackPanel>
-                    <TextBlock Text="ДОСТУПНЫЕ КВЕСТЫ" Style="{StaticResource SectionHeader}"/>
-                    <StackPanel x:Name="QuestAvailPanel"/>
-                    <Separator Background="#30363d" Margin="0,10,0,6"/>
-                    <TextBlock Text="АКТИВНЫЕ КВЕСТЫ" Style="{StaticResource SectionHeader}"/>
-                    <StackPanel x:Name="QuestActivePanel"/>
-                </StackPanel>
-            </ScrollViewer>
-
             <!-- ALTAR TAB -->
             <ScrollViewer x:Name="PanelAltar" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
                 <StackPanel>

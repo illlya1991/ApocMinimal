@@ -62,7 +62,6 @@ public partial class PlayerActionsControl : UserControl
         SubActionRow.Visibility = Visibility.Collapsed;
         ParametersPanel.Visibility = Visibility.Collapsed;
 
-        RefreshQuestsTab();
         RefreshAltarTab();
         RefreshMapTab();
         RefreshTechniquePanel();
@@ -72,7 +71,6 @@ public partial class PlayerActionsControl : UserControl
     public void Refresh()
     {
         RefreshAltarTab();
-        RefreshQuestsTab();
         RefreshMapTab();
         RefreshTechniquePanel();
         RefreshResourceCombo();
@@ -134,20 +132,6 @@ public partial class PlayerActionsControl : UserControl
             };
             if (unlocked) btn.Click += TechniqueBtn_Click;
             AltarTechPanel.Children.Add(btn);
-        }
-    }
-
-    private void RefreshQuestsTab()
-    {
-        QuestAvailPanel.Children.Clear();
-        foreach (var q in _viewModel.AvailableQuests)
-            QuestAvailPanel.Children.Add(_uiService.BuildQuestCard(q, false));
-
-        QuestActivePanel.Children.Clear();
-        foreach (var q in _viewModel.ActiveQuests)
-        {
-            var npc = _viewModel.GetNpcById(q.AssignedNpcId);
-            QuestActivePanel.Children.Add(_uiService.BuildQuestCard(q, true, npc?.Name));
         }
     }
 
@@ -515,12 +499,10 @@ public partial class PlayerActionsControl : UserControl
         TabAltar.IsChecked = false; TabMap.IsChecked = false;
 
         PanelActions.Visibility = Visibility.Collapsed;
-        PanelQuests.Visibility = Visibility.Collapsed;
         PanelAltar.Visibility = Visibility.Collapsed;
         PanelMap.Visibility = Visibility.Collapsed;
 
         if (sender == TabActions) { TabActions.IsChecked = true; PanelActions.Visibility = Visibility.Visible; }
-        else if (sender == TabQuests) { TabQuests.IsChecked = true; PanelQuests.Visibility = Visibility.Visible; RefreshQuestsTab(); }
         else if (sender == TabAltar) { TabAltar.IsChecked = true; PanelAltar.Visibility = Visibility.Visible; RefreshAltarTab(); }
         else if (sender == TabMap) { TabMap.IsChecked = true; PanelMap.Visibility = Visibility.Visible; RefreshMapTab(); }
     }

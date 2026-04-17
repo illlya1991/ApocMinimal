@@ -79,7 +79,6 @@ public class ActionManager
     {
         _handlers.Add(new HandlerEntry { Name = "InteractionHandler", Handler = new InteractionHandler(_db, _rnd, logAction, gameConfig) });
         _handlers.Add(new HandlerEntry { Name = "ResourceHandler",    Handler = new ResourceHandler(_db, _rnd, logAction, gameConfig) });
-        _handlers.Add(new HandlerEntry { Name = "QuestHandler",       Handler = new QuestHandler(_db, _rnd, logAction) });
         _handlers.Add(new HandlerEntry { Name = "TechniqueHandler",   Handler = new TechniqueHandler(_db, _rnd, logAction) });
         _handlers.Add(new HandlerEntry { Name = "ManagementHandler",  Handler = new ManagementHandler(_db, _rnd, logAction, gameConfig) });
     }
@@ -200,14 +199,6 @@ public class ActionManager
                 else if (!_catalog.ContainsKey(resources[i].Name) &&
                     (resources[i].Category == "Еда" || resources[i].Category == "Вода"))
                     result.Add(resources[i]); // fallback: match by category if not in catalog
-            }
-        }
-        else if (sourceName == "available_quests")
-        {
-            for (int i = 0; i < quests.Count; i++)
-            {
-                if (quests[i].Status == QuestStatus.Available)
-                    result.Add(quests[i]);
             }
         }
         else if (sourceName == "available_techniques")

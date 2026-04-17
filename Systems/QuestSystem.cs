@@ -10,8 +10,6 @@ namespace ApocMinimal.Systems;
 /// </summary>
 public static class QuestSystem
 {
-    private static int _nextId = 1;
-
     /// <summary>
     /// Generate a pool of AI quests for the current day (1–3 new quests).
     /// Uses QuestGenerator for procedural template-substituted titles.
