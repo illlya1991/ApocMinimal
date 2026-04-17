@@ -859,6 +859,49 @@ public class DatabaseManager
         return Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
     }
 
+    public List<ResourceCatalogEntry> GetResourceCatalog()
+    {
+        var list = new List<ResourceCatalogEntry>();
+        if (!IsTableExistsSafe("ResourceCatalog")) return list;
+        using var cmd = new SQLiteCommand("SELECT * FROM ResourceCatalog ORDER BY Id", _conn);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read())
+        {
+            list.Add(new ResourceCatalogEntry
+            {
+                Id            = rdr.GetInt32(rdr.GetOrdinal("Id")),
+                Name          = rdr.GetString(rdr.GetOrdinal("Name")),
+                Category      = rdr.GetString(rdr.GetOrdinal("Category")),
+                Rarity        = GetStringOrDefault(rdr, "Rarity", "Common"),
+                Unit          = GetStringOrDefault(rdr, "Unit", "шт"),
+                Weight        = GetDoubleOrDefault(rdr, "Weight", 0.5),
+                SpoilageDays  = GetIntOrDefault(rdr, "SpoilageDays", 0),
+                FoodRestore   = GetDoubleOrDefault(rdr, "FoodRestore", 0),
+                WaterRestore  = GetDoubleOrDefault(rdr, "WaterRestore", 0),
+                IsLocationNode = GetIntOrDefault(rdr, "IsLocationNode", 1) == 1,
+                LocationWeight = GetIntOrDefault(rdr, "LocationWeight", 1),
+            });
+        }
+        return list;
+    }
+
+    public Dictionary<string, double> GetGameConfig()
+    {
+        var config = new Dictionary<string, double>();
+        if (!IsTableExistsSafe("GameConfig")) return config;
+        using var cmd = new SQLiteCommand("SELECT Key, Value FROM GameConfig", _conn);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read())
+        {
+            string key = rdr.GetString(0);
+            string val = rdr.GetString(1);
+            if (double.TryParse(val, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double d))
+                config[key] = d;
+        }
+        return config;
+    }
+
 }
 
 public class OneSave

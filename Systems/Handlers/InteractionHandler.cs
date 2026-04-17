@@ -17,8 +17,9 @@ public class InteractionHandler : BaseActionHandler
 {
     private readonly Random _random;
 
-    public InteractionHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction)
-        : base(db, rnd, logAction)
+    public InteractionHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction,
+        Dictionary<string, double> config)
+        : base(db, rnd, logAction, config)
     {
         _random = rnd;
     }
@@ -160,16 +161,10 @@ public class InteractionHandler : BaseActionHandler
     {
         double baseAmount = target.Faith * 0.3;
 
-        double followerMod = target.FollowerLevel switch
+        double followerMod = GetConfig($"donate_mod_level_{target.FollowerLevel}", target.FollowerLevel switch
         {
-            0 => 0.5,
-            1 => 0.8,
-            2 => 1.0,
-            3 => 1.2,
-            4 => 1.5,
-            5 => 2.0,
-            _ => 1.0
-        };
+            0 => 0.5, 1 => 0.8, 2 => 1.0, 3 => 1.2, 4 => 1.5, 5 => 2.0, _ => 1.0
+        });
 
         double trustMod = 0.5 + target.Trust / 100.0;
 

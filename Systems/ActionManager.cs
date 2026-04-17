@@ -1,4 +1,4 @@
-﻿// ActionManager.cs
+// ActionManager.cs
 
 using System;
 using System.Collections.Generic;
@@ -15,6 +15,7 @@ public class ActionManager
 {
     private readonly DatabaseManager _db;
     private readonly Random _rnd;
+    private readonly Dictionary<string, ResourceCatalogEntry> _catalog;
 
     private List<PlayerActionGroup> _groups = new List<PlayerActionGroup>();
     private List<PlayerGameAction> _actions = new List<PlayerGameAction>();
@@ -26,12 +27,14 @@ public class ActionManager
         public BaseActionHandler Handler { get; set; } = null!;
     }
 
-    public ActionManager(DatabaseManager db, Random rnd, Action<string, string> logAction)
+    public ActionManager(DatabaseManager db, Random rnd, Action<string, string> logAction,
+        Dictionary<string, ResourceCatalogEntry> catalog, Dictionary<string, double> gameConfig)
     {
         _db = db;
         _rnd = rnd;
+        _catalog = catalog;
         LoadActions();
-        InitializeHandlers(logAction);
+        InitializeHandlers(logAction, gameConfig);
     }
 
     private void LoadActions()
@@ -72,13 +75,13 @@ public class ActionManager
         }
     }
 
-    private void InitializeHandlers(Action<string, string> logAction)
+    private void InitializeHandlers(Action<string, string> logAction, Dictionary<string, double> gameConfig)
     {
-        _handlers.Add(new HandlerEntry { Name = "InteractionHandler", Handler = new InteractionHandler(_db, _rnd, logAction) });
-        _handlers.Add(new HandlerEntry { Name = "ResourceHandler", Handler = new ResourceHandler(_db, _rnd, logAction) });
-        _handlers.Add(new HandlerEntry { Name = "QuestHandler", Handler = new QuestHandler(_db, _rnd, logAction) });
-        _handlers.Add(new HandlerEntry { Name = "TechniqueHandler", Handler = new TechniqueHandler(_db, _rnd, logAction) });
-        _handlers.Add(new HandlerEntry { Name = "ManagementHandler", Handler = new ManagementHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "InteractionHandler", Handler = new InteractionHandler(_db, _rnd, logAction, gameConfig) });
+        _handlers.Add(new HandlerEntry { Name = "ResourceHandler",    Handler = new ResourceHandler(_db, _rnd, logAction, gameConfig) });
+        _handlers.Add(new HandlerEntry { Name = "QuestHandler",       Handler = new QuestHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "TechniqueHandler",   Handler = new TechniqueHandler(_db, _rnd, logAction) });
+        _handlers.Add(new HandlerEntry { Name = "ManagementHandler",  Handler = new ManagementHandler(_db, _rnd, logAction, gameConfig) });
     }
 
     public List<PlayerActionGroup> GetGroups()
@@ -188,10 +191,15 @@ public class ActionManager
         }
         else if (sourceName == "resources_food")
         {
+            // Data-driven: include any resource with food or water restore value in catalog
             for (int i = 0; i < resources.Count; i++)
             {
-                if (resources[i].Name == "Еда" || resources[i].Name == "Вода")
+                if (_catalog.TryGetValue(resources[i].Name, out var entry) &&
+                    (entry.FoodRestore > 0 || entry.WaterRestore > 0))
                     result.Add(resources[i]);
+                else if (!_catalog.ContainsKey(resources[i].Name) &&
+                    (resources[i].Category == "Еда" || resources[i].Category == "Вода"))
+                    result.Add(resources[i]); // fallback: match by category if not in catalog
             }
         }
         else if (sourceName == "available_quests")

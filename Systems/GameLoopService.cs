@@ -1,5 +1,3 @@
-// GameLoopService.cs - оптимизированная версия
-
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.PersonData.PlayerData;
@@ -31,7 +29,7 @@ public class DayResult
 
 public static class GameLoopService
 {
-    private static readonly string[] PositiveEmotionsArray = new string[]
+    private static readonly string[] PositiveEmotionsArray =
     {
         "Радость", "Спокойствие", "Надежда", "Любовь",
         "Воодушевление", "Гордость", "Благодарность",
@@ -40,10 +38,7 @@ public static class GameLoopService
     private static bool IsPositiveEmotion(string emotionName)
     {
         for (int i = 0; i < PositiveEmotionsArray.Length; i++)
-        {
-            if (PositiveEmotionsArray[i] == emotionName)
-                return true;
-        }
+            if (PositiveEmotionsArray[i] == emotionName) return true;
         return false;
     }
 
@@ -52,35 +47,43 @@ public static class GameLoopService
         List<Npc> npcs,
         List<Resource> resources,
         List<Quest> quests,
-        Random rnd)
+        Random rnd,
+        Dictionary<string, ResourceCatalogEntry>? catalog = null)
     {
+        catalog ??= new Dictionary<string, ResourceCatalogEntry>();
         DayResult result = new DayResult();
 
-        List<Npc> aliveNpcs = new List<Npc>();
+        ProcessNpcActions(result, npcs, player, rnd);
+        ProcessQuests(result, quests, npcs, resources, rnd);
+        ProcessLeaderBonus(result, npcs);
+        ProcessFaithGeneration(result, player, npcs);
+        ProcessDailyNeeds(result, player, npcs, resources, catalog);
+
+        return result;
+    }
+
+    // ── Sub-methods ──────────────────────────────────────────────────────────
+
+    private static void ProcessNpcActions(DayResult result, List<Npc> npcs, Player player, Random rnd)
+    {
         for (int i = 0; i < npcs.Count; i++)
         {
-            if (npcs[i].IsAlive)
-                aliveNpcs.Add(npcs[i]);
+            if (!npcs[i].IsAlive) continue;
+            List<ActionLogEntry> actions = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay);
+            result.NpcResults.Add(new NpcDayResult(npcs[i], actions));
         }
+    }
 
-        for (int i = 0; i < aliveNpcs.Count; i++)
-        {
-            Npc npc = aliveNpcs[i];
-            List<ActionLogEntry> actions = ActionSystem.ProcessDayActions(npc, rnd, player.CurrentDay);
-            result.NpcResults.Add(new NpcDayResult(npc, actions));
-        }
-
+    private static void ProcessQuests(DayResult result, List<Quest> quests, List<Npc> npcs,
+        List<Resource> resources, Random rnd)
+    {
         List<(Npc, Quest)> rewards = QuestSystem.AdvanceDay(quests, npcs, rnd);
         for (int i = 0; i < rewards.Count; i++)
-        {
             result.QuestRewards.Add(rewards[i]);
-        }
 
-        List<string> autoAssignLogs = QuestSystem.AutoAssign(quests, npcs, rnd);
-        for (int i = 0; i < autoAssignLogs.Count; i++)
-        {
-            result.Logs.Add((autoAssignLogs[i], false));
-        }
+        List<string> autoLogs = QuestSystem.AutoAssign(quests, npcs, rnd);
+        for (int i = 0; i < autoLogs.Count; i++)
+            result.Logs.Add((autoLogs[i], false));
 
         List<Quest> newQuests = QuestSystem.GenerateDailyQuests(resources, rnd);
         for (int i = 0; i < newQuests.Count; i++)
@@ -88,67 +91,55 @@ public static class GameLoopService
             result.NewQuests.Add(newQuests[i]);
             quests.Add(newQuests[i]);
         }
+    }
 
+    private static void ProcessLeaderBonus(DayResult result, List<Npc> npcs)
+    {
         for (int i = 0; i < npcs.Count; i++)
         {
             Npc leader = npcs[i];
-            if (!leader.IsAlive) continue;
-            if (leader.Trait != NpcTrait.Leader) continue;
+            if (!leader.IsAlive || leader.Trait != NpcTrait.Leader) continue;
 
-            List<Npc> targets = new List<Npc>();
+            int count = 0;
             for (int j = 0; j < npcs.Count; j++)
             {
-                Npc target = npcs[j];
-                if (target.IsAlive && target.Id != leader.Id && target.Trait != NpcTrait.Loner)
-                    targets.Add(target);
+                Npc t = npcs[j];
+                if (!t.IsAlive || t.Id == leader.Id || t.Trait == NpcTrait.Loner) continue;
+                t.Faith = Math.Min(100, t.Faith + 3);
+                count++;
             }
 
-            for (int j = 0; j < targets.Count; j++)
-            {
-                Npc t = targets[j];
-                double newFaith = t.Faith + 3;
-                if (newFaith > 100) newFaith = 100;
-                t.Faith = newFaith;
-            }
-
-            if (targets.Count > 0)
-            {
-                result.Logs.Add(($"{leader.Name} (Лидер) поднял Веру {targets.Count} выжившим +3", false));
-            }
+            if (count > 0)
+                result.Logs.Add(($"{leader.Name} (Лидер) поднял Веру {count} выжившим +3", false));
         }
+    }
 
+    private static void ProcessFaithGeneration(DayResult result, Player player, List<Npc> npcs)
+    {
         double faithTotal = 0;
         int followerCount = 0;
 
         for (int i = 0; i < npcs.Count; i++)
         {
             Npc npc = npcs[i];
-            if (!npc.IsAlive) continue;
-            if (npc.FollowerLevel <= 0) continue;
+            if (!npc.IsAlive || npc.FollowerLevel <= 0) continue;
 
             followerCount++;
-
             double maxDay = npc.FollowerLevel * (Player.MaxFaithPerNpcPerDay / 5.0);
 
             double avgSat = 0.5;
             if (npc.Needs.Count > 0)
             {
-                double sumSat = 0;
-                for (int j = 0; j < npc.Needs.Count; j++)
-                {
-                    sumSat += npc.Needs[j].Satisfaction;
-                }
-                avgSat = (sumSat / npc.Needs.Count) / 100.0;
+                double sum = 0;
+                for (int j = 0; j < npc.Needs.Count; j++) sum += npc.Needs[j].Satisfaction;
+                avgSat = (sum / npc.Needs.Count) / 100.0;
             }
 
             double trustMod = 0.3 + (npc.Trust / 100.0) * 0.7;
 
             double posSum = 0;
             for (int j = 0; j < npc.Emotions.Count; j++)
-            {
-                if (IsPositiveEmotion(npc.Emotions[j].Name))
-                    posSum += npc.Emotions[j].Percentage;
-            }
+                if (IsPositiveEmotion(npc.Emotions[j].Name)) posSum += npc.Emotions[j].Percentage;
             double emoMod = 0.5 + posSum / 200.0;
 
             faithTotal += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
@@ -157,84 +148,89 @@ public static class GameLoopService
         player.FaithPoints += faithTotal;
         result.FaithGained = faithTotal;
         result.FollowerCount = followerCount;
+    }
 
+    private static void ProcessDailyNeeds(DayResult result, Player player, List<Npc> npcs,
+        List<Resource> resources, Dictionary<string, ResourceCatalogEntry> catalog)
+    {
         int alive = 0;
         for (int i = 0; i < npcs.Count; i++)
+            if (npcs[i].IsAlive) alive++;
+
+        if (alive == 0) return;
+
+        // Collect food and water resources from inventory using catalog metadata
+        var foodResources = new List<(Resource res, double restore)>();
+        var waterResources = new List<(Resource res, double restore)>();
+
+        for (int i = 0; i < resources.Count; i++)
         {
-            if (npcs[i].IsAlive)
-                alive++;
-        }
-
-        if (alive > 0)
-        {
-            Resource? food = null;
-            Resource? water = null;
-
-            for (int i = 0; i < resources.Count; i++)
+            Resource res = resources[i];
+            if (catalog.TryGetValue(res.Name, out var entry))
             {
-                if (resources[i].Name == ResourceNames.Food)
-                    food = resources[i];
-                else if (resources[i].Name == ResourceNames.Water)
-                    water = resources[i];
+                if (entry.FoodRestore > 0) foodResources.Add((res, entry.FoodRestore));
+                if (entry.WaterRestore > 0) waterResources.Add((res, entry.WaterRestore));
             }
-
-            if (food != null && food.Amount > 0)
+            else
             {
-                double eat = Math.Min(food.Amount, alive);
-                food.Amount -= eat;
-
-                int eatInt = (int)eat;
-                for (int i = 0; i < npcs.Count && i < eatInt; i++)
-                {
-                    if (npcs[i].IsAlive)
-                        NeedSystem.SatisfyNeed(npcs[i], BasicNeedId.Food, 30);
-                }
-
-                result.Logs.Add(($"{ResourceNames.Food}: -{eat:F0} ед.  Осталось: {food.Amount:F0}", false));
-            }
-            else if (food != null && food.Amount <= 0)
-            {
-                result.Logs.Add(($"{ResourceNames.Food}: закончилась! Голод наносит урон!", true));
-                for (int i = 0; i < npcs.Count; i++)
-                {
-                    if (npcs[i].IsAlive)
-                    {
-                        double newHealth = npcs[i].Health - 5;
-                        if (newHealth < 0) newHealth = 0;
-                        npcs[i].Health = newHealth;
-                    }
-                }
-            }
-
-            if (water != null && water.Amount > 0)
-            {
-                double drink = Math.Min(water.Amount, alive);
-                water.Amount -= drink;
-
-                int drinkInt = (int)drink;
-                for (int i = 0; i < npcs.Count && i < drinkInt; i++)
-                {
-                    if (npcs[i].IsAlive)
-                        NeedSystem.SatisfyNeed(npcs[i], BasicNeedId.Water, 35);
-                }
-
-                result.Logs.Add(($"{ResourceNames.Water}: -{drink:F0} ед.  Осталось: {water.Amount:F0}", false));
-            }
-            else if (water != null && water.Amount <= 0)
-            {
-                result.Logs.Add(($"{ResourceNames.Water}: закончилась! Обезвоживание наносит урон!", true));
-                for (int i = 0; i < npcs.Count; i++)
-                {
-                    if (npcs[i].IsAlive)
-                    {
-                        double newHealth = npcs[i].Health - 8;
-                        if (newHealth < 0) newHealth = 0;
-                        npcs[i].Health = newHealth;
-                    }
-                }
+                // Fallback for resources not in catalog: match by name constants
+                if (res.Name == ResourceNames.Food) foodResources.Add((res, 20));
+                else if (res.Name == ResourceNames.Water) waterResources.Add((res, 30));
             }
         }
 
-        return result;
+        ConsumeResourceGroup(result, npcs, alive, foodResources, BasicNeedId.Food,
+            "Голод наносит урон!", 5);
+        ConsumeResourceGroup(result, npcs, alive, waterResources, BasicNeedId.Water,
+            "Обезвоживание наносит урон!", 8);
+    }
+
+    private static void ConsumeResourceGroup(
+        DayResult result, List<Npc> npcs, int alive,
+        List<(Resource res, double restore)> entries,
+        BasicNeedId needId, string emptyAlert, double healthPenalty)
+    {
+        if (entries.Count == 0) return;
+
+        bool anyAvailable = false;
+        for (int i = 0; i < entries.Count; i++)
+            if (entries[i].res.Amount > 0) { anyAvailable = true; break; }
+
+        if (anyAvailable)
+        {
+            int remaining = alive;
+            for (int i = 0; i < entries.Count && remaining > 0; i++)
+            {
+                Resource res = entries[i].res;
+                if (res.Amount <= 0) continue;
+
+                double consume = Math.Min(res.Amount, remaining);
+                res.Amount -= consume;
+                remaining -= (int)consume;
+
+                int fed = (int)consume;
+                int fedSoFar = 0;
+                for (int j = 0; j < npcs.Count && fedSoFar < fed; j++)
+                {
+                    if (npcs[j].IsAlive)
+                    {
+                        NeedSystem.SatisfyNeed(npcs[j], needId, entries[i].restore);
+                        fedSoFar++;
+                    }
+                }
+
+                result.Logs.Add(($"{res.Name}: -{consume:F0} ед.  Осталось: {res.Amount:F0}", false));
+            }
+        }
+        else
+        {
+            string resName = entries.Count > 0 ? entries[0].res.Name : needId.ToString();
+            result.Logs.Add(($"{resName}: {emptyAlert}", true));
+            for (int i = 0; i < npcs.Count; i++)
+            {
+                if (npcs[i].IsAlive)
+                    npcs[i].Health = Math.Max(0, npcs[i].Health - healthPenalty);
+            }
+        }
     }
 }

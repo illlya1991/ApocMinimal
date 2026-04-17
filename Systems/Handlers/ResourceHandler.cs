@@ -16,8 +16,9 @@ public class ResourceHandler : BaseActionHandler
 {
     private readonly Random _random;
 
-    public ResourceHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction)
-        : base(db, rnd, logAction)
+    public ResourceHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction,
+        Dictionary<string, double> config)
+        : base(db, rnd, logAction, config)
     {
         _random = rnd;
     }
@@ -189,16 +190,10 @@ public class ResourceHandler : BaseActionHandler
         double baseAmount = target.Faith * 0.3;
 
         // Модификатор уровня последователя
-        double followerMod = target.FollowerLevel switch
+        double followerMod = GetConfig($"resource_avail_level_{target.FollowerLevel}", target.FollowerLevel switch
         {
-            0 => 0.3,
-            1 => 0.5,
-            2 => 0.7,
-            3 => 1.0,
-            4 => 1.3,
-            5 => 1.6,
-            _ => 1.0
-        };
+            0 => 0.3, 1 => 0.5, 2 => 0.7, 3 => 1.0, 4 => 1.3, 5 => 1.6, _ => 1.0
+        });
 
         // Модификатор доверия
         double trustMod = target.Trust / 100.0;

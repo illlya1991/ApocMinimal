@@ -22,6 +22,8 @@ public class GameViewModel : INotifyPropertyChanged
     private List<Resource> _resources = new();
     private List<Quest> _quests = new();
     private List<Location> _locations = new();
+    private Dictionary<string, ResourceCatalogEntry> _catalog = new();
+    private Dictionary<string, double> _gameConfig = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -78,8 +80,8 @@ public class GameViewModel : INotifyPropertyChanged
     public GameViewModel(DatabaseManager db, Action<string, string> logAction)
     {
         _db = db;
-        _actionManager = new ActionManager(_db, _rnd, logAction);
         LoadData();
+        _actionManager = new ActionManager(_db, _rnd, logAction, _catalog, _gameConfig);
         ActionGroups = _actionManager.GetGroups();
     }
 
@@ -106,6 +108,13 @@ public class GameViewModel : INotifyPropertyChanged
         _resources = _db.GetAllResources();
         _quests = _db.GetAllQuests();
         _locations = _db.GetAllLocations();
+
+        var catalogList = _db.GetResourceCatalog();
+        _catalog = new Dictionary<string, ResourceCatalogEntry>(catalogList.Count);
+        for (int i = 0; i < catalogList.Count; i++)
+            _catalog[catalogList[i].Name] = catalogList[i];
+
+        _gameConfig = _db.GetGameConfig();
 
         CurrentDay = _player.CurrentDay;
         FaithPoints = _player.FaithPoints;
@@ -150,7 +159,7 @@ public class GameViewModel : INotifyPropertyChanged
         _player.CurrentDay++;
         _player.PlayerActionsToday = 0;
 
-        var dayResult = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd);
+        var dayResult = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd, _catalog);
 
         foreach (var (npc, q) in dayResult.QuestRewards)
         {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ApocMinimal.Models.PersonData;
@@ -7,40 +7,37 @@ using ApocMinimal.Models.ResourceData;
 
 namespace ApocMinimal.Systems.Handlers;
 
-/// <summary>
-/// Базовий клас для всіх обробників дій
-/// </summary>
 public abstract class BaseActionHandler
 {
     protected Database.DatabaseManager _db;
     protected Random _rnd;
-
-    // Делегат для логирования
     protected Action<string, string>? _logAction;
+    protected Dictionary<string, double> _config;
 
     protected BaseActionHandler(Database.DatabaseManager db, Random rnd)
     {
         _db = db;
         _rnd = rnd;
+        _config = new Dictionary<string, double>();
     }
 
-    // Конструктор с возможностью логирования
     protected BaseActionHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction)
     {
         _db = db;
         _rnd = rnd;
         _logAction = logAction;
+        _config = new Dictionary<string, double>();
     }
 
-    /// <summary>
-    /// Виконати дію
-    /// </summary>
-    /// <param name="parameters">Словник параметрів (ключ = ParamKey, значення = обране значення)</param>
-    /// <param name="player">Гравець</param>
-    /// <param name="npcs">Список NPC</param>
-    /// <param name="resources">Список ресурсів</param>
-    /// <param name="quests">Список квестів</param>
-    /// <returns>Результат виконання (текст для логу)</returns>
+    protected BaseActionHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction,
+        Dictionary<string, double> config)
+    {
+        _db = db;
+        _rnd = rnd;
+        _logAction = logAction;
+        _config = config;
+    }
+
     public abstract string Execute(
         Dictionary<string, object> parameters,
         Player player,
@@ -48,33 +45,20 @@ public abstract class BaseActionHandler
         List<Resource> resources,
         List<Quest> quests);
 
-    /// <summary>
-    /// Вивести повідомлення в лог
-    /// </summary>
     protected void Log(string text, string color)
     {
         _logAction?.Invoke(text, color);
     }
 
-    /// <summary>
-    /// Отримати NPC за ID
-    /// </summary>
-    protected Npc? GetNpcById(List<Npc> npcs, int id)
-    {
-        return npcs.FirstOrDefault(n => n.Id == id);
-    }
+    protected double GetConfig(string key, double fallback) =>
+        _config.TryGetValue(key, out var v) ? v : fallback;
 
-    /// <summary>
-    /// Отримати ресурс за назвою
-    /// </summary>
-    protected Resource? GetResourceByName(List<Resource> resources, string name)
-    {
-        return resources.FirstOrDefault(r => r.Name == name);
-    }
+    protected Npc? GetNpcById(List<Npc> npcs, int id) =>
+        npcs.FirstOrDefault(n => n.Id == id);
 
-    /// <summary>
-    /// Форматувати шаблон з підстановкою значень
-    /// </summary>
+    protected Resource? GetResourceByName(List<Resource> resources, string name) =>
+        resources.FirstOrDefault(r => r.Name == name);
+
     protected string FormatTemplate(string template, Dictionary<string, object> values)
     {
         var result = template;

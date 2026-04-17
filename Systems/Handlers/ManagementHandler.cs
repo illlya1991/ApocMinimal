@@ -14,8 +14,9 @@ namespace ApocMinimal.Systems.Handlers;
 /// </summary>
 public class ManagementHandler : BaseActionHandler
 {
-    public ManagementHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction)
-        : base(db, rnd, logAction) { }
+    public ManagementHandler(Database.DatabaseManager db, Random rnd, Action<string, string> logAction,
+        Dictionary<string, double> config)
+        : base(db, rnd, logAction, config) { }
 
     public override string Execute(
         Dictionary<string, object> parameters,
@@ -118,20 +119,12 @@ public class ManagementHandler : BaseActionHandler
 
     private double CalculateUpgradeCost(Npc target)
     {
-        // Базовая стоимость
-        double baseCost = target.FollowerLevel switch
+        double baseCost = GetConfig($"follower_upgrade_cost_{target.FollowerLevel}", target.FollowerLevel switch
         {
-            0 => 50,
-            1 => 100,
-            2 => 200,
-            3 => 400,
-            4 => 800,
-            _ => 1000
-        };
+            0 => 50, 1 => 100, 2 => 200, 3 => 400, 4 => 800, _ => 1000
+        });
 
-        // Модификатор доверия (чем выше доверие, тем дешевле)
-        double trustDiscount = 1.0 - (target.Trust / 200.0); // Максимум 0.5 (50% скидка)
-
+        double trustDiscount = 1.0 - (target.Trust / 200.0);
         return Math.Max(10, baseCost * trustDiscount);
     }
 

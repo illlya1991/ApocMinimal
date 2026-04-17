@@ -75,7 +75,7 @@ public class Npc
         get
         {
             for (int i = 0; i < Needs.Count; i++)
-                if (Needs[i].Name == "Еда") return Needs[i].Value;
+                if (Needs[i].Id == (int)BasicNeedId.Food) return Needs[i].Value;
             return 0;
         }
     }
@@ -86,7 +86,7 @@ public class Npc
         get
         {
             for (int i = 0; i < Needs.Count; i++)
-                if (Needs[i].Name == "Вода") return Needs[i].Value;
+                if (Needs[i].Id == (int)BasicNeedId.Water) return Needs[i].Value;
             return 0;
         }
     }
