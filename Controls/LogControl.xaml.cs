@@ -54,6 +54,18 @@ public partial class LogControl : UserControl
     }
 
     /// <summary>
+    /// Свернуть текущий (последний) день
+    /// </summary>
+    public void CollapseCurrentDay()
+    {
+        if (_currentDay?.ContentPanel != null)
+        {
+            _currentDay.ContentPanel.Visibility = Visibility.Collapsed;
+            UpdateButtonArrow(_currentDay.HeaderButton!, false);
+        }
+    }
+
+    /// <summary>
     /// Начать новый день
     /// </summary>
     public void NewDay(string header)
@@ -85,6 +97,9 @@ public partial class LogControl : UserControl
         dayContainer.Child = new StackPanel();
         ((StackPanel)dayContainer.Child).Children.Add(headerButton);
         ((StackPanel)dayContainer.Child).Children.Add(dayContent);
+
+        // Collapse previous day before adding new one
+        CollapseCurrentDay();
 
         LogStackPanel.Children.Add(dayContainer);
 
