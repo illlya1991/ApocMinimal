@@ -161,10 +161,24 @@ public class GameViewModel : INotifyPropertyChanged
 
         var dayResult = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd, _catalog);
 
+        // NPC actions log
+        foreach (var npcResult in dayResult.NpcResults)
+        {
+            logAction($"── {npcResult.Npc.Name} ──", "#58a6ff");
+            foreach (var entry in npcResult.Actions)
+                logAction($"  [{entry.Time}] {entry.Text}", entry.IsAlert ? "#f87171" : entry.Color);
+        }
+
+        // System logs (resources, leader bonus, needs, injuries)
+        foreach (var (text, isAlert) in dayResult.Logs)
+            logAction(text, isAlert ? "#f87171" : "#8b949e");
+
+        // Quest rewards
         foreach (var (npc, q) in dayResult.QuestRewards)
         {
             var res = _resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
             if (res != null) res.Amount += q.RewardAmount;
+            logAction($"{npc.Name} выполнил «{q.Title}» → +{q.RewardAmount:F0} {res?.Name}", "#22c55e");
         }
 
         _quests.AddRange(dayResult.NewQuests);

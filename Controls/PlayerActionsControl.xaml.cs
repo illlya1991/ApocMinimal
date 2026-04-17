@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
 using ApocMinimal.Models.UIData;
@@ -256,11 +257,12 @@ public partial class PlayerActionsControl : UserControl
 
             UIElement control = param.ParamType?.Name switch
             {
-                "Npc" => BuildNpcComboBox(param),
-                "Resource" => BuildResourceComboBox(param),
-                "Number" => BuildNumberBox(param),
+                "Npc"          => BuildNpcComboBox(param),
+                "Resource"     => BuildResourceComboBox(param),
+                "Technique"    => BuildTechniqueComboBox(param),
+                "Number"       => BuildNumberBox(param),
                 "NumberSlider" => BuildNumberBox(param),
-                "Text" => BuildTextBox(param),
+                "Text"         => BuildTextBox(param),
                 _ => new TextBlock { Text = $"Тип: {param.ParamType?.Name}", Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f87171")! }
             };
 
@@ -283,6 +285,16 @@ public partial class PlayerActionsControl : UserControl
         var combo = new ComboBox { Style = (Style)FindResource("LightCombo"), Tag = param.ParamKey };
         foreach (var res in _viewModel.Resources)
             combo.Items.Add(res.Name);
+        if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+        _dynamicComboBoxes.Add(combo);
+        return combo;
+    }
+
+    private ComboBox BuildTechniqueComboBox(PlayerActionParam param)
+    {
+        var combo = new ComboBox { Style = (Style)FindResource("LightCombo"), Tag = param.ParamKey };
+        foreach (var tech in _viewModel.UnlockedTechniques)
+            combo.Items.Add(tech.Name);
         if (combo.Items.Count > 0) combo.SelectedIndex = 0;
         _dynamicComboBoxes.Add(combo);
         return combo;
@@ -388,11 +400,12 @@ public partial class PlayerActionsControl : UserControl
 
             object? value = param.ParamType?.Name switch
             {
-                "Npc" => GetSelectedNpc(control),
-                "Resource" => GetSelectedResource(control),
-                "Number" => GetNumberValue(control),
+                "Npc"          => GetSelectedNpc(control),
+                "Resource"     => GetSelectedResource(control),
+                "Technique"    => GetSelectedTechnique(control),
+                "Number"       => GetNumberValue(control),
                 "NumberSlider" => GetNumberValue(control),
-                "Text" => GetTextValue(control),
+                "Text"         => GetTextValue(control),
                 _ => null
             };
 
@@ -444,6 +457,16 @@ public partial class PlayerActionsControl : UserControl
         {
             var name = combo.SelectedItem.ToString();
             return _viewModel.Resources.FirstOrDefault(r => r.Name == name);
+        }
+        return null;
+    }
+
+    private Technique? GetSelectedTechnique(FrameworkElement control)
+    {
+        if (control is ComboBox combo && combo.SelectedItem != null)
+        {
+            var name = combo.SelectedItem.ToString();
+            return _viewModel.UnlockedTechniques.FirstOrDefault(t => t.Name == name);
         }
         return null;
     }
