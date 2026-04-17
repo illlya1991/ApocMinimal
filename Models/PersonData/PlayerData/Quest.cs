@@ -11,7 +11,6 @@ public class Quest
     public QuestSource Source { get; set; }
     public QuestStatus Status { get; set; } = QuestStatus.Available;
 
-    /// <summary>ID of NPC assigned to this quest (0 = unassigned).</summary>
     public int AssignedNpcId { get; set; }
 
     public int DaysRequired { get; set; } = 3;
@@ -19,14 +18,22 @@ public class Quest
     public int RewardResourceId { get; set; }
     public double RewardAmount { get; set; }
 
-    /// <summary>Faith cost for player to unlock this quest (0 = free).</summary>
     public double FaithCost { get; set; }
 
-    /// <summary>Required minimum NPC stat for auto-assignment (StatId → minValue, 0 = any).</summary>
     public Dictionary<int, double> RequiredStats { get; set; } = new();
 
     public QuestType QuestType { get; set; } = QuestType.OneTime;
     public int LibraryId { get; set; } = 0;
+    public CompleteType CompleteType { get; set; } = CompleteType.Time;
+    public double CompleteProgress { get; set; } = 0;
+    public double CompleteTarget { get; set; } = 0;
+    public int DayTaken { get; set; } = 0;
+    public RewardType RewardType { get; set; } = RewardType.Resource;
+    public string RewardTechnique { get; set; } = "";
+
+    public double CompletionPercent => CompleteType == CompleteType.Time
+        ? (DaysRequired > 0 ? (1.0 - (double)DaysRemaining / DaysRequired) * 100 : 0)
+        : (CompleteTarget > 0 ? CompleteProgress / CompleteTarget * 100 : 0);
 }
 
 public static class QuestTemplates

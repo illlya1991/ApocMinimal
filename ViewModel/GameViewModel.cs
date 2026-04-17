@@ -107,6 +107,7 @@ public class GameViewModel : INotifyPropertyChanged
     public List<PlayerLibraryEntry> PurchasedQuests => _playerLibrary;
     public List<Quest> PublishedQuests => _quests.Where(q => q.Status == QuestStatus.Available).ToList();
     public List<Quest> CompletedQuests => _quests.Where(q => q.Status == QuestStatus.Completed).ToList();
+    public List<QuestHistoryEntry> QuestHistory => _db.GetQuestHistory(_db.CurrentSaveId);
 
     private void LoadData()
     {
@@ -138,29 +139,61 @@ public class GameViewModel : INotifyPropertyChanged
         _playerLibrary = _db.GetPlayerLibrary(_db.CurrentSaveId);
     }
 
-    public string BuyQuest(QuestCatalogEntry entry)
+    public string BuyQuest(QuestCatalogEntry entry, QuestType type)
     {
-        if (_player.FaithPoints < entry.OvCost)
-            return $"Недостаточно ОВ (нужно {entry.OvCost:F0}, есть {_player.FaithPoints:F0})";
-
-        bool alreadyOwned = false;
-        for (int i = 0; i < _playerLibrary.Count; i++)
+        double price = type switch
         {
-            if (_playerLibrary[i].CatalogId == entry.Id && entry.QuestType == QuestType.OneTime)
+            QuestType.OneTime => entry.PriceOneTime ?? 0,
+            QuestType.Repeatable => entry.PriceRepeatable ?? 0,
+            QuestType.Eternal => entry.PriceEternal ?? 0,
+            _ => 0
+        };
+
+        double? priceNullable = type switch
+        {
+            QuestType.OneTime => entry.PriceOneTime,
+            QuestType.Repeatable => entry.PriceRepeatable,
+            QuestType.Eternal => entry.PriceEternal,
+            _ => null
+        };
+
+        if (priceNullable == null)
+            return "Этот тип покупки недоступен для данного квеста";
+
+        if (_player.FaithPoints < price)
+            return $"Недостаточно ОВ (нужно {price:F0}, есть {_player.FaithPoints:F0})";
+
+        if (type == QuestType.OneTime)
+        {
+            for (int i = 0; i < _playerLibrary.Count; i++)
             {
-                alreadyOwned = true;
-                break;
+                if (_playerLibrary[i].CatalogId == entry.Id && _playerLibrary[i].QuestType == QuestType.OneTime)
+                    return "Этот квест уже куплен";
             }
         }
-        if (alreadyOwned)
-            return "Этот квест уже куплен";
 
-        _player.FaithPoints -= entry.OvCost;
+        if (type == QuestType.Eternal)
+        {
+            for (int i = 0; i < _playerLibrary.Count; i++)
+            {
+                if (_playerLibrary[i].CatalogId == entry.Id && _playerLibrary[i].QuestType == QuestType.Eternal)
+                    return "Вечный квест уже куплен";
+            }
+        }
+
+        _player.FaithPoints -= price;
         _db.SavePlayer(_player);
-        _db.PurchaseQuest(_db.CurrentSaveId, entry);
+        _db.PurchaseQuest(_db.CurrentSaveId, entry, type);
         ReloadQuestLibrary();
         FaithPoints = _player.FaithPoints;
-        return $"Куплен квест «{entry.Title}» за {entry.OvCost:F0} ОВ";
+        string typeLabel = type switch
+        {
+            QuestType.OneTime => "×1",
+            QuestType.Repeatable => "×10",
+            QuestType.Eternal => "∞",
+            _ => ""
+        };
+        return $"Куплен квест «{entry.Title}» [{typeLabel}] за {price:F0} ОВ";
     }
 
     public string PublishQuest(PlayerLibraryEntry entry)
@@ -185,13 +218,18 @@ public class GameViewModel : INotifyPropertyChanged
             Description = catalog.Description,
             Source = QuestSource.Player,
             Status = QuestStatus.Available,
-            DaysRequired = catalog.DaysRequired,
-            DaysRemaining = catalog.DaysRequired,
+            DaysRequired = catalog.CompleteDays,
+            DaysRemaining = catalog.CompleteDays,
             RewardResourceId = rewardResId,
             RewardAmount = catalog.RewardAmount,
             FaithCost = 0,
-            QuestType = catalog.QuestType,
+            QuestType = entry.QuestType,
             LibraryId = entry.Id,
+            CompleteType = catalog.CompleteType,
+            CompleteTarget = catalog.CompleteAmount,
+            DayTaken = CurrentDay,
+            RewardType = catalog.RewardType,
+            RewardTechnique = catalog.RewardTechnique,
         };
 
         _db.SaveQuestFull(quest);
@@ -235,6 +273,8 @@ public class GameViewModel : INotifyPropertyChanged
         for (int i = 0; i < completed.Count; i++)
         {
             var quest = completed[i];
+            string rewardGiven = "";
+
             if (quest.RewardResourceId > 0 && quest.RewardAmount > 0)
             {
                 var res = _resources.FirstOrDefault(r => r.Id == quest.RewardResourceId);
@@ -242,7 +282,8 @@ public class GameViewModel : INotifyPropertyChanged
                 {
                     res.Amount += quest.RewardAmount;
                     _db.SaveResource(res);
-                    logs.Add($"Получено: +{quest.RewardAmount:F0} {res.Name} за «{quest.Title}»");
+                    rewardGiven = $"+{quest.RewardAmount:F0} {res.Name}";
+                    logs.Add($"Получено: {rewardGiven} за «{quest.Title}»");
                 }
             }
             else
@@ -250,13 +291,28 @@ public class GameViewModel : INotifyPropertyChanged
                 logs.Add($"Принято: «{quest.Title}»");
             }
 
+            var npc = _npcs.FirstOrDefault(n => n.Id == quest.AssignedNpcId);
+            var historyEntry = new QuestHistoryEntry
+            {
+                SaveId = _db.CurrentSaveId,
+                CatalogId = quest.LibraryId > 0
+                    ? (_playerLibrary.FirstOrDefault(e => e.Id == quest.LibraryId)?.CatalogId ?? 0)
+                    : 0,
+                QuestTitle = quest.Title,
+                NpcName = npc?.Name ?? "",
+                DayTaken = quest.DayTaken > 0 ? quest.DayTaken : CurrentDay,
+                DayCompleted = CurrentDay,
+                RewardGiven = rewardGiven,
+            };
+            _db.SaveQuestHistory(historyEntry);
+
             if (quest.LibraryId > 0)
             {
                 var entry = _playerLibrary.FirstOrDefault(e => e.Id == quest.LibraryId);
                 if (entry != null && entry.Catalog != null)
                 {
                     entry.TimesCompleted++;
-                    var qt = entry.Catalog.QuestType;
+                    var qt = entry.QuestType;
                     if (qt == QuestType.Repeatable || qt == QuestType.Eternal)
                     {
                         if (entry.PublishesLeft != -1)

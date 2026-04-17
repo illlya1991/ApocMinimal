@@ -60,7 +60,7 @@
         <DockPanel>
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="#161b22">
                 <ToggleButton x:Name="TabActions" Content="Действия" Style="{StaticResource TabBtn}" IsChecked="True" Click="Tab_Click"/>
-                <ToggleButton x:Name="TabQuests" Content="Квесты" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+                <ToggleButton x:Name="TabQuests" Content="Квесты" Style="{StaticResource TabBtn}" Click="Tab_Click" Visibility="Collapsed"/>
                 <ToggleButton x:Name="TabAltar" Content="Алтарь" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
                 <ToggleButton x:Name="TabMap" Content="Карта" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
             </StackPanel>
