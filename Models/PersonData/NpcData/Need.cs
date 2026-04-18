@@ -7,43 +7,44 @@ public class Need
     public int Id { get; set; }
     public string Name { get; set; } = "";
     public NeedCategory Category { get; set; }
-    public int Level { get; set; } = 1;   // 1–5: сила потребности
-    public double Value { get; set; }        // 0–100: текущий уровень (выше = острее)
-    public double Satisfaction { get; set; } = 100; // 0–100
+    public int Level { get; set; } = 3;     // 1–5: интенсивность потребности
+    public double Value { get; set; }        // 0–100: текущая неудовлетворённость (выше = острее)
+    public double Satisfaction { get; set; } = 100;
 
-    public bool IsCritical => Value >= 80;
-    public bool IsUrgent => Value >= 60;
+    public bool IsCritical  => Value >= 80;
+    public bool IsUrgent    => Value >= 60;
     public bool IsSatisfied => Value <= 20;
 
     public void Decay(double amount)
     {
-        Value = Math.Clamp(Value + amount * Level, 0, 100);
+        Value        = Math.Clamp(Value + amount * Level, 0, 100);
         Satisfaction = 100 - Value;
     }
 
     public void Satisfy(double amount)
     {
-        Value = Math.Clamp(Value - amount, 0, 100);
+        Value        = Math.Clamp(Value - amount, 0, 100);
         Satisfaction = 100 - Value;
     }
 }
 
+// ── Базовые 10 потребностей ───────────────────────────────────────────────────
+
 /// <summary>
-/// Stable IDs for the 10 basic needs.
-/// Value matches the 1-based index in BasicNeeds.Names and the Need.Id assigned in InitialiseNeeds.
+/// Stable IDs 1–10 for basic needs. Match 1-based index in BasicNeeds.Names.
 /// </summary>
 public enum BasicNeedId
 {
-    Food = 1,
-    Water = 2,
-    Sleep = 3,
-    Heat = 4,
-    Hygiene = 5,
-    Toilet = 6,
-    Safety = 7,
-    Rest = 8,
-    Health = 9,
-    Social = 10,
+    Food            = 1,  // Еда              — ресурс (FoodRestore)
+    Water           = 2,  // Вода             — ресурс (WaterRestore)
+    Sleep           = 3,  // Сон              — действие Sleep
+    Heat            = 4,  // Тепло            — жильё + одежда
+    Hygiene         = 5,  // Гигиена          — место + вода + действие + предмет
+    Safety          = 6,  // Безопасность     — авто: барьер + жильё + часовые
+    RestHealth      = 7,  // Отдых и здоровье — действия + предметы
+    Social          = 8,  // Общение          — другие НПС + действия
+    SexFamily       = 9,  // Секс / Семья     — другие НПС + действия
+    SelfImprovement = 10, // Самосовершенств. — предметы + действия
 }
 
 public static class BasicNeeds
@@ -51,41 +52,51 @@ public static class BasicNeeds
     public static readonly string[] Names =
     {
         "Еда", "Вода", "Сон", "Тепло", "Гигиена",
-        "Туалет", "Безопасность", "Отдых", "Здоровье", "Социальность"
+        "Безопасность", "Отдых и здоровье", "Общение", "Секс/Семья", "Самосовершенствование"
     };
 
-    /// <summary>Display name for a known basic need ID.</summary>
     public static string NameOf(BasicNeedId id) => Names[(int)id - 1];
 }
 
+// ── Специальные 10 потребностей (качественное усиление базовых) ──────────────
+
+/// <summary>
+/// IDs 11–20 for special (quality-upgrade) needs, one per basic need.
+/// Not every NPC has all of them.
+/// </summary>
+public enum SpecialNeedId
+{
+    Gourmet         = 11, // Гурман         ← Еда        (горячая многокомп. еда)
+    Sommelier       = 12, // Сомелье        ← Вода       (алкоголь / напитки)
+    LightSleeper    = 13, // Чуткий сон     ← Сон        (кровать, тихая комната)
+    Softie          = 14, // Неженка        ← Тепло      (комфортная t°, обогрев)
+    Aesthete        = 15, // Эстет          ← Гигиена    (косметика, парфюм)
+    Paranoid        = 16, // Параноик       ← Безопасность (личная охрана)
+    Hedonist        = 17, // Гедонист       ← Отдых/Здор. (спа, массаж, премиум)
+    SocialLion      = 18, // Светский лев   ← Общение    (статусные НПС, события)
+    Romantic        = 19, // Романтик       ← Секс/Семья (романтика, подарки)
+    Perfectionist   = 20, // Перфекционист  ← Самосов.   (лучшие инструменты)
+}
+
+public static class SpecialNeedsData
+{
+    public static readonly (int Id, string Name, int LinkedBasicId)[] All =
+    {
+        ((int)SpecialNeedId.Gourmet,       "Гурман",        (int)BasicNeedId.Food),
+        ((int)SpecialNeedId.Sommelier,     "Сомелье",       (int)BasicNeedId.Water),
+        ((int)SpecialNeedId.LightSleeper,  "Чуткий сон",    (int)BasicNeedId.Sleep),
+        ((int)SpecialNeedId.Softie,        "Неженка",       (int)BasicNeedId.Heat),
+        ((int)SpecialNeedId.Aesthete,      "Эстет",         (int)BasicNeedId.Hygiene),
+        ((int)SpecialNeedId.Paranoid,      "Параноик",      (int)BasicNeedId.Safety),
+        ((int)SpecialNeedId.Hedonist,      "Гедонист",      (int)BasicNeedId.RestHealth),
+        ((int)SpecialNeedId.SocialLion,    "Светский лев",  (int)BasicNeedId.Social),
+        ((int)SpecialNeedId.Romantic,      "Романтик",      (int)BasicNeedId.SexFamily),
+        ((int)SpecialNeedId.Perfectionist, "Перфекционист", (int)BasicNeedId.SelfImprovement),
+    };
+}
+
+// Совместимость: старый класс SpecialNeeds используется в ряде мест
 public static class SpecialNeeds
 {
-    public static readonly string[] All =
-    {
-        // 1–30 (оригинальные)
-        "Алкоголь", "Комфорт", "Развлечения", "Секс", "Парикмахер",
-        "Техника", "Книги", "Медитация", "Спорт", "Музыка",
-        "Рисование", "Кулинария", "Садоводство", "Рыбалка", "Охота",
-        "Коллекционирование", "Путешествия", "Адреналин", "Признание", "Одиночество",
-        "Азартные игры", "Шопинг", "Ритуалы", "Наставничество", "Исследования",
-        "Танцы", "Пение", "Ремесло", "Химия", "Астрология",
-        // 31–50 (вредные привычки и зависимости)
-        "Курение", "Наркотики", "Кофе", "Сладкое", "Острая еда",
-        "Азарт", "Драки", "Власть", "Контроль", "Доминирование",
-        "Подчинение", "Провокации", "Скандалы", "Месть", "Зависть",
-        "Паразитизм", "Накопительство", "Тайны", "Манипуляции", "Ложь",
-        // 51–70 (социальные и психологические)
-        "Дружба", "Любовь", "Семья", "Забота о других", "Защита слабых",
-        "Справедливость", "Честность", "Уважение", "Слава", "Лидерство",
-        "Самопожертвование", "Исповедь", "Прощение", "Ностальгия", "Традиции",
-        "Порядок", "Чистота", "Эстетика", "Письмо-дневник", "Самоанализ",
-        // 71–85 (духовные и интеллектуальные)
-        "Молитва", "Созерцание", "Природа", "Тишина", "Философия",
-        "Изобретательство", "Торговля", "Богатство", "Знания", "Свобода",
-        "Независимость", "Справедливая борьба", "Победа", "Соревнование", "Риск",
-        // 86–100 (физические и прочие)
-        "Физический труд", "Рукоделие", "Плавание", "Бег", "Боевые искусства",
-        "Сон на природе", "Животные", "Дети", "Строительство", "Разрушение",
-        "Поджоги", "Коллекции оружия", "Tatуировки", "Экстаз", "Безумие",
-    };
+    public static readonly string[] All = SpecialNeedsData.All.Select(x => x.Name).ToArray();
 }

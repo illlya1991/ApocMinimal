@@ -78,8 +78,8 @@ public static class NpcGenerator
         var dream = NpcGoals.Dreams[rnd.Next(NpcGoals.Dreams.Length)];
         var desire = NpcGoals.Desires[rnd.Next(NpcGoals.Desires.Length)];
 
-        // Stats: start at 60-90 base, then boost profession-relevant ones
-        var stats = new Models.StatisticsData.Statistics(rnd.Next(60, 91));
+        // Stats: start at 70-120 base, then boost profession-relevant ones
+        var stats = new Models.StatisticsData.Statistics(rnd.Next(70, 121));
         foreach (int statId in boostedStats)
         {
             var ch = stats.GetByNumber(statId);

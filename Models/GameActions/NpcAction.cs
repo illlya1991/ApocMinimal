@@ -53,7 +53,7 @@ public static class NpcActionCatalog
                 StatGrowthIds=new Dictionary<int, double> { [1]=0.3, [7]=0.2 } },                  // Выносливость, Адаптация
         new NpcAction { Id=3,  Name="Поспать",             Category=ActionCategory.Basic, StaminaCost=0, ActionType=NpcActionType.Sleep,
                 Description="Восстанавливает силы и закрывает потребность во сне.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Сон"] = 12.5, ["Отдых"] = 5 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Сон"] = 12.5, ["Отдых и здоровье"] = 5 },
                 StatGrowthIds=new Dictionary<int, double> { [24]=0.4, [8]=0.3 } },                 // Восстановление энергии, Регенерация
         new NpcAction { Id=4,  Name="Разжечь огонь",       Category=ActionCategory.Basic, StaminaCost=8,
                 Description="Добывает тепло для группы.",
@@ -64,22 +64,22 @@ public static class NpcActionCatalog
                 SatisfiedNeeds=new Dictionary<string, double> { ["Гигиена"] = 30 } },
         new NpcAction { Id=6,  Name="Посетить туалет",     Category=ActionCategory.Basic, StaminaCost=2,
                 Description="Удовлетворяет физиологическую нужду.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Туалет"] = 50 } },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Гигиена"] = 25 } },
         new NpcAction { Id=7,  Name="Осмотреться",         Category=ActionCategory.Basic, StaminaCost=5,
                 Description="Проверяет периметр, снижает тревогу.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Безопасность"] = 20 },
                 StatGrowthIds=new Dictionary<int, double> { [9]=0.3, [19]=0.3 } },                 // Сенсорика, Интуиция
         new NpcAction { Id=8,  Name="Отдохнуть",           Category=ActionCategory.Basic, StaminaCost=0, ActionType=NpcActionType.Rest,
                 Description="Короткий отдых без сна.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Отдых"] = 30 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Отдых и здоровье"] = 30 },
                 StatGrowthIds=new Dictionary<int, double> { [24]=0.2, [4]=0.2 } },                 // Восстановление энергии, Восстановление физ
         new NpcAction { Id=9,  Name="Лечиться",            Category=ActionCategory.Basic, StaminaCost=5,
                 Description="Использует медикаменты для восстановления здоровья.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Здоровье"] = 25 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Отдых и здоровье"] = 25 },
                 StatGrowthIds=new Dictionary<int, double> { [8]=0.4, [4]=0.3 } },                  // Регенерация, Восстановление физ
         new NpcAction { Id=10, Name="Поговорить",          Category=ActionCategory.Basic, StaminaCost=5,
                 Description="Общение с другими выжившими.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Социальность"] = 30 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Общение"] = 30 },
                 StatGrowthIds=new Dictionary<int, double> { [20]=0.5, [18]=0.3 } },                // Социальный интеллект, Гибкость
         new NpcAction { Id=11, Name="Собрать дрова",       Category=ActionCategory.Basic, StaminaCost=12,
                 Description="Заготавливает древесное топливо.",
@@ -107,7 +107,7 @@ public static class NpcActionCatalog
                 StatGrowthIds=new Dictionary<int, double> { [9]=0.5, [6]=0.4, [7]=0.3 } },         // Сенсорика, Ловкость, Адаптация
         new NpcAction { Id=18, Name="Обменяться",          Category=ActionCategory.Basic, StaminaCost=5,
                 Description="Торгует ресурсами с другим NPC.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Социальность"] = 10 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Общение"] = 10 },
                 StatGrowthIds=new Dictionary<int, double> { [20]=0.3, [14]=0.3 } },                // Социальный интеллект, Дедукция
         new NpcAction { Id=19, Name="Тренироваться",       Category=ActionCategory.Basic, StaminaCost=20,
                 Description="Физические упражнения, развивает стат Сила/Выносливость.",
@@ -128,10 +128,11 @@ public static class NpcActionCatalog
                 StatGrowthIds=new Dictionary<int, double> { [16]=0.3, [26]=0.2 } },                // Воля, Концентрация
         new NpcAction { Id=24, Name="Учиться",             Category=ActionCategory.Basic, StaminaCost=6,
                 Description="Читает, слушает опытных, развивает Память/Логику.",
+                SatisfiedNeeds=new Dictionary<string, double> { ["Самосовершенствование"] = 20 },
                 StatGrowthIds=new Dictionary<int, double> { [15]=0.5, [12]=0.5, [17]=0.4 } },      // Интеллект, Память, Обучение
         new NpcAction { Id=25, Name="Перевязать рану",     Category=ActionCategory.Basic, StaminaCost=5,
                 Description="Быстрая медицинская помощь.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Здоровье"] = 15 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Отдых и здоровье"] = 15 },
                 StatGrowthIds=new Dictionary<int, double> { [8]=0.3, [4]=0.2 } },                  // Регенерация, Восстановление физ
         new NpcAction { Id=26, Name="Наблюдать",           Category=ActionCategory.Basic, StaminaCost=4,
                 Description="Следит за окрестностями, пополняет память.",
@@ -141,11 +142,11 @@ public static class NpcActionCatalog
                 StatGrowthIds=new Dictionary<int, double> { [6]=0.3, [9]=0.3, [7]=0.3 } },         // Ловкость, Сенсорика, Адаптация
         new NpcAction { Id=28, Name="Поиграть",            Category=ActionCategory.Basic, StaminaCost=5,
                 Description="Развлечение, снижает напряжение.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Отдых"] = 15 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Отдых и здоровье"] = 15 },
                 StatGrowthIds=new Dictionary<int, double> { [21]=0.2, [18]=0.2 } },                // Творчество, Гибкость
         new NpcAction { Id=29, Name="Помочь соседу",       Category=ActionCategory.Basic, StaminaCost=10,
                 Description="Оказывает помощь другому NPC, повышает Доверие.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Социальность"] = 15 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Общение"] = 15 },
                 StatGrowthIds=new Dictionary<int, double> { [20]=0.4, [18]=0.3 } },                // Социальный интеллект, Гибкость
         new NpcAction { Id=30, Name="Патрулировать",       Category=ActionCategory.Basic, StaminaCost=12,
                 Description="Охраняет территорию.",
@@ -159,14 +160,14 @@ public static class NpcActionCatalog
     {
         new NpcAction { Id=101, Name="Зварить самогон",       Category=ActionCategory.Special, StaminaCost=10,
                 Description="Производит алкоголь.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Алкоголь"] = 40 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Сомелье"] = 40 },
                 RequiredStats=new Dictionary<int, double> { [18] = 40 } },
         new NpcAction { Id=102, Name="Обустроить комфорт",    Category=ActionCategory.Special, StaminaCost=12,
                 Description="Улучшает бытовые условия.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Комфорт"] = 35 } },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Гедонист"] = 35, ["Отдых и здоровье"] = 10 } },
         new NpcAction { Id=103, Name="Организовать развлечение",Category=ActionCategory.Special, StaminaCost=8,
                 Description="Устраивает досуг для группы.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Развлечения"] = 40 } },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Гедонист"] = 25, ["Общение"] = 15 } },
         new NpcAction { Id=104, Name="Медитировать",          Category=ActionCategory.Special, StaminaCost=0, ActionType=NpcActionType.Rest,
                 Description="Глубокое расслабление, восстанавливает чакру.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Медитация"] = 50 },
@@ -186,7 +187,7 @@ public static class NpcActionCatalog
                 RequiredStats=new Dictionary<int, double> { [18] = 30 } },
         new NpcAction { Id=108, Name="Готовить изысканно",    Category=ActionCategory.Special, StaminaCost=10,
                 Description="Кулинарный эксперимент, улучшает качество пищи.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Кулинария"] = 45, ["Еда"] = 15 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Гурман"] = 45, ["Еда"] = 15 },
                 RequiredStats=new Dictionary<int, double> { [18] = 25 } },
         new NpcAction { Id=109, Name="Ухаживать за растениями",Category=ActionCategory.Special, StaminaCost=8,
                 Description="Садоводство, создаёт возобновляемый источник еды.",
@@ -211,7 +212,7 @@ public static class NpcActionCatalog
                 RequiredStats=new Dictionary<int, double> { [7] = 45 } },
         new NpcAction { Id=115, Name="Выступить перед группой",Category=ActionCategory.Special, StaminaCost=7,
                 Description="Речь или демонстрация, повышает Признание.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Признание"] = 50 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Светский лев"] = 50, ["Общение"] = 15 },
                 RequiredStats=new Dictionary<int, double> { [14] = 40 } },
         new NpcAction { Id=116, Name="Побыть в одиночестве",  Category=ActionCategory.Special, StaminaCost=0, ActionType=NpcActionType.Idle,
                 Description="Восстановление без контакта с людьми.",
@@ -225,11 +226,11 @@ public static class NpcActionCatalog
                 RequiredStats=new Dictionary<int, double> { [17] = 35 } },
         new NpcAction { Id=119, Name="Наставлять новичка",    Category=ActionCategory.Special, StaminaCost=10,
                 Description="Обучает другого NPC, повышает Доверие и Признание.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Наставничество"] = 50 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Перфекционист"] = 30, ["Самосовершенствование"] = 20 },
                 RequiredStats=new Dictionary<int, double> { [22] = 40 } },
         new NpcAction { Id=120, Name="Провести исследование", Category=ActionCategory.Special, StaminaCost=8,
                 Description="Научный или технический анализ.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Исследования"] = 50 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Перфекционист"] = 35, ["Самосовершенствование"] = 25 },
                 RequiredStats=new Dictionary<int, double> { [12] = 40, [20] = 35 },
                 StatGrowthIds=new Dictionary<int, double> { [15]=0.6, [13]=0.5, [22]=0.5, [14]=0.4 } }, // Интеллект, Логика, Математика, Дедукция
         new NpcAction { Id=121, Name="Танцевать",             Category=ActionCategory.Special, StaminaCost=10,
@@ -256,16 +257,16 @@ public static class NpcActionCatalog
                 RequiredStats=new Dictionary<int, double> { [11] = 40, [26] = 35 } },
         new NpcAction { Id=127, Name="Прочитать книгу",       Category=ActionCategory.Special, StaminaCost=3,
                 Description="Интеллектуальное чтение.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Книги"] = 50 },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Самосовершенствование"] = 20, ["Перфекционист"] = 25 },
                 RequiredStats=new Dictionary<int, double> { [13] = 25 } },
         new NpcAction { Id=128, Name="Шопинг/Мародёрство",   Category=ActionCategory.Special, StaminaCost=14,
                 Description="Поиск товаров в заброшенных магазинах.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Шопинг"] = 50 } },
         new NpcAction { Id=129, Name="Навестить парикмахера", Category=ActionCategory.Special, StaminaCost=3,
                 Description="Уход за внешностью, повышает уверенность.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Парикмахер"] = 50 } },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Эстет"] = 50, ["Гигиена"] = 10 } },
         new NpcAction { Id=130, Name="Заниматься сексом",     Category=ActionCategory.Special, StaminaCost=10,
                 Description="Интимная близость с партнёром.",
-                SatisfiedNeeds=new Dictionary<string, double> { ["Секс"] = 60 } },
+                SatisfiedNeeds=new Dictionary<string, double> { ["Секс/Семья"] = 40, ["Романтик"] = 30 } },
     };
 }
