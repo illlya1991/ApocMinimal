@@ -77,14 +77,13 @@ public partial class GameWindow : Window
         EndDayBtn.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
         EndDayBtn.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
 
-        // Open new day container FIRST so NPC results go into the current day
-        int nextDay = _viewModel.CurrentDay + 1;
-        LogDay($"═══ ДЕНЬ {nextDay} ══════════════════════");
-
+        // НПС-результаты — в текущий день, ПОТОМ открываем новый
         _viewModel.ProcessEndOfDay(Log);
         _viewModel.SaveAll();
 
         Log($"ОВ: {_viewModel.FaithPoints:F0}  |  Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}", LogEntry.ColorAltarColor);
+
+        LogDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
 
         _viewModel.Refresh();
         RefreshAll();

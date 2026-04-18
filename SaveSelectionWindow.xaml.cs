@@ -1,6 +1,7 @@
-﻿using ApocMinimal.Database;
+using ApocMinimal.Database;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,178 +13,193 @@ namespace ApocMinimal
     {
         public OneSave SelectedSave { get; private set; }
         public bool IsCanceled { get; private set; } = true;
-        private string _mode;
-        private List<OneSave> _saves;
-        private DatabaseManager _db;
+
+        private readonly string _mode;
+        private readonly List<OneSave> _saves;
+        private readonly DatabaseManager _db;
+
+        private OneSave _pendingOverwrite;
+        private OneSave _pendingDelete;
+        private StackPanel _pendingDeleteContainer;
 
         public SaveSelectionWindow(List<OneSave> saves, string mode, DatabaseManager db)
         {
             InitializeComponent();
             _mode = mode;
             _saves = saves;
+            _db = db;
 
-            // Налаштовуємо текст залежно від режиму
             if (mode == "new")
             {
-                TitleText.Text = "Нова гра";
-                DescriptionText.Text = "Оберіть слот для нової гри:";
+                TitleText.Text = "Новая игра";
+                DescriptionText.Text = "Выберите слот для новой игры:";
             }
-            else if (mode == "continue")
+            else
             {
-                TitleText.Text = "Продовжити гру";
-                DescriptionText.Text = "Оберіть збереження для продовження:";
+                TitleText.Text = "Загрузить игру";
+                DescriptionText.Text = "Выберите сохранение для продолжения:";
             }
 
-            // Створюємо кнопки для кожного збереження
             CreateSaveButtons(saves);
-            _db = db;
         }
 
         private void CreateSaveButtons(List<OneSave> saves)
         {
+            SavesPanel.Children.Clear();
+
             if (saves == null || saves.Count == 0)
             {
-                TextBlock noSavesText = new TextBlock
+                SavesPanel.Children.Add(new TextBlock
                 {
-                    Text = "Немає доступних збережень",
-                    Foreground = (Brush)new BrushConverter().ConvertFromString("#888"),
+                    Text = "Нет доступных сохранений",
+                    Foreground = (Brush)new BrushConverter().ConvertFromString("#8b949e"),
                     FontSize = 12,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 20, 0, 0)
-                };
-                SavesPanel.Children.Add(noSavesText);
+                    Margin = new Thickness(0, 16, 0, 0)
+                });
                 return;
             }
 
-            // Створюємо кнопку для кожного збереження
             for (int i = 0; i < saves.Count; i++)
             {
                 var save = saves[i];
-                int saveIndex = i + 1;
+                int idx = i;
+                string slotName = $"Слот {i + 1}";
+                string saveName = Path.GetFileNameWithoutExtension(save._fileName);
 
-                // Створюємо контейнер для кнопки та додаткових елементів
-                StackPanel saveContainer = new StackPanel
-                {
-                    Margin = new Thickness(0, 0, 0, 8)
-                };
+                var container = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
 
-                // Основна кнопка вибору збереження
-                Button saveButton = new Button
+                // Основная кнопка
+                var saveBtn = new Border
                 {
-                    Content = $"Збереження {saveIndex}\n{save._connectionString}",
-                    Height = 55,
-                    FontSize = 13,
-                    Background = save._active ? new SolidColorBrush(Color.FromRgb(42, 96, 64)) :
-                                              new SolidColorBrush(Color.FromRgb(51, 51, 51)),
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
+                    Background = (Brush)new BrushConverter().ConvertFromString(save._active ? "#0f2a1a" : "#111827"),
+                    BorderBrush = (Brush)new BrushConverter().ConvertFromString(save._active ? "#2a6040" : "#1e2a3a"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
                     Cursor = Cursors.Hand,
-                    Tag = save
+                    Padding = new Thickness(14, 10, 14, 10)
                 };
 
-                int index = i;
-                saveButton.Click += (sender, e) => OnSaveSelected(saves[index]);
+                var saveContent = new Grid();
+                saveContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                saveContent.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-                saveContainer.Children.Add(saveButton);
+                var nameBlock = new TextBlock
+                {
+                    Text = slotName,
+                    Foreground = (Brush)new BrushConverter().ConvertFromString(save._active ? "#4ade80" : "#8b949e"),
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold
+                };
 
-                // Якщо режим "continue" та збереження активне - додаємо кнопку видалення
+                var statusBlock = new TextBlock
+                {
+                    Text = save._active ? "активно" : "пусто",
+                    Foreground = (Brush)new BrushConverter().ConvertFromString(save._active ? "#4ade80" : "#555"),
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(statusBlock, 1);
+
+                saveContent.Children.Add(nameBlock);
+                saveContent.Children.Add(statusBlock);
+                saveBtn.Child = saveContent;
+
+                saveBtn.MouseLeftButtonUp += (s, e) => OnSaveSelected(saves[idx]);
+                container.Children.Add(saveBtn);
+
+                // Кнопка удаления (только в режиме continue для активных слотов)
                 if (_mode == "continue" && save._active)
                 {
-                    Button deleteButton = new Button
+                    var delBtn = new Button
                     {
-                        Content = "🗑 Видалити збереження",
-                        Height = 30,
-                        FontSize = 11,
-                        Background = new SolidColorBrush(Color.FromRgb(139, 0, 0)), // Темно-червоний
-                        Foreground = Brushes.White,
+                        Content = "Удалить сохранение",
+                        Height = 26, FontSize = 11,
+                        Background = (Brush)new BrushConverter().ConvertFromString("#1e1010"),
+                        Foreground = (Brush)new BrushConverter().ConvertFromString("#f87171"),
                         BorderThickness = new Thickness(0),
                         Cursor = Cursors.Hand,
                         Margin = new Thickness(0, 2, 0, 0),
-                        Tag = save
+                        Tag = (save, container)
                     };
-                    deleteButton.Click += (sender, e) => OnDeleteSave(saves[index], saveContainer);
-                    saveContainer.Children.Add(deleteButton);
+                    delBtn.Click += (s, e) =>
+                    {
+                        _pendingDelete = saves[idx];
+                        _pendingDeleteContainer = container;
+                        DeleteConfirmText.Text = $"Удалить «{slotName}»? Это действие нельзя отменить.";
+                        DeleteConfirmPanel.Visibility = Visibility.Visible;
+                        ConfirmPanel.Visibility = Visibility.Collapsed;
+                    };
+                    container.Children.Add(delBtn);
                 }
 
-                SavesPanel.Children.Add(saveContainer);
+                SavesPanel.Children.Add(container);
             }
         }
 
         private void OnSaveSelected(OneSave save)
         {
-            if (_mode == "new")
+            if (_mode == "new" && save._active)
             {
-                // Якщо вибрано активне збереження - питаємо про перезапис
-                if (save._active)
-                {
-                    MessageBoxResult result = MessageBox.Show(
-                        $"Збереження {save._connectionString} вже існує та є активним.\n\nБажаєте перезаписати його?",
-                        "Підтвердження перезапису",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        // Перезаписуємо збереження
-                        SelectedSave = save;
-                        IsCanceled = false;
-                        DialogResult = true;
-                        Close();
-                    }
-                    // Якщо No - залишаємось у вікні вибору
-                }
-                else
-                {
-                    // Якщо збереження неактивне - просто вибираємо
-                    SelectedSave = save;
-                    IsCanceled = false;
-                    DialogResult = true;
-                    Close();
-                }
+                _pendingOverwrite = save;
+                int idx = _saves.IndexOf(save) + 1;
+                ConfirmText.Text = $"Слот {idx} уже содержит сохранение. Перезаписать?";
+                ConfirmPanel.Visibility = Visibility.Visible;
+                DeleteConfirmPanel.Visibility = Visibility.Collapsed;
             }
-            else if (_mode == "continue")
+            else
             {
-                // Для продовження - просто вибираємо активне збереження
-                SelectedSave = save;
-                IsCanceled = false;
-                DialogResult = true;
-                Close();
+                Commit(save);
             }
         }
 
-        private void OnDeleteSave(OneSave save, StackPanel container)
+        private void Commit(OneSave save)
         {
-            MessageBoxResult result = MessageBox.Show(
-                $"Ви дійсно хочете видалити збереження {save._connectionString}?\n\nЦю дію не можна буде скасувати!",
-                "Видалення збереження",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            SelectedSave = save;
+            IsCanceled = false;
+            DialogResult = true;
+            Close();
+        }
 
-            if (result == MessageBoxResult.Yes)
+        private void ConfirmYes_Click(object sender, RoutedEventArgs e)
+        {
+            ConfirmPanel.Visibility = Visibility.Collapsed;
+            if (_pendingOverwrite != null) Commit(_pendingOverwrite);
+        }
+
+        private void ConfirmNo_Click(object sender, RoutedEventArgs e)
+        {
+            ConfirmPanel.Visibility = Visibility.Collapsed;
+            _pendingOverwrite = null;
+        }
+
+        private void DeleteYes_Click(object sender, RoutedEventArgs e)
+        {
+            DeleteConfirmPanel.Visibility = Visibility.Collapsed;
+            if (_pendingDelete == null) return;
+            try
             {
-                try
-                {
-                    _db.DeleteSave(save);
-
-                    // Видаляємо контейнер з UI
-                    SavesPanel.Children.Remove(container);
-
-                    // Оновлюємо список збережень (видаляємо з переданого списку)
-                    _saves.Remove(save);
-
-                    // Оновлюємо інформацію, якщо збережень не залишилось
-                    if (_saves.Count == 0)
-                    {
-                        CreateSaveButtons(_saves);
-                    }
-
-                    MessageBox.Show("Збереження успішно видалено!", "Успіх", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Помилка при видаленні: {ex.Message}", "Помилка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                _db.DeleteSave(_pendingDelete);
+                _saves.Remove(_pendingDelete);
+                if (_pendingDeleteContainer != null)
+                    SavesPanel.Children.Remove(_pendingDeleteContainer);
+                if (_saves.Count == 0)
+                    CreateSaveButtons(_saves);
             }
+            catch (Exception ex)
+            {
+                DeleteConfirmText.Text = $"Ошибка: {ex.Message}";
+                DeleteConfirmPanel.Visibility = Visibility.Visible;
+            }
+            _pendingDelete = null;
+            _pendingDeleteContainer = null;
+        }
+
+        private void DeleteNo_Click(object sender, RoutedEventArgs e)
+        {
+            DeleteConfirmPanel.Visibility = Visibility.Collapsed;
+            _pendingDelete = null;
+            _pendingDeleteContainer = null;
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)

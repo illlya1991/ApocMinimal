@@ -4,6 +4,7 @@ using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.ResourceData;
 using ApocMinimal.Systems;
 using System.ComponentModel;
@@ -113,8 +114,11 @@ public class GameViewModel : INotifyPropertyChanged
     {
         _player = _db.GetPlayer()!;
         _npcs = _db.GetAllNpcs();
-        // Миграция: обновить потребности и статы у НПС со старой структурой (< 10 нужд)
-        if (_npcs.Count > 0 && _npcs.All(n => n.Needs.Count < 10))
+        // Миграция: обновить потребности и статы у НПС с устаревшей структурой
+        bool needsMigration = _npcs.Count > 0 && _npcs.Any(n =>
+            n.Needs.Count(nd => nd.Category == NeedCategory.Special) > 5 ||
+            !n.Needs.Any(nd => nd.Name == "Самосовершенствование"));
+        if (needsMigration)
         {
             foreach (var npc in _npcs)
             {
