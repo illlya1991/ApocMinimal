@@ -126,6 +126,24 @@ public static class NpcGenerator
         return npc;
     }
 
+    /// <summary>
+    /// Обновляет Statistics и Needs существующего НПС (сохраняя имя/профессию/личность).
+    /// </summary>
+    public static void RefreshStatsAndNeeds(Npc npc, Random rnd)
+    {
+        var stats = new Models.StatisticsData.Statistics(rnd.Next(70, 121));
+        var profEntry = Array.Find(_professions, p => p.Profession == npc.Profession);
+        foreach (int statId in profEntry.BoostedStats)
+        {
+            var ch = stats.GetByNumber(statId);
+            if (ch != null) ch.AddDeviation(rnd.Next(10, 31));
+        }
+        npc.Stats   = stats;
+        npc.Stamina = Math.Clamp(npc.MaxStamina * (0.5 + rnd.NextDouble() * 0.5), 0, npc.MaxStamina);
+        npc.Chakra  = Math.Clamp(npc.MaxChakra  * (0.3 + rnd.NextDouble() * 0.5), 0, npc.MaxChakra);
+        npc.Needs   = NeedSystem.InitialiseNeeds(npc, rnd);
+    }
+
     /// <summary>Generate a batch of NPCs.</summary>
     public static List<Npc> GenerateBatch(int count, Random rnd, int day = 0)
     {
