@@ -265,7 +265,10 @@ public partial class LogControl : UserControl
         {
             Text = text,
             Foreground = GetBrush(color),
-            Style = Application.Current.FindResource("LogTextStyle") as Style,
+            FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+            FontSize = 12,
+            Margin = new Thickness(0, 1, 0, 1),
+            TextWrapping = TextWrapping.Wrap,
         });
     }
 
