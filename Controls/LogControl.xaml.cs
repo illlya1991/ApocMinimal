@@ -21,6 +21,7 @@ public partial class LogControl : UserControl
     private LogSectionItem? _currentNpcSection;
     private LogSectionItem? _currentSystemSection;
     private bool _routeToNpc = false; // после заголовка "── Имя ──" маршрутизируем в NPC-секцию
+    private int _currentNpcActionCount = 0;
 
     public LogControl()
     {
@@ -117,6 +118,7 @@ public partial class LogControl : UserControl
         _currentNpcSection = null;
         _currentSystemSection = null;
         _routeToNpc = false;
+        _currentNpcActionCount = 0;
 
         ScrollToBottom();
     }
@@ -195,6 +197,7 @@ public partial class LogControl : UserControl
         {
             // Заголовок НПС — создаём новую секцию на каждого НПС, свёрнутую
             _currentNpcSection = null;
+            _currentNpcActionCount = 0;
             _routeToNpc = true;
             string npcTitle = text.Replace("──", "").Trim();
             if (string.IsNullOrWhiteSpace(npcTitle)) npcTitle = "НПС";
@@ -221,6 +224,9 @@ public partial class LogControl : UserControl
         {
             // Строки действий НПС после заголовка — идут в его секцию
             AddTextToSection(_currentNpcSection, text, colorHex);
+            _currentNpcActionCount++;
+            if (_currentNpcSection.HeaderButton != null)
+                _currentNpcSection.HeaderButton.Content = $"🧑 {_currentNpcSection.Title} [{_currentNpcActionCount}]";
         }
         else
         {
@@ -244,6 +250,7 @@ public partial class LogControl : UserControl
         _currentNpcSection = null;
         _currentSystemSection = null;
         _routeToNpc = false;
+        _currentNpcActionCount = 0;
         _autoScroll = true;
     }
 
