@@ -99,7 +99,7 @@ public partial class PlayerActionsControl : UserControl
     {
         AltarInfoLabel.Text =
             $"Уровень: {_viewModel.AltarLevel} / 10\n" +
-            $"Вера: {_viewModel.FaithPoints:F0}\n" +
+            $"ОВ: {_viewModel.FaithPoints:F0}\n" +
             $"Стоимость улучшения: {_viewModel.UpgradeCost:N0} ОВ";
 
         UpgradeAltarBtn.IsEnabled = _viewModel.CanUpgrade;
@@ -588,44 +588,84 @@ public partial class PlayerActionsControl : UserControl
     {
         ShopPanel.Children.Clear();
         var resources = _viewModel.GetShoppableResources();
-        foreach (var entry in resources.Where(e => e.IsLocationNode).OrderBy(e => e.Name))
+        var grouped = resources
+            .Where(e => e.IsLocationNode)
+            .GroupBy(e => e.Quality)
+            .OrderBy(g => g.Key);
+
+        foreach (var group in grouped)
         {
-            bool unlocked = _viewModel.IsShopUnlocked(entry.Name);
-            double price = entry.Quality switch
+            string categoryName = group.Key switch
             {
-                1 => 2, 2 => 3, 3 => 5, 4 => 10, 5 => 20, _ => 5
+                1 => "★ Базовые",
+                2 => "★★ Стандартные",
+                3 => "★★★ Редкие",
+                4 => "★★★★ Эпические",
+                5 => "★★★★★ Уникальные",
+                _ => "Прочее"
             };
 
-            var resName = entry.Name;
-            Button btn;
-            if (!unlocked)
+            ShopPanel.Children.Add(new TextBlock
             {
-                btn = new Button
-                {
-                    Content = $"{resName} — Разблокировать (1 ед. + 5 ОВ)",
-                    Style = (Style)FindResource("ActionBtn"),
-                    IsEnabled = _viewModel.FaithPoints >= 5,
-                    Opacity = _viewModel.FaithPoints >= 5 ? 1.0 : 0.5,
-                    Tag = resName,
-                };
-                btn.Click += ShopUnlockBtn_Click;
-            }
-            else
+                Text = categoryName,
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#8b949e")!,
+                FontSize = 10,
+                Margin = new Thickness(0, 6, 0, 2),
+            });
+
+            foreach (var entry in group.OrderBy(e => e.Name))
             {
-                btn = new Button
+                bool unlocked = _viewModel.IsShopUnlocked(entry.Name);
+                double price = entry.Quality switch
                 {
-                    Content = $"{resName} ×10 → {price:F0} ОВ",
-                    Style = (Style)FindResource("ActionBtn"),
-                    IsEnabled = _viewModel.FaithPoints >= price,
-                    Opacity = _viewModel.FaithPoints >= price ? 1.0 : 0.5,
-                    Tag = resName,
-                    Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1a2a1a")!,
-                    Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
+                    1 => 2, 2 => 3, 3 => 5, 4 => 10, 5 => 20, _ => 5
                 };
-                btn.Click += ShopBuyBtn_Click;
+
+                var resName = entry.Name;
+                Button btn;
+                if (!unlocked)
+                {
+                    btn = new Button
+                    {
+                        Content = $"{resName} — Разблокировать (1 ед. + 5 ОВ)",
+                        Style = (Style)FindResource("ActionBtn"),
+                        IsEnabled = _viewModel.FaithPoints >= 5,
+                        Opacity = _viewModel.FaithPoints >= 5 ? 1.0 : 0.5,
+                        Tag = resName,
+                    };
+                    btn.Click += ShopUnlockBtn_Click;
+                }
+                else
+                {
+                    btn = new Button
+                    {
+                        Content = $"{resName} ×10 → {price:F0} ОВ",
+                        Style = (Style)FindResource("ActionBtn"),
+                        IsEnabled = _viewModel.FaithPoints >= price,
+                        Opacity = _viewModel.FaithPoints >= price ? 1.0 : 0.5,
+                        Tag = resName,
+                        Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1a2a1a")!,
+                        Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
+                    };
+                    btn.Click += ShopBuyBtn_Click;
+                }
+                ShopPanel.Children.Add(btn);
             }
-            ShopPanel.Children.Add(btn);
         }
+    }
+
+    private void TechniquesToggle_Click(object sender, RoutedEventArgs e)
+    {
+        bool expanded = AltarTechPanel.Visibility == Visibility.Visible;
+        AltarTechPanel.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
+        TechniquesToggleBtn.Content = expanded ? "▶ ТЕХНИКИ" : "▼ ТЕХНИКИ";
+    }
+
+    private void ShopToggle_Click(object sender, RoutedEventArgs e)
+    {
+        bool expanded = ShopPanel.Visibility == Visibility.Visible;
+        ShopPanel.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
+        ShopToggleBtn.Content = expanded ? "▶ МАГАЗИН РЕСУРСОВ (ОВ)" : "▼ МАГАЗИН РЕСУРСОВ (ОВ)";
     }
 
     private void ShopUnlockBtn_Click(object sender, RoutedEventArgs e)

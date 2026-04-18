@@ -68,7 +68,7 @@ public class GameViewModel : INotifyPropertyChanged
     }
 
     public string DayDisplay => $"День {CurrentDay}";
-    public string FaithDisplay => $"{FaithPoints:F0} веры";
+    public string FaithDisplay => $"ОВ: {FaithPoints:F0}";
     public string AltarDisplay => $"Алтарь: ур.{AltarLevel}";
     public string ActionsDisplay => $"Действий: {ActionsToday}/{Player.MaxPlayerActionsPerDay}";
     public bool HasActionsLeft => ActionsToday < Player.MaxPlayerActionsPerDay;
@@ -384,7 +384,7 @@ public class GameViewModel : INotifyPropertyChanged
     /// <summary>Process NPC actions for CurrentDay. Does NOT advance the day.</summary>
     public DayResult ProcessNpcDay()
     {
-        var ctx = new ActionContext { Resources = _resources, Locations = _locations };
+        var ctx = new ActionContext { Resources = _resources, Locations = _locations, Npcs = _npcs };
         return GameLoopService.ProcessNpcActionsOnly(_player, _npcs, _rnd, ctx);
     }
 

@@ -94,10 +94,26 @@ public static class GameLoopService
 
     private static void ProcessNpcActions(DayResult result, List<Npc> npcs, Player player, Random rnd, ActionContext? ctx = null)
     {
+        // Initialize social pairing context
+        if (ctx != null)
+        {
+            ctx.Npcs = npcs;
+            ctx.NpcLogs = npcs.ToDictionary(n => n.Id, _ => new List<ActionLogEntry>());
+            ctx.SocialPairedToday = new HashSet<int>();
+        }
+
         for (int i = 0; i < npcs.Count; i++)
         {
             if (!npcs[i].IsAlive) continue;
             List<ActionLogEntry> actions = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx);
+
+            // Merge social action entries injected by other NPCs
+            if (ctx != null && ctx.NpcLogs.TryGetValue(npcs[i].Id, out var external) && external.Count > 0)
+            {
+                actions.AddRange(external);
+                actions.Sort((a, b) => string.Compare(a.Time, b.Time, StringComparison.Ordinal));
+            }
+
             result.NpcResults.Add(new NpcDayResult(npcs[i], actions));
         }
     }

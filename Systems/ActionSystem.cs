@@ -21,9 +21,13 @@ public class ActionLogEntry
 /// </summary>
 public static class ActionSystem
 {
-    private const int MaxHoursPerDay  = 23; // 00:00–22:00 включительно
-    private const int MaxNightHours   = 12; // максимум ночного сна
+    private const int MaxHoursPerDay  = 23;
+    private const int MaxNightHours   = 12;
     private const int MaxSpecialPerDay = 3;
+
+    // Social action IDs that require a partner
+    private static readonly HashSet<int> SocialActionIds = new() { 10, 18, 29, 103, 130 };
+    private static bool IsSocialAction(NpcAction action) => SocialActionIds.Contains(action.Id);
 
     public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day, ActionContext? ctx = null)
     {
@@ -34,7 +38,7 @@ public static class ActionSystem
         int specialActions = 0;
         int hoursUsed = 0;
 
-        // ── Фаза 1: Ночной сон (00:00 до восстановления стамины и потребности сна) ──
+        // ── Фаза 1: Ночной сон ──────────────────────────────────────────────────
         var sleepAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Sleep);
         var sleepNeed = npc.Needs.FirstOrDefault(n => n.Id == (int)BasicNeedId.Sleep);
 
@@ -54,14 +58,13 @@ public static class ActionSystem
             hoursUsed++;
         }
 
-        // ── Фаза 1.5: Выбор локации и путешествие (если есть ресурсы и ctx) ─────
+        // ── Фаза 1.5: Путешествие ───────────────────────────────────────────────
         Location? todayLocation = null;
         if (ctx != null && ctx.Locations.Count > 0)
         {
             todayLocation = PickTravelLocation(npc, ctx.Locations, rnd);
             if (todayLocation != null && todayLocation.Id != npc.LocationId)
             {
-                // Travel costs 1 hour + stamina
                 npc.Stamina = Math.Clamp(npc.Stamina - 8, 0, npc.MaxStamina);
                 npc.LocationId = todayLocation.Id;
                 npc.Remember(new MemoryEntry(day, MemoryType.Discovery, $"[{hoursUsed:00}:00] Путешествие → {todayLocation.Name}"));
@@ -75,18 +78,58 @@ public static class ActionSystem
             }
         }
 
-        // ── Фаза 2: Дневные действия ─────────────────────────────────────────────
+        // ── Фаза 2: Дневные действия ────────────────────────────────────────────
         var restAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Rest);
 
         while (hoursUsed < maxHours)
         {
             int hour = hoursUsed;
+            string? socialPartnerName = null;
 
             NpcAction? action;
             if (npc.Stamina < 10 && restAct != null)
+            {
                 action = restAct;
+            }
             else
+            {
                 action = SelectAction(npc, rnd, ref specialActions);
+
+                // Handle social actions: find partner or re-select
+                if (action != null && IsSocialAction(action) && ctx != null)
+                {
+                    if (ctx.SocialPairedToday.Contains(npc.Id))
+                    {
+                        // Already paired today — pick non-social action
+                        action = SelectNonSocialAction(npc, rnd);
+                    }
+                    else
+                    {
+                        var partner = FindSocialPartner(npc, ctx, rnd);
+                        if (partner != null)
+                        {
+                            ctx.SocialPairedToday.Add(npc.Id);
+                            ctx.SocialPairedToday.Add(partner.Id);
+                            socialPartnerName = partner.Name;
+
+                            // Add matching entry to partner's log
+                            if (!ctx.NpcLogs.ContainsKey(partner.Id))
+                                ctx.NpcLogs[partner.Id] = new List<ActionLogEntry>();
+                            ctx.NpcLogs[partner.Id].Add(new ActionLogEntry
+                            {
+                                Time  = $"{hour:00}:00",
+                                Text  = $"{action.Name} с {npc.Name}",
+                                Color = action.Category == ActionCategory.Special ? "#e879f9" : "#c9d1d9",
+                            });
+                        }
+                        else
+                        {
+                            // No partner available — pick non-social action
+                            action = SelectNonSocialAction(npc, rnd);
+                        }
+                    }
+                }
+            }
 
             if (action == null) break;
 
@@ -111,7 +154,6 @@ public static class ActionSystem
             if (ctx != null)
             {
                 var sbRes = new System.Text.StringBuilder();
-                // Resource consumption from community pool
                 foreach (var kvp in action.ResourceConsumes)
                 {
                     var res = ctx.Resources.FirstOrDefault(r => r.Name == kvp.Key);
@@ -125,7 +167,6 @@ public static class ActionSystem
                         sbRes.Append($" ({kvp.Key}: нет)");
                     }
                 }
-                // Resource finding — only from NPC's current location node
                 foreach (var kvp in action.ResourceFinds)
                 {
                     Location? findLoc = todayLocation
@@ -137,7 +178,6 @@ public static class ActionSystem
                     if (nodeAvailable && findLoc != null)
                     {
                         double found = Math.Round(kvp.Value * (0.5 + rnd.NextDouble()), 1);
-                        // Don't exceed what's in the node
                         double nodeMax = findLoc.ResourceNodes[kvp.Key];
                         found = Math.Min(found, nodeMax);
                         found = Math.Round(found, 1);
@@ -161,18 +201,20 @@ public static class ActionSystem
                 resourceSuffix = sbRes.ToString();
             }
 
-            npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{hour:00}:00] {action.Name}"));
+            string socialSuffix = socialPartnerName != null ? $" с {socialPartnerName}" : "";
+
+            npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{hour:00}:00] {action.Name}{socialSuffix}"));
             log.Add(new ActionLogEntry
             {
                 Time  = $"{hour:00}:00",
-                Text  = action.Name + resourceSuffix + growthSuffix,
+                Text  = action.Name + socialSuffix + resourceSuffix + growthSuffix,
                 Color = action.Category == ActionCategory.Special ? "#e879f9" : "#c9d1d9",
             });
 
             hoursUsed++;
         }
 
-        // ── Конец дня: деградация и штрафы ───────────────────────────────────────
+        // ── Конец дня: деградация и штрафы ──────────────────────────────────────
         NeedSystem.ApplyDailyDecay(npc);
         NeedSystem.ApplyPenalties(npc);
 
@@ -198,7 +240,6 @@ public static class ActionSystem
 
     private static NpcAction? SelectAction(Npc npc, Random rnd, ref int specialCount)
     {
-        // 0. Трус: 50% шанс — пассивное действие вместо работы
         if (npc.Trait == NpcTrait.Coward && rnd.NextDouble() < 0.50)
         {
             var idle = Array.Find(NpcActionCatalog.Special, a => a.ActionType == NpcActionType.Idle);
@@ -209,27 +250,23 @@ public static class ActionSystem
 
         var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
 
-        // 1. Critical need (Value >= 80) → pick best matching basic action
         if (urgentNeed != null && urgentNeed.Value >= 80)
         {
             NpcAction? needAction = FindBestForNeed(NpcActionCatalog.Basic, npc, urgentNeed.Name);
             if (needAction != null) return needAction;
         }
 
-        // 2. Active quest → prefer actions related to it (simple stub: do random basic)
         if (npc.HasTask)
         {
             NpcAction? questAction = FindTaskAction(npc, rnd);
             if (questAction != null) return questAction;
         }
 
-        // 3. Urgent need (any unsatisfied) → try to address it
         if (urgentNeed != null)
         {
             NpcAction? needAction = FindBestForNeed(NpcActionCatalog.Basic, npc, urgentNeed.Name);
             if (needAction != null) return needAction;
 
-            // Try special actions for the need
             if (specialCount < MaxSpecialPerDay)
             {
                 NpcAction? special = FindBestForNeed(NpcActionCatalog.Special, npc, urgentNeed.Name);
@@ -237,8 +274,56 @@ public static class ActionSystem
             }
         }
 
-        // 4. Weighted random from all available basic actions
         return WeightedRandom(NpcActionCatalog.Basic, npc, rnd);
+    }
+
+    /// <summary>Select a non-social action as fallback.</summary>
+    private static NpcAction? SelectNonSocialAction(Npc npc, Random rnd)
+    {
+        var pool = new List<(NpcAction action, double weight)>();
+        for (int i = 0; i < NpcActionCatalog.Basic.Length; i++)
+        {
+            NpcAction a = NpcActionCatalog.Basic[i];
+            if (IsSocialAction(a)) continue;
+            if (!MeetsStatRequirements(npc, a)) continue;
+            if (npc.Stamina < a.StaminaCost) continue;
+
+            double w = 1.0;
+            foreach (var kvp in a.SatisfiedNeeds)
+            {
+                var need = npc.Needs.FirstOrDefault(n => n.Name == kvp.Key);
+                if (need != null && !need.IsSatisfied) w += kvp.Value / 20.0;
+            }
+            pool.Add((a, w));
+        }
+
+        if (pool.Count == 0) return null;
+
+        double total = pool.Sum(p => p.weight);
+        double pick  = rnd.NextDouble() * total;
+        double acc   = 0;
+        for (int i = 0; i < pool.Count; i++)
+        {
+            acc += pool[i].weight;
+            if (pick <= acc) return pool[i].action;
+        }
+        return pool[pool.Count - 1].action;
+    }
+
+    /// <summary>Find an alive NPC at the same location that hasn't been paired today.</summary>
+    private static Npc? FindSocialPartner(Npc npc, ActionContext ctx, Random rnd)
+    {
+        var candidates = new List<Npc>();
+        for (int i = 0; i < ctx.Npcs.Count; i++)
+        {
+            Npc n = ctx.Npcs[i];
+            if (!n.IsAlive) continue;
+            if (n.Id == npc.Id) continue;
+            if (ctx.SocialPairedToday.Contains(n.Id)) continue;
+            if (n.LocationId != npc.LocationId) continue;
+            candidates.Add(n);
+        }
+        return candidates.Count > 0 ? candidates[rnd.Next(candidates.Count)] : null;
     }
 
     private static NpcAction? FindBestForNeed(NpcAction[] catalog, Npc npc, string needName)
@@ -259,7 +344,6 @@ public static class ActionSystem
 
     private static NpcAction? FindTaskAction(Npc npc, Random rnd)
     {
-        // Prefer actions that grow physical stats (reflects doing assigned work)
         var candidates = new List<NpcAction>();
         for (int i = 0; i < NpcActionCatalog.Basic.Length; i++)
         {
@@ -272,7 +356,6 @@ public static class ActionSystem
 
     private static NpcAction? WeightedRandom(NpcAction[] catalog, Npc npc, Random rnd)
     {
-        // Build candidate list with weights; prefer actions NPC can do and that address mild needs
         var pool = new List<(NpcAction action, double weight)>();
         for (int i = 0; i < catalog.Length; i++)
         {
@@ -311,14 +394,8 @@ public static class ActionSystem
         return true;
     }
 
-    /// <summary>
-    /// Pick a location for the NPC to visit today.
-    /// Prefers locations with resources NPC needs; falls back to any explored location.
-    /// Returns null if NPC should stay home.
-    /// </summary>
     private static Location? PickTravelLocation(Npc npc, List<Location> locations, Random rnd)
     {
-        // 20% chance to stay home (rest day / no travel)
         if (rnd.NextDouble() < 0.20) return null;
 
         var explored = locations.Where(l =>
@@ -332,11 +409,9 @@ public static class ActionSystem
 
         if (explored.Count == 0) return null;
 
-        // Try to pick a location that has resources the NPC needs
         var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
         if (urgentNeed != null)
         {
-            // Map need to resource name
             string? resourceNeeded = urgentNeed.Name switch
             {
                 "Еда"              => "Еда",
@@ -354,7 +429,6 @@ public static class ActionSystem
             }
         }
 
-        // Random explored location
         return explored[rnd.Next(explored.Count)];
     }
 }

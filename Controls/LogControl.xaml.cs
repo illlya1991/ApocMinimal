@@ -148,6 +148,12 @@ public partial class LogControl : UserControl
     public void AddSystemEntry(string text, string color)
     {
         if (_systemSection == null) return;
+        // Auto-expand when first content is added
+        if (_systemSection.ContentPanel!.Visibility == Visibility.Collapsed)
+        {
+            _systemSection.ContentPanel.Visibility = Visibility.Visible;
+            UpdateArrow(_systemSection.HeaderButton!, true);
+        }
         AddText(_systemSection.ContentPanel!, text, color);
         ScrollToBottom();
     }

@@ -36,10 +36,17 @@ public partial class GameWindow : Window
             .Any(n => n.Memory.Any(m => m.Day == _viewModel.CurrentDay && m.Type == MemoryType.Action));
 
         LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-        LogControl.AddEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
 
         if (!alreadyProcessed)
-            LogNpcDay(_viewModel.ProcessNpcDay());
+        {
+            var day1Result = _viewModel.ProcessNpcDay();
+            LogNpcDay(day1Result);
+            LogSystemSummary(day1Result);
+        }
+        else
+        {
+            LogControl.AddSystemEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
+        }
     }
 
     private void OnNpcSelected(Npc npc)

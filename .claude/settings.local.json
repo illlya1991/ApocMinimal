@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 apoc_minimal_template.db \".tables\")",
+      "Bash(python3 -c \"import sqlite3; conn = sqlite3.connect\\('C:/Users/illlya/Documents/Apoc Minimal/ApocMinimal/DataBase/apoc_minimal_template.db'\\); print\\(conn.execute\\(\\\\\"SELECT name FROM sqlite_master WHERE type='table'\\\\\"\\).fetchall\\(\\)\\); conn.close\\(\\)\")",
+      "Bash(python -c \"import sqlite3; conn = sqlite3.connect\\('C:/Users/illlya/Documents/Apoc Minimal/ApocMinimal/DataBase/apoc_minimal_template.db'\\); print\\(conn.execute\\(\\\\\"SELECT name FROM sqlite_master WHERE type='table'\\\\\"\\).fetchall\\(\\)\\); conn.close\\(\\)\")",
+      "Bash(where python:*)",
+      "Bash(where python3:*)",
+      "Bash(where py:*)",
+      "Bash(py -c \"import sqlite3; conn = sqlite3.connect\\('C:/Users/illlya/Documents/Apoc Minimal/ApocMinimal/DataBase/apoc_minimal_template.db'\\); tables = conn.execute\\(\\\\\"SELECT name FROM sqlite_master WHERE type='table'\\\\\"\\).fetchall\\(\\); print\\(tables\\); conn.close\\(\\)\")",
+      "Bash(cmd /c \"py -c \\\\\"import sqlite3; conn = sqlite3.connect\\('C:/Users/illlya/Documents/Apoc Minimal/ApocMinimal/DataBase/apoc_minimal_template.db'\\); tables = conn.execute\\(chr\\(83\\)+chr\\(69\\)+chr\\(76\\)+chr\\(69\\)+chr\\(67\\)+chr\\(84\\)+' name FROM sqlite_master WHERE type='+chr\\(39\\)+'table'+chr\\(39\\)\\).fetchall\\(\\); print\\(tables\\); conn.close\\(\\)\\\\\"\")",
+      "Bash(cmd /c \"py -c \\\\\"import sqlite3; conn = sqlite3.connect\\('C:/Users/illlya/Documents/Apoc Minimal/ApocMinimal/DataBase/apoc_minimal_template.db'\\); print\\(conn.execute\\('SELECT name FROM sqlite_master WHERE type=?', ['table']\\).fetchall\\(\\)\\); conn.close\\(\\)\\\\\"\")",
+      "Bash(cmd /c py --version)",
+      "Bash(powershell -Command ':*)",
+      "Bash(powershell -Command \"& 'C:\\\\Users\\\\illlya\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python.exe' 'C:\\\\Users\\\\illlya\\\\AppData\\\\Local\\\\Temp\\\\read_db.py'\")",
+      "Bash(powershell -Command \"Get-Command python* | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell -Command \"& 'C:\\\\Users\\\\illlya\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python.exe' --version\")",
+      "Bash(dotnet --version)",
+      "Bash(dotnet run:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(py -c ':*)",
+      "Bash(C:/Users/illlya/AppData/Local/Microsoft/WindowsApps/python.exe -c ':*)",
+      "Bash(cmd /c \"C:\\\\Users\\\\illlya\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python.exe\" --version)",
+      "Bash(cmd /c \"dotnet tool list -g 2>&1 | findstr sqlite\")",
+      "Bash(where sqlite3:*)",
+      "Read(//c/Users/illlya/Documents/Apoc Minimal/ApocMinimal/.claude/**)",
+      "Read(//c/Users/illlya/.claude/**)",
+      "Bash(python3)",
+      "Bash(grep -E '\\(Таблица:|^\\\\w+$|INTEGER|TEXT|BOOLEAN|REAL|BLOB\\)')"
+    ]
+  }
+}
