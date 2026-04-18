@@ -113,6 +113,13 @@ public class GameViewModel : INotifyPropertyChanged
     {
         _player = _db.GetPlayer()!;
         _npcs = _db.GetAllNpcs();
+        // Регенерация НПС если у них старая структура потребностей (< 10 нужд)
+        if (_npcs.Count > 0 && _npcs.All(n => n.Needs.Count < 10))
+        {
+            var newNpcs = NpcGenerator.GenerateBatch(_npcs.Count, _rnd);
+            _db.RegenerateAllNpcs(newNpcs);
+            _npcs = _db.GetAllNpcs();
+        }
         _resources = _db.GetAllResources();
         _quests = _db.GetAllQuests();
         _locations = _db.GetAllLocations();

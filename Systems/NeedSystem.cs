@@ -203,7 +203,5 @@ public static class NeedSystem
     {
         double nightRestore = 8 * 12.5 * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0;
         npc.Stamina = Math.Clamp(npc.Stamina + nightRestore, 0, npc.MaxStamina);
-        // Ночной сон закрывает потребность во сне
-        SatisfyNeed(npc, BasicNeedId.Sleep, 70);
     }
 }

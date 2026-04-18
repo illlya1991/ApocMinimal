@@ -224,9 +224,15 @@ public partial class LogControl : UserControl
         {
             // Строки действий НПС после заголовка — идут в его секцию
             AddTextToSection(_currentNpcSection, text, colorHex);
-            _currentNpcActionCount++;
-            if (_currentNpcSection.HeaderButton != null)
-                _currentNpcSection.HeaderButton.Content = $"🧑 {_currentNpcSection.Title} [{_currentNpcActionCount}]";
+            // Считаем только строки с временем вида "  [HH:MM]", не алерты "[!]"
+            bool isAction = text.Length > 5 && text[0] == ' ' && text[1] == ' ' && text[2] == '['
+                            && char.IsDigit(text[3]) && !text.Contains("[!]");
+            if (isAction)
+            {
+                _currentNpcActionCount++;
+                if (_currentNpcSection.HeaderButton != null)
+                    _currentNpcSection.HeaderButton.Content = $"🧑 {_currentNpcSection.Title} [{_currentNpcActionCount}]";
+            }
         }
         else
         {

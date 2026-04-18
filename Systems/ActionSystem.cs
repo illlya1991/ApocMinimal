@@ -19,9 +19,8 @@ public class ActionLogEntry
 /// </summary>
 public static class ActionSystem
 {
-    private const int DayStartHour  = 6;   // 06:00
-    private const int DayEndHour    = 22;  // 22:00 (last slot)
-    private const int MaxHoursPerDay = DayEndHour - DayStartHour + 1; // 17
+    private const int MaxHoursPerDay  = 23; // 00:00–22:00 включительно
+    private const int MaxNightHours   = 12; // максимум ночного сна
     private const int MaxSpecialPerDay = 3;
 
     public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day)
@@ -29,36 +28,45 @@ public static class ActionSystem
         var log = new List<ActionLogEntry>();
         if (!npc.IsAlive) return log;
 
-        NeedSystem.RestoreStamina(npc);
-
-        // Трус: 50% шанс пропустить день
-        if (npc.Trait == NpcTrait.Coward && rnd.NextDouble() < 0.50)
-        {
-            log.Add(new ActionLogEntry
-            {
-                Time  = $"{DayStartHour:00}:00",
-                Text  = $"{npc.Name} (Трус) отказался действовать.",
-                Color = "#fbbf24",
-            });
-            NeedSystem.ApplyDailyDecay(npc);
-            NeedSystem.ApplyPenalties(npc);
-            return log;
-        }
-
-        int maxHours = MaxHoursPerDay;
-        if (npc.CharTraits.Contains(CharacterTrait.Lazy)) maxHours -= 5;
-
+        int maxHours = npc.CharTraits.Contains(CharacterTrait.Lazy) ? 20 : MaxHoursPerDay;
         int specialActions = 0;
         int hoursUsed = 0;
 
+        // ── Фаза 1: Ночной сон (00:00 до восстановления стамины и потребности сна) ──
+        var sleepAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Sleep);
+        var sleepNeed = npc.Needs.FirstOrDefault(n => n.Id == (int)BasicNeedId.Sleep);
+
+        while (hoursUsed < MaxNightHours && sleepAct != null)
+        {
+            bool staminaOk = npc.Stamina >= npc.MaxStamina * 0.85;
+            bool sleepOk   = sleepNeed == null || sleepNeed.Value <= 20;
+            if (staminaOk && sleepOk) break;
+
+            double delta = 12.5 * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0;
+            npc.Stamina = Math.Clamp(npc.Stamina + delta, 0, npc.MaxStamina);
+            foreach (var kvp in sleepAct.SatisfiedNeeds)
+                NeedSystem.SatisfyNeed(npc, kvp.Key, kvp.Value);
+
+            npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{hoursUsed:00}:00] {sleepAct.Name}"));
+            log.Add(new ActionLogEntry { Time = $"{hoursUsed:00}:00", Text = sleepAct.Name, Color = "#c9d1d9" });
+            hoursUsed++;
+        }
+
+        // ── Фаза 2: Дневные действия ─────────────────────────────────────────────
+        var restAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Rest);
+
         while (hoursUsed < maxHours)
         {
-            int hour = DayStartHour + hoursUsed;
+            int hour = hoursUsed;
 
-            NpcAction? action = SelectAction(npc, rnd, ref specialActions);
+            NpcAction? action;
+            if (npc.Stamina < 10 && restAct != null)
+                action = restAct;
+            else
+                action = SelectAction(npc, rnd, ref specialActions);
+
             if (action == null) break;
 
-            // Восстановление/трата выносливости по формуле
             double staminaDelta = action.ActionType switch
             {
                 NpcActionType.Sleep => 12.5 * npc.Stats.RecoveryPhys * npc.MaxStamina / 10000.0,
@@ -68,21 +76,15 @@ public static class ActionSystem
             };
             npc.Stamina = Math.Clamp(npc.Stamina + staminaDelta, 0, npc.MaxStamina);
 
-            // Satisfy needs
             foreach (var kvp in action.SatisfiedNeeds)
                 NeedSystem.SatisfyNeed(npc, kvp.Key, kvp.Value);
 
-            // Stat growth
             var growth = StatGrowthSystem.Apply(npc, action, rnd);
-            string growthSuffix = "";
-            if (growth.Count > 0)
-            {
-                string parts = string.Join(", ", growth.Select(g => $"+{g.Gain} {g.StatName}"));
-                growthSuffix = $" [{parts}]";
-            }
+            string growthSuffix = growth.Count > 0
+                ? $" [{string.Join(", ", growth.Select(g => $"+{g.Gain} {g.StatName}"))}]"
+                : "";
 
             npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{hour:00}:00] {action.Name}"));
-
             log.Add(new ActionLogEntry
             {
                 Time  = $"{hour:00}:00",
@@ -93,7 +95,7 @@ public static class ActionSystem
             hoursUsed++;
         }
 
-        // End-of-day: decay and penalties
+        // ── Конец дня: деградация и штрафы ───────────────────────────────────────
         NeedSystem.ApplyDailyDecay(npc);
         NeedSystem.ApplyPenalties(npc);
 
@@ -119,20 +121,13 @@ public static class ActionSystem
 
     private static NpcAction? SelectAction(Npc npc, Random rnd, ref int specialCount)
     {
-        // 0. Сон по потребности или истощению
-        double staminaPct = npc.MaxStamina > 0 ? npc.Stamina / npc.MaxStamina : 0;
-        var sleepNeed = npc.Needs.FirstOrDefault(n => n.Id == (int)BasicNeedId.Sleep);
-        bool needsSleep = sleepNeed != null && sleepNeed.Value >= 50;
-
-        if (staminaPct < 0.25 || needsSleep)
+        // 0. Трус: 50% шанс — пассивное действие вместо работы
+        if (npc.Trait == NpcTrait.Coward && rnd.NextDouble() < 0.50)
         {
-            var sleepAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Sleep);
-            if (sleepAct != null) return sleepAct;
-        }
-        else if (staminaPct < 0.45)
-        {
-            var restAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Rest);
-            if (restAct != null) return restAct;
+            var idle = Array.Find(NpcActionCatalog.Special, a => a.ActionType == NpcActionType.Idle);
+            if (idle != null) { specialCount++; return idle; }
+            var rest = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Rest);
+            if (rest != null) return rest;
         }
 
         var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);

@@ -333,6 +333,66 @@ public class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
+    public void RegenerateAllNpcs(List<Npc> newNpcs)
+    {
+        using var tx = _conn.BeginTransaction();
+        try
+        {
+            new SQLiteCommand("DELETE FROM NpcModifiers", _conn, tx).ExecuteNonQuery();
+            new SQLiteCommand("DELETE FROM Npcs", _conn, tx).ExecuteNonQuery();
+            foreach (var npc in newNpcs)
+                InsertNpcTx(npc, tx);
+            tx.Commit();
+        }
+        catch { tx.Rollback(); throw; }
+    }
+
+    private void InsertNpcTx(Npc n, SQLiteTransaction tx)
+    {
+        var traitStrings = n.CharTraits.Select(t => t.ToString()).ToList();
+        using var cmd = new SQLiteCommand(@"
+            INSERT INTO Npcs (Name, Age, Gender, Profession, Description,
+                Health, Faith, Stamina, Chakra, Fear, Trust, Initiative, CombatInitiative,
+                Trait, FollowerLevel, Goal, Dream, Desire, ActiveTask, TaskDaysLeft, TaskRewardResId, TaskRewardAmt,
+                Statistics, CharTraits, Specializations, Emotions, Needs, Memory)
+            VALUES (@nm,@ag,@gn,@pr,@ds,
+                @hp,@fa,@st,@ck,@fr,@tr,@in,@ci,
+                @tt,@fl,@gl,@dr,@de,@at,@td,@rr,@ra,
+                @stat,@ct,@sp,@em,@nd,@me)", _conn, tx);
+        cmd.Parameters.AddWithValue("@nm", n.Name);
+        cmd.Parameters.AddWithValue("@ag", n.Age);
+        cmd.Parameters.AddWithValue("@gn", n.Gender == Gender.Female ? "Female" : "Male");
+        cmd.Parameters.AddWithValue("@pr", n.Profession);
+        cmd.Parameters.AddWithValue("@ds", n.Description ?? "");
+        cmd.Parameters.AddWithValue("@hp", n.Health);
+        cmd.Parameters.AddWithValue("@fa", n.Faith);
+        cmd.Parameters.AddWithValue("@st", n.Stamina);
+        cmd.Parameters.AddWithValue("@ck", n.Chakra);
+        cmd.Parameters.AddWithValue("@fr", n.Fear);
+        cmd.Parameters.AddWithValue("@tr", n.Trust);
+        cmd.Parameters.AddWithValue("@in", n.Initiative);
+        cmd.Parameters.AddWithValue("@ci", n.CombatInitiative);
+        cmd.Parameters.AddWithValue("@tt", n.Trait.ToString());
+        cmd.Parameters.AddWithValue("@fl", n.FollowerLevel);
+        cmd.Parameters.AddWithValue("@gl", n.Goal ?? "");
+        cmd.Parameters.AddWithValue("@dr", n.Dream ?? "");
+        cmd.Parameters.AddWithValue("@de", n.Desire ?? "");
+        cmd.Parameters.AddWithValue("@at", n.ActiveTask ?? "");
+        cmd.Parameters.AddWithValue("@td", n.TaskDaysLeft);
+        cmd.Parameters.AddWithValue("@rr", n.TaskRewardResId);
+        cmd.Parameters.AddWithValue("@ra", n.TaskRewardAmt);
+        cmd.Parameters.AddWithValue("@stat", JsonSerializer.Serialize(n.Stats, JsonOpts));
+        cmd.Parameters.AddWithValue("@ct", JsonSerializer.Serialize(traitStrings, JsonOpts));
+        cmd.Parameters.AddWithValue("@sp", JsonSerializer.Serialize(n.Specializations, JsonOpts));
+        cmd.Parameters.AddWithValue("@em", JsonSerializer.Serialize(n.Emotions, JsonOpts));
+        cmd.Parameters.AddWithValue("@nd", JsonSerializer.Serialize(n.Needs, JsonOpts));
+        cmd.Parameters.AddWithValue("@me", JsonSerializer.Serialize(n.Memory, JsonOpts));
+        cmd.ExecuteNonQuery();
+        long newId = (long)new SQLiteCommand("SELECT last_insert_rowid()", _conn, tx).ExecuteScalar();
+        n.Id = (int)newId;
+        SaveModifiersForNpc(n.Id, n.Stats);
+    }
+
     public void SaveNpc(Npc n)
     {
         using var cmd = new SQLiteCommand(@"
