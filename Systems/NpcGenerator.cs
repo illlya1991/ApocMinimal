@@ -133,7 +133,7 @@ public static class NpcGenerator
     {
         var stats = new Models.StatisticsData.Statistics(rnd.Next(70, 121));
         var profEntry = Array.Find(_professions, p => p.Profession == npc.Profession);
-        foreach (int statId in profEntry.BoostedStats)
+        foreach (int statId in profEntry.BoostedStats ?? Array.Empty<int>())
         {
             var ch = stats.GetByNumber(statId);
             if (ch != null) ch.AddDeviation(rnd.Next(10, 31));
