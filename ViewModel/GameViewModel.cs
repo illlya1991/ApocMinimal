@@ -378,26 +378,26 @@ public class GameViewModel : INotifyPropertyChanged
         _db.SaveNpc(npc);
     }
 
-    public void ProcessEndOfDay(Action<string, string> logAction)
+    /// <summary>Process and log NPC actions for CurrentDay. Does NOT advance the day.</summary>
+    public void ProcessNpcDay(Action<string, string> logAction)
     {
-        _player.CurrentDay++;
-        _player.PlayerActionsToday = 0;
-
-        var dayResult = GameLoopService.ProcessDay(_player, _npcs, _resources, _quests, _rnd, _catalog);
-
-        // NPC actions log
+        var dayResult = GameLoopService.ProcessNpcActionsOnly(_player, _npcs, _rnd);
         foreach (var npcResult in dayResult.NpcResults)
         {
             logAction($"── {npcResult.Npc.Name} ──", "#58a6ff");
             foreach (var entry in npcResult.Actions)
                 logAction($"  [{entry.Time}] {entry.Text}", entry.IsAlert ? "#f87171" : entry.Color);
         }
+    }
 
-        // System logs (resources, leader bonus, needs, injuries)
+    /// <summary>Process end-of-day (quests, needs, faith) and advance CurrentDay.</summary>
+    public void AdvanceToNextDay(Action<string, string> logAction)
+    {
+        var dayResult = GameLoopService.ProcessDayEnd(_player, _npcs, _resources, _quests, _rnd, _catalog);
+
         foreach (var (text, isAlert) in dayResult.Logs)
             logAction(text, isAlert ? "#f87171" : "#8b949e");
 
-        // Quest rewards
         foreach (var (npc, q) in dayResult.QuestRewards)
         {
             var res = _resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
@@ -407,7 +407,8 @@ public class GameViewModel : INotifyPropertyChanged
 
         _quests.AddRange(dayResult.NewQuests);
 
-        // Update properties
+        _player.CurrentDay++;
+        _player.PlayerActionsToday = 0;
         CurrentDay = _player.CurrentDay;
         FaithPoints = _player.FaithPoints;
         ActionsToday = _player.PlayerActionsToday;

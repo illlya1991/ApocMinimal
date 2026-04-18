@@ -63,6 +63,33 @@ public static class GameLoopService
         return result;
     }
 
+    /// <summary>NPC actions only — used at the start of each player turn.</summary>
+    public static DayResult ProcessNpcActionsOnly(Player player, List<Npc> npcs, Random rnd)
+    {
+        var result = new DayResult();
+        ProcessNpcActions(result, npcs, player, rnd);
+        return result;
+    }
+
+    /// <summary>End-of-day processing (quests, needs, faith) — used when player clicks End Day.</summary>
+    public static DayResult ProcessDayEnd(
+        Player player,
+        List<Npc> npcs,
+        List<Resource> resources,
+        List<Quest> quests,
+        Random rnd,
+        Dictionary<string, ResourceCatalogEntry>? catalog = null)
+    {
+        catalog ??= new Dictionary<string, ResourceCatalogEntry>();
+        var result = new DayResult();
+        ProcessQuests(result, quests, npcs, resources, rnd);
+        ProcessLeaderBonus(result, npcs);
+        ProcessFaithGeneration(result, player, npcs);
+        ProcessDailyNeeds(result, player, npcs, resources, catalog);
+        ProcessInjuryHealing(result, npcs);
+        return result;
+    }
+
     // ── Sub-methods ──────────────────────────────────────────────────────────
 
     private static void ProcessNpcActions(DayResult result, List<Npc> npcs, Player player, Random rnd)
