@@ -98,35 +98,28 @@ public static class ActionSystem
                 // Handle social actions: find partner or re-select
                 if (action != null && IsSocialAction(action) && ctx != null)
                 {
-                    if (ctx.SocialPairedToday.Contains(npc.Id))
+                    var partner = FindSocialPartner(npc, ctx, rnd);
+                    if (partner != null)
                     {
-                        // Already paired today — pick non-social action
-                        action = SelectNonSocialAction(npc, rnd);
+                        // Mark only the partner so they aren't chosen again;
+                        // the initiator is free to start more social actions.
+                        ctx.SocialPairedToday.Add(partner.Id);
+                        socialPartnerName = partner.Name;
+
+                        // Add matching entry to partner's log
+                        if (!ctx.NpcLogs.ContainsKey(partner.Id))
+                            ctx.NpcLogs[partner.Id] = new List<ActionLogEntry>();
+                        ctx.NpcLogs[partner.Id].Add(new ActionLogEntry
+                        {
+                            Time  = $"{hour:00}:00",
+                            Text  = $"{action.Name} с {npc.Name}",
+                            Color = action.Category == ActionCategory.Special ? "#e879f9" : "#c9d1d9",
+                        });
                     }
                     else
                     {
-                        var partner = FindSocialPartner(npc, ctx, rnd);
-                        if (partner != null)
-                        {
-                            ctx.SocialPairedToday.Add(npc.Id);
-                            ctx.SocialPairedToday.Add(partner.Id);
-                            socialPartnerName = partner.Name;
-
-                            // Add matching entry to partner's log
-                            if (!ctx.NpcLogs.ContainsKey(partner.Id))
-                                ctx.NpcLogs[partner.Id] = new List<ActionLogEntry>();
-                            ctx.NpcLogs[partner.Id].Add(new ActionLogEntry
-                            {
-                                Time  = $"{hour:00}:00",
-                                Text  = $"{action.Name} с {npc.Name}",
-                                Color = action.Category == ActionCategory.Special ? "#e879f9" : "#c9d1d9",
-                            });
-                        }
-                        else
-                        {
-                            // No partner available — pick non-social action
-                            action = SelectNonSocialAction(npc, rnd);
-                        }
+                        // No partner available — pick non-social action
+                        action = SelectNonSocialAction(npc, rnd);
                     }
                 }
             }

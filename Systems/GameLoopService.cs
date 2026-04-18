@@ -102,12 +102,20 @@ public static class GameLoopService
             ctx.SocialPairedToday = new HashSet<int>();
         }
 
+        // Pass 1: build each NPC's own log (social actions inject into partner NpcLogs)
+        var ownLogs = new Dictionary<int, List<ActionLogEntry>>(npcs.Count);
         for (int i = 0; i < npcs.Count; i++)
         {
             if (!npcs[i].IsAlive) continue;
-            List<ActionLogEntry> actions = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx);
+            ownLogs[npcs[i].Id] = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx);
+        }
 
-            // Merge social action entries injected by other NPCs
+        // Pass 2: merge externally-injected entries (all NPCs processed, injections complete)
+        for (int i = 0; i < npcs.Count; i++)
+        {
+            if (!npcs[i].IsAlive) continue;
+            var actions = ownLogs[npcs[i].Id];
+
             if (ctx != null && ctx.NpcLogs.TryGetValue(npcs[i].Id, out var external) && external.Count > 0)
             {
                 actions.AddRange(external);
