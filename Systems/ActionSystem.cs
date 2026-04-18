@@ -65,16 +65,28 @@ public static class ActionSystem
             todayLocation = PickTravelLocation(npc, ctx.Locations, rnd);
             if (todayLocation != null && todayLocation.Id != npc.LocationId)
             {
-                npc.Stamina = Math.Clamp(npc.Stamina - 8, 0, npc.MaxStamina);
+                var currentLoc = ctx.Locations.FirstOrDefault(l => l.Id == npc.LocationId);
+                bool sameBuilding = currentLoc != null
+                    && GetBuildingAncestor(currentLoc, ctx.Locations) is int cb && cb != 0
+                    && GetBuildingAncestor(todayLocation, ctx.Locations) == cb;
+
                 npc.LocationId = todayLocation.Id;
-                npc.Remember(new MemoryEntry(day, MemoryType.Discovery, $"[{hoursUsed:00}:00] Путешествие → {todayLocation.Name}"));
+                npc.Remember(new MemoryEntry(day, MemoryType.Discovery,
+                    $"[{hoursUsed:00}:00] {(sameBuilding ? "Перешёл" : "Путешествие")} → {todayLocation.Name}"));
                 log.Add(new ActionLogEntry
                 {
                     Time  = $"{hoursUsed:00}:00",
-                    Text  = $"Путешествие → {todayLocation.Name}",
-                    Color = "#94a3b8",
+                    Text  = $"{(sameBuilding ? "Перешёл" : "Путешествие")} → {todayLocation.Name}",
+                    Color = sameBuilding ? "#6b7280" : "#94a3b8",
                 });
-                hoursUsed++;
+
+                if (!sameBuilding)
+                {
+                    // External travel: costs 1 hour + stamina
+                    npc.Stamina = Math.Clamp(npc.Stamina - 8, 0, npc.MaxStamina);
+                    hoursUsed++;
+                }
+                // Internal (same building): no stamina, no hour consumed
             }
         }
 
@@ -385,6 +397,18 @@ public static class ActionSystem
             if (npc.Stats.GetStatValue(kvp.Key) < kvp.Value) return false;
         }
         return true;
+    }
+
+    /// <summary>Returns the Id of the nearest Building ancestor, or 0 if none.</summary>
+    private static int GetBuildingAncestor(Location loc, List<Location> locations)
+    {
+        var cur = loc;
+        for (int depth = 0; depth < 6 && cur != null; depth++)
+        {
+            if (cur.Type == LocationType.Building) return cur.Id;
+            cur = locations.FirstOrDefault(l => l.Id == cur.ParentId);
+        }
+        return 0;
     }
 
     private static Location? PickTravelLocation(Npc npc, List<Location> locations, Random rnd)
