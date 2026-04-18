@@ -110,6 +110,13 @@
                     <TextBlock x:Name="AltarInfoLabel" Foreground="#c9d1d9" Margin="0,0,0,6" TextWrapping="Wrap"/>
                     <Button x:Name="UpgradeAltarBtn" Content="УЛУЧШИТЬ АЛТАРЬ" Style="{StaticResource ActionBtn}" Background="#2d1b69" Foreground="#d2a8ff" Click="UpgradeAltarBtn_Click"/>
 
+                    <Separator Background="#30363d" Margin="0,8,0,6"/>
+                    <Button x:Name="ExchangeToggleBtn" Content="▶ ПРЕЗИДЕНТСКИЕ ОБМЕНЫ" Style="{StaticResource CollapseBtn}" Foreground="#f59e0b" Click="ExchangeToggle_Click"/>
+                    <StackPanel x:Name="ExchangePanel" Visibility="Collapsed" Margin="0,2,0,4">
+                        <TextBlock x:Name="ExchangeStatusLabel" Foreground="#8b949e" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                        <StackPanel x:Name="ExchangeItemsPanel"/>
+                    </StackPanel>
+
                     <Separator Background="#30363d" Margin="0,12,0,6"/>
                     <TextBlock Text="БАРЬЕР" Style="{StaticResource SectionHeader}"/>
                     <TextBlock x:Name="BarrierLabel" Foreground="#8b949e" TextWrapping="Wrap"/>

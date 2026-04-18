@@ -47,6 +47,9 @@ public partial class GameWindow : Window
         {
             LogControl.AddSystemEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
         }
+
+        _viewModel.SetupDayExchanges(_viewModel.CurrentDay);
+        PlayerActionsControl.Refresh();
     }
 
     private void OnNpcSelected(Npc npc)
@@ -101,6 +104,8 @@ public partial class GameWindow : Window
         // Start new day
         LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
         LogNpcDay(_viewModel.ProcessNpcDay());
+
+        _viewModel.SetupDayExchanges(_viewModel.CurrentDay);
 
         _viewModel.Refresh();
         RefreshAll();

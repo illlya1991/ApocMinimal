@@ -1250,6 +1250,37 @@ public class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
+    public List<int> GetAppliedExchanges(string saveId)
+    {
+        EnsureAppliedExchangesTable();
+        var list = new List<int>();
+        using var cmd = new SQLiteCommand("SELECT ExchangeId FROM AppliedExchanges WHERE SaveId=@s", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read()) list.Add(rdr.GetInt32(0));
+        return list;
+    }
+
+    public void SaveAppliedExchange(string saveId, int exchangeId)
+    {
+        EnsureAppliedExchangesTable();
+        using var cmd = new SQLiteCommand(
+            "INSERT OR IGNORE INTO AppliedExchanges(SaveId,ExchangeId) VALUES(@s,@e)", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        cmd.Parameters.AddWithValue("@e", exchangeId);
+        cmd.ExecuteNonQuery();
+    }
+
+    private void EnsureAppliedExchangesTable()
+    {
+        new SQLiteCommand(@"
+            CREATE TABLE IF NOT EXISTS AppliedExchanges(
+                SaveId TEXT NOT NULL,
+                ExchangeId INTEGER NOT NULL,
+                PRIMARY KEY(SaveId, ExchangeId)
+            )", _conn).ExecuteNonQuery();
+    }
+
 }
 
 public class OneSave

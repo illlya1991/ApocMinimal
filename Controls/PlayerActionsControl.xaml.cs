@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using ApocMinimal.Models.ExchangeData;
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
@@ -77,6 +78,7 @@ public partial class PlayerActionsControl : UserControl
         RefreshResourceCombo();
         RefreshActionCombo();
         RefreshShopSection();
+        RefreshExchangeSection();
     }
 
     private void RefreshActionCombo()
@@ -135,6 +137,8 @@ public partial class PlayerActionsControl : UserControl
             if (unlocked) btn.Click += TechniqueBtn_Click;
             AltarTechPanel.Children.Add(btn);
         }
+
+        RefreshExchangeSection();
     }
 
     private void RefreshMapTab()
@@ -652,6 +656,102 @@ public partial class PlayerActionsControl : UserControl
                 ShopPanel.Children.Add(btn);
             }
         }
+    }
+
+    // =========================================================
+    // Exchange Section
+    // =========================================================
+
+    private void ExchangeToggle_Click(object sender, RoutedEventArgs e)
+    {
+        bool expanded = ExchangePanel.Visibility == Visibility.Visible;
+        ExchangePanel.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
+        ExchangeToggleBtn.Content = expanded ? "▶ ПРЕЗИДЕНТСКИЕ ОБМЕНЫ" : "▼ ПРЕЗИДЕНТСКИЕ ОБМЕНЫ";
+    }
+
+    private void RefreshExchangeSection()
+    {
+        ExchangeItemsPanel.Children.Clear();
+
+        var pending = _viewModel.PendingExchanges;
+
+        if (pending.Count == 0)
+        {
+            int next = _viewModel.NextCriticalDay();
+            ExchangeStatusLabel.Text = next > 0
+                ? $"Следующий обмен: день {next}"
+                : "Все обмены использованы.";
+            ExchangeToggleBtn.Content =
+                (ExchangePanel.Visibility == Visibility.Visible ? "▼" : "▶") + " ПРЕЗИДЕНТСКИЕ ОБМЕНЫ";
+            return;
+        }
+
+        ExchangeStatusLabel.Text = $"Доступно обменов: {pending.Count}  (критический день)";
+        ExchangeToggleBtn.Content =
+            (ExchangePanel.Visibility == Visibility.Visible ? "▼" : "▶") +
+            $" ПРЕЗИДЕНТСКИЕ ОБМЕНЫ [{pending.Count}]";
+
+        foreach (var ex in pending.ToList())
+        {
+            var card = new Border
+            {
+                Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#0d1f0d")!,
+                BorderBrush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f59e0b")!,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(0, 2, 0, 4),
+                Padding = new Thickness(6, 4, 6, 4),
+            };
+            var sp = new StackPanel();
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = ex.Name,
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f59e0b")!,
+                FontSize = 11,
+                FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 2),
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "✖ " + ex.GiveText,
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f87171")!,
+                FontSize = 10,
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 1),
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "✔ " + ex.GetText,
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
+                FontSize = 10,
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+
+            var btn = new Button
+            {
+                Content = "ПРИНЯТЬ ОБМЕН",
+                Style = (Style)FindResource("ActionBtn"),
+                Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1a1a00")!,
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f59e0b")!,
+                Tag = ex,
+            };
+            btn.Click += ExchangeAcceptBtn_Click;
+            sp.Children.Add(btn);
+
+            card.Child = sp;
+            ExchangeItemsPanel.Children.Add(card);
+        }
+    }
+
+    private void ExchangeAcceptBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not PresidentialExchangeEntry ex) return;
+        var result = _viewModel.ApplyExchange(ex);
+        Log(result, LogEntry.ColorAltarColor);
+        _viewModel.Refresh();
+        Refresh();
     }
 
     private void TechniquesToggle_Click(object sender, RoutedEventArgs e)

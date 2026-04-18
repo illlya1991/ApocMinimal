@@ -1,5 +1,6 @@
 ﻿// ViewModels/GameViewModel.cs
 using ApocMinimal.Database;
+using ApocMinimal.Models.ExchangeData;
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData.PlayerData;
@@ -28,6 +29,8 @@ public class GameViewModel : INotifyPropertyChanged
     private List<QuestCatalogEntry> _questCatalog = new();
     private List<PlayerLibraryEntry> _playerLibrary = new();
     private List<string> _shopUnlocks = new();
+    private List<int> _appliedExchangeIds = new();
+    public List<PresidentialExchangeEntry> PendingExchanges { get; private set; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -140,6 +143,7 @@ public class GameViewModel : INotifyPropertyChanged
         _questCatalog = _db.GetQuestCatalog(999);
         _playerLibrary = _db.GetPlayerLibrary(_db.CurrentSaveId);
         _shopUnlocks = _db.GetShopUnlocks(_db.CurrentSaveId);
+        _appliedExchangeIds = _db.GetAppliedExchanges(_db.CurrentSaveId);
 
         CurrentDay = _player.CurrentDay;
         FaithPoints = _player.FaithPoints;
@@ -487,6 +491,40 @@ public class GameViewModel : INotifyPropertyChanged
 
         FaithPoints = _player.FaithPoints;
         return $"Куплено 10 ед. {resourceName} за {price:F0} ОВ";
+    }
+
+    public void SetupDayExchanges(int day)
+    {
+        if (!ExchangeCatalog.IsCriticalDay(day))
+        {
+            PendingExchanges = new List<PresidentialExchangeEntry>();
+            return;
+        }
+        PendingExchanges = ExchangeCatalog.GetForDay(day, _appliedExchangeIds, _rnd);
+    }
+
+    public string ApplyExchange(PresidentialExchangeEntry ex)
+    {
+        if (_appliedExchangeIds.Contains(ex.Id))
+            return $"Обмен «{ex.Name}» уже был применён.";
+
+        ExchangeSystem.Apply(ex, _npcs, _resources);
+        _appliedExchangeIds.Add(ex.Id);
+        _db.SaveAppliedExchange(_db.CurrentSaveId, ex.Id);
+
+        foreach (var npc in _npcs)
+            if (npc.IsAlive) _db.SaveNpc(npc);
+
+        PendingExchanges.Remove(ex);
+        OnPropertyChanged(nameof(PendingExchanges));
+        return $"✓ Принят: «{ex.Name}»";
+    }
+
+    public int NextCriticalDay()
+    {
+        foreach (int d in ExchangeCatalog.CriticalDays)
+            if (d > CurrentDay) return d;
+        return -1;
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
