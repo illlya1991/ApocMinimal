@@ -20,26 +20,26 @@ public partial class GameWindow : Window
     {
         InitializeComponent();
 
-        _viewModel = new GameViewModel(db, Log);
+        _viewModel = new GameViewModel(db, LogPlayer);
         DataContext = _viewModel;
         _viewModel.PropertyChanged += (s, e) => RefreshHeader();
 
-        // Инициализация контролов
         PlayerActionsControl.SetViewModel(_viewModel);
-        PlayerActionsControl.LogAction += Log;
+        PlayerActionsControl.LogAction += LogPlayer;
         NpcListControl.NpcSelected += OnNpcSelected;
 
         RefreshAll();
-
         Title = $"Apocalypse Simulation — {_viewModel.PlayerName}";
 
-        // Show NPC actions for the current day if not yet shown
+        // Start first day
         bool alreadyProcessed = _viewModel.AllNpcs
             .Any(n => n.Memory.Any(m => m.Day == _viewModel.CurrentDay && m.Type == MemoryType.Action));
-        LogDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-        Log($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
+
+        LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
+        LogControl.AddEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
+
         if (!alreadyProcessed)
-            _viewModel.ProcessNpcDay(Log);
+            LogNpcDay(_viewModel.ProcessNpcDay());
     }
 
     private void OnNpcSelected(Npc npc)
@@ -56,13 +56,13 @@ public partial class GameWindow : Window
 
     private void RefreshHeader()
     {
-        DayLabel.Text = $"  |  {_viewModel.DayDisplay}";
-        FaithLabel.Text = $"  {_viewModel.FaithDisplay}";
-        AltarLabel.Text = $"  {_viewModel.AltarDisplay}";
+        DayLabel.Text    = $"  |  {_viewModel.DayDisplay}";
+        FaithLabel.Text  = $"  {_viewModel.FaithDisplay}";
+        AltarLabel.Text  = $"  {_viewModel.AltarDisplay}";
         ActionsLabel.Text = $"  {_viewModel.ActionsDisplay}";
-        ActionsLabel.Foreground = _viewModel.HasActionsLeft ?
-            (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")! :
-            (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;
+        ActionsLabel.Foreground = _viewModel.HasActionsLeft
+            ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
+            : (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;
     }
 
     // =========================================================
@@ -84,36 +84,82 @@ public partial class GameWindow : Window
         EndDayBtn.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
         EndDayBtn.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
 
-        // Завершить текущий день (квесты, нужды, вера) и перейти к следующему
-        _viewModel.AdvanceToNextDay(Log);
+        // End current day: quests, needs, faith
+        var endResult = _viewModel.AdvanceToNextDay();
         _viewModel.SaveAll();
 
-        Log($"ОВ: {_viewModel.FaithPoints:F0}  |  Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}", LogEntry.ColorAltarColor);
+        // Log system summary into Система section of the CURRENT (just ended) day
+        LogSystemSummary(endResult);
 
-        // Начало нового дня — действия НПС
-        LogDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-        _viewModel.ProcessNpcDay(Log);
+        // Start new day
+        LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
+        LogNpcDay(_viewModel.ProcessNpcDay());
 
         _viewModel.Refresh();
         RefreshAll();
     }
 
     // =========================================================
-    // Logging
+    // Log routing helpers
     // =========================================================
 
-    private void LogDay(string header)
+    /// <summary>Log all NPC results into the NPC section.</summary>
+    private void LogNpcDay(ApocMinimal.Systems.DayResult dayResult)
     {
-        LogControl.AddEntry(header, LogEntry.ColorDay);
+        foreach (var npcResult in dayResult.NpcResults)
+        {
+            LogControl.BeginNpcSection(npcResult.Npc.Name);
+            foreach (var entry in npcResult.Actions)
+            {
+                bool isAction = !entry.IsAlert;
+                LogControl.AddNpcEntry($"  [{entry.Time}] {entry.Text}",
+                    entry.IsAlert ? "#f87171" : entry.Color,
+                    isAction);
+            }
+        }
     }
 
-    private void Log(string text, string color)
+    /// <summary>Log end-of-day system info (resources, faith, followers, quests).</summary>
+    private void LogSystemSummary(ApocMinimal.Systems.DayResult dayResult)
+    {
+        // System logs (resources consumed, leader bonus, injuries)
+        foreach (var (text, isAlert) in dayResult.Logs)
+            LogControl.AddSystemEntry(text, isAlert ? "#f87171" : "#8b949e");
+
+        // Quest completions
+        foreach (var (npc, q) in dayResult.QuestRewards)
+        {
+            var res = _viewModel.Resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
+            LogControl.AddSystemEntry(
+                $"✓ Квест «{q.Title}» — {npc.Name} → +{q.RewardAmount:F0} {res?.Name}",
+                "#22c55e");
+        }
+
+        // Faith & survivors summary
+        LogControl.AddSystemEntry(
+            $"23:00 | ОВ: {_viewModel.FaithPoints:F0}  Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}  Алтарь: ур.{_viewModel.AltarLevel}",
+            LogEntry.ColorAltarColor);
+
+        // Follower table
+        var sb = new System.Text.StringBuilder("Последователи: ");
+        for (int fl = 1; fl <= 5; fl++)
+        {
+            int lim = _viewModel.GetFollowerLimit(fl);
+            if (lim == 0) continue;
+            int cur = _viewModel.GetFollowerCountAtLevel(fl);
+            sb.Append($"[ур.{fl}: {cur}/{(lim == -1 ? "∞" : lim.ToString())}]  ");
+        }
+        LogControl.AddSystemEntry(sb.ToString().TrimEnd(), "#60a5fa");
+    }
+
+    /// <summary>Route player action log lines to the "Действия игрока" section.</summary>
+    private void LogPlayer(string text, string color)
     {
         LogControl.AddEntry(text, color);
     }
 
     // =========================================================
-    // Fullscreen Window
+    // Other windows
     // =========================================================
 
     private void FullscreenInfo_Click(object sender, RoutedEventArgs e)
@@ -124,7 +170,7 @@ public partial class GameWindow : Window
 
     private void QuestsBtn_Click(object sender, RoutedEventArgs e)
     {
-        var questWindow = new QuestWindow(_viewModel, Log);
+        var questWindow = new QuestWindow(_viewModel, LogPlayer);
         questWindow.ShowDialog();
         _viewModel.Refresh();
         RefreshAll();
