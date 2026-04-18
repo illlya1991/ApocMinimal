@@ -147,12 +147,17 @@ public partial class PlayerActionsControl : UserControl
     private UIElement BuildLocationNode(Location loc, int depth)
     {
         var sp = new StackPanel { Margin = new Thickness(depth * 10, 0, 0, 2) };
+
+        // NPCs currently at this location
+        var npcsHere = _viewModel.AllNpcs.Where(n => n.IsAlive && n.LocationId == loc.Id).ToList();
+        string npcBadge = npcsHere.Count > 0 ? $" 👤{npcsHere.Count}" : "";
+
         var header = new TextBlock
         {
-            Text = $"{(loc.IsExplored ? "" : "? ")}{loc.TypeLabel}: {loc.Name}",
-            Foreground = loc.IsExplored ?
-                (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#c9d1d9")! :
-                (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#8b949e")!,
+            Text = $"{(loc.IsExplored ? "" : "? ")}{loc.TypeLabel}: {loc.Name}{npcBadge}",
+            Foreground = loc.IsExplored
+                ? (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#c9d1d9")!
+                : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#8b949e")!,
             FontSize = 11,
         };
         if (loc.DangerLevel > 50) header.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f87171")!;
@@ -161,8 +166,16 @@ public partial class PlayerActionsControl : UserControl
         if (loc.IsExplored && loc.ResourceNodes.Count > 0)
             sp.Children.Add(new TextBlock
             {
-                Text = "  " + string.Join(", ", loc.ResourceNodes.Select(kv => $"{kv.Key}: {kv.Value:F0}")),
+                Text = "  " + string.Join("  ", loc.ResourceNodes.Select(kv => $"{kv.Key}: {kv.Value:F1}")),
                 Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
+                FontSize = 9,
+            });
+
+        if (npcsHere.Count > 0)
+            sp.Children.Add(new TextBlock
+            {
+                Text = "  " + string.Join(", ", npcsHere.Select(n => n.Name)),
+                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#94a3b8")!,
                 FontSize = 9,
             });
 

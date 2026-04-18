@@ -1,4 +1,5 @@
 using ApocMinimal.Models.GameActions;
+using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.ResourceData;
@@ -53,6 +54,27 @@ public static class ActionSystem
             hoursUsed++;
         }
 
+        // ── Фаза 1.5: Выбор локации и путешествие (если есть ресурсы и ctx) ─────
+        Location? todayLocation = null;
+        if (ctx != null && ctx.Locations.Count > 0)
+        {
+            todayLocation = PickTravelLocation(npc, ctx.Locations, rnd);
+            if (todayLocation != null && todayLocation.Id != npc.LocationId)
+            {
+                // Travel costs 1 hour + stamina
+                npc.Stamina = Math.Clamp(npc.Stamina - 8, 0, npc.MaxStamina);
+                npc.LocationId = todayLocation.Id;
+                npc.Remember(new MemoryEntry(day, MemoryType.Discovery, $"[{hoursUsed:00}:00] Путешествие → {todayLocation.Name}"));
+                log.Add(new ActionLogEntry
+                {
+                    Time  = $"{hoursUsed:00}:00",
+                    Text  = $"Путешествие → {todayLocation.Name}",
+                    Color = "#94a3b8",
+                });
+                hoursUsed++;
+            }
+        }
+
         // ── Фаза 2: Дневные действия ─────────────────────────────────────────────
         var restAct = Array.Find(NpcActionCatalog.Basic, a => a.ActionType == NpcActionType.Rest);
 
@@ -89,7 +111,7 @@ public static class ActionSystem
             if (ctx != null)
             {
                 var sbRes = new System.Text.StringBuilder();
-                // Resource consumption
+                // Resource consumption from community pool
                 foreach (var kvp in action.ResourceConsumes)
                 {
                     var res = ctx.Resources.FirstOrDefault(r => r.Name == kvp.Key);
@@ -103,20 +125,37 @@ public static class ActionSystem
                         sbRes.Append($" ({kvp.Key}: нет)");
                     }
                 }
-                // Resource finding
+                // Resource finding — only from NPC's current location node
                 foreach (var kvp in action.ResourceFinds)
                 {
-                    bool locationHasIt = ctx.Locations.Any(l => l.ResourceNodes.ContainsKey(kvp.Key) && l.ResourceNodes[kvp.Key] > 0);
-                    if (locationHasIt)
+                    Location? findLoc = todayLocation
+                        ?? ctx.Locations.FirstOrDefault(l => l.Id == npc.LocationId);
+                    bool nodeAvailable = findLoc != null
+                        && findLoc.ResourceNodes.TryGetValue(kvp.Key, out double nodeAmt)
+                        && nodeAmt > 0;
+
+                    if (nodeAvailable && findLoc != null)
                     {
                         double found = Math.Round(kvp.Value * (0.5 + rnd.NextDouble()), 1);
-                        var res = ctx.Resources.FirstOrDefault(r => r.Name == kvp.Key);
-                        if (res != null) res.Amount += found;
-                        sbRes.Append($" +{found} {kvp.Key}");
+                        // Don't exceed what's in the node
+                        double nodeMax = findLoc.ResourceNodes[kvp.Key];
+                        found = Math.Min(found, nodeMax);
+                        found = Math.Round(found, 1);
+                        if (found > 0)
+                        {
+                            MapInitializer.DeductFromNode(findLoc, kvp.Key, found);
+                            var res = ctx.Resources.FirstOrDefault(r => r.Name == kvp.Key);
+                            if (res != null) res.Amount += found;
+                            sbRes.Append($" +{found} {kvp.Key}");
+                        }
+                    }
+                    else if (findLoc == null)
+                    {
+                        sbRes.Append($" ({kvp.Key}: нет локации)");
                     }
                     else
                     {
-                        sbRes.Append($" ({kvp.Key}: нет на карте)");
+                        sbRes.Append($" ({kvp.Key}: исчерпано)");
                     }
                 }
                 resourceSuffix = sbRes.ToString();
@@ -270,5 +309,52 @@ public static class ActionSystem
             if (npc.Stats.GetStatValue(kvp.Key) < kvp.Value) return false;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Pick a location for the NPC to visit today.
+    /// Prefers locations with resources NPC needs; falls back to any explored location.
+    /// Returns null if NPC should stay home.
+    /// </summary>
+    private static Location? PickTravelLocation(Npc npc, List<Location> locations, Random rnd)
+    {
+        // 20% chance to stay home (rest day / no travel)
+        if (rnd.NextDouble() < 0.20) return null;
+
+        var explored = locations.Where(l =>
+            l.IsExplored &&
+            l.MapState == MapState.Current &&
+            l.Type is LocationType.Building
+                   or LocationType.Floor
+                   or LocationType.Apartment
+                   or LocationType.Street
+        ).ToList();
+
+        if (explored.Count == 0) return null;
+
+        // Try to pick a location that has resources the NPC needs
+        var urgentNeed = NeedSystem.GetMostUrgentNeed(npc);
+        if (urgentNeed != null)
+        {
+            // Map need to resource name
+            string? resourceNeeded = urgentNeed.Name switch
+            {
+                "Еда"              => "Еда",
+                "Вода"             => "Вода",
+                "Отдых и здоровье" => "Медикаменты",
+                _                  => null,
+            };
+            if (resourceNeeded != null)
+            {
+                var withResource = explored
+                    .Where(l => l.ResourceNodes.TryGetValue(resourceNeeded, out double v) && v > 0)
+                    .ToList();
+                if (withResource.Count > 0)
+                    return withResource[rnd.Next(withResource.Count)];
+            }
+        }
+
+        // Random explored location
+        return explored[rnd.Next(explored.Count)];
     }
 }

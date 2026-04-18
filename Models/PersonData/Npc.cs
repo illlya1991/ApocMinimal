@@ -67,6 +67,10 @@ public class Npc
     // ── INJURIES ────────────────────────────────────────────────────────────
     public List<Injury> Injuries { get; set; } = new();
 
+    // ── LOCATION ─────────────────────────────────────────────────────────────
+    /// <summary>Current location Id. 0 = home base (community).</summary>
+    public int LocationId { get; set; } = 0;
+
     // ── MEMORY ──────────────────────────────────────────────────────────────
     [JsonIgnore]
     public List<MemoryEntry> Memory { get; set; } = new();

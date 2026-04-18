@@ -368,6 +368,7 @@ public class GameViewModel : INotifyPropertyChanged
         foreach (var n in _npcs) _db.SaveNpc(n);
         foreach (var r in _resources) _db.SaveResource(r);
         foreach (var q in _quests.Where(q => q.Status != QuestStatus.Available)) _db.SaveQuest(q);
+        foreach (var l in _locations) _db.SaveLocation(l);
     }
 
     public void SavePlayer()

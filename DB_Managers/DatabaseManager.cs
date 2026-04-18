@@ -154,6 +154,25 @@ public class DatabaseManager
         File.Copy(_templateSave._fileName, _thisSave._fileName);
 
         OpenConnection(_thisSave._connectionString);
+
+        // Migrate schema: add LocationId to Npcs if missing
+        EnsureNpcLocationColumn();
+
+        // Distribute resources randomly across the map
+        var rnd = new Random();
+        var locations = GetAllLocations();
+        ApocMinimal.Systems.MapInitializer.InitialiseMapResources(locations, rnd);
+        foreach (var loc in locations)
+            SaveLocation(loc);
+    }
+
+    private void EnsureNpcLocationColumn()
+    {
+        try
+        {
+            ExecuteNQ("ALTER TABLE Npcs ADD COLUMN LocationId INTEGER NOT NULL DEFAULT 0");
+        }
+        catch { /* column already exists */ }
     }
 
     public void DeleteSave(OneSave value)
@@ -333,6 +352,18 @@ public class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
+    public void SaveLocation(Location loc)
+    {
+        using var cmd = new SQLiteCommand(
+            "UPDATE Locations SET ResourceNodes=@rn, DangerLevel=@dl, IsExplored=@ie, Status=@st WHERE Id=@id", _conn);
+        cmd.Parameters.AddWithValue("@rn", JsonSerializer.Serialize(loc.ResourceNodes, JsonOpts));
+        cmd.Parameters.AddWithValue("@dl", loc.DangerLevel);
+        cmd.Parameters.AddWithValue("@ie", loc.IsExplored ? 1 : 0);
+        cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
+        cmd.Parameters.AddWithValue("@id", loc.Id);
+        cmd.ExecuteNonQuery();
+    }
+
     public void RegenerateAllNpcs(List<Npc> newNpcs)
     {
         using var tx = _conn.BeginTransaction();
@@ -401,7 +432,7 @@ public class DatabaseManager
             Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
             CharTraits=@ct, Specializations=@sp, Emotions=@em,
             Goal=@gl, Dream=@dr, Desire=@de,
-            Needs=@nd, Memory=@me, Statistics=@stat
+            Needs=@nd, Memory=@me, Statistics=@stat, LocationId=@li
         WHERE Id=@id", _conn);
 
         cmd.Parameters.AddWithValue("@hp", n.Health);
@@ -428,6 +459,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@me", JsonSerializer.Serialize(n.Memory, JsonOpts));
         cmd.Parameters.AddWithValue("@stat", JsonSerializer.Serialize(n.Stats, JsonOpts));
         cmd.Parameters.AddWithValue("@id", n.Id);
+        cmd.Parameters.AddWithValue("@li", n.LocationId);
 
         SaveModifiersForNpc(n.Id, n.Stats);
         cmd.ExecuteNonQuery();
@@ -667,6 +699,8 @@ public class DatabaseManager
             NeedSystem.SatisfyNeed(npc, "Еда", Math.Max(0, 100 - hunger));
             NeedSystem.SatisfyNeed(npc, "Вода", Math.Max(0, 100 - thirst));
         }
+
+        npc.LocationId = GetIntOrDefault(rdr, "LocationId", 0);
 
         return npc;
     }
