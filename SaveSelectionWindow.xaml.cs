@@ -69,40 +69,70 @@ namespace ApocMinimal
 
                 var container = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
 
+                // Цветовая схема: занятый слот в режиме "new" — янтарное предупреждение
+                bool isOccupied = save._active && _mode == "new";
+                string bgColor     = isOccupied ? "#1e1500" : (save._active ? "#0f2a1a" : "#111827");
+                string borderColor = isOccupied ? "#d97706" : (save._active ? "#2a6040" : "#1e2a3a");
+                string nameColor   = isOccupied ? "#fbbf24" : (save._active ? "#4ade80" : "#8b949e");
+
                 // Основная кнопка
                 var saveBtn = new Border
                 {
-                    Background = (Brush)new BrushConverter().ConvertFromString(save._active ? "#0f2a1a" : "#111827"),
-                    BorderBrush = (Brush)new BrushConverter().ConvertFromString(save._active ? "#2a6040" : "#1e2a3a"),
-                    BorderThickness = new Thickness(1),
+                    Background = (Brush)new BrushConverter().ConvertFromString(bgColor),
+                    BorderBrush = (Brush)new BrushConverter().ConvertFromString(borderColor),
+                    BorderThickness = new Thickness(isOccupied ? 2 : 1),
                     CornerRadius = new CornerRadius(4),
                     Cursor = Cursors.Hand,
                     Padding = new Thickness(14, 10, 14, 10)
                 };
 
-                var saveContent = new Grid();
-                saveContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                saveContent.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var saveContent = new StackPanel();
+
+                // Строка заголовка
+                var headerRow = new Grid();
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 var nameBlock = new TextBlock
                 {
-                    Text = slotName,
-                    Foreground = (Brush)new BrushConverter().ConvertFromString(save._active ? "#4ade80" : "#8b949e"),
+                    Text = isOccupied ? $"⚠ {slotName}" : slotName,
+                    Foreground = (Brush)new BrushConverter().ConvertFromString(nameColor),
                     FontSize = 13,
                     FontWeight = FontWeights.SemiBold
                 };
 
                 var statusBlock = new TextBlock
                 {
-                    Text = save._active ? "активно" : "пусто",
-                    Foreground = (Brush)new BrushConverter().ConvertFromString(save._active ? "#4ade80" : "#555"),
+                    Text = isOccupied ? "занято" : (save._active ? "активно" : "пусто"),
+                    Foreground = (Brush)new BrushConverter().ConvertFromString(isOccupied ? "#d97706" : (save._active ? "#4ade80" : "#555")),
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 Grid.SetColumn(statusBlock, 1);
+                headerRow.Children.Add(nameBlock);
+                headerRow.Children.Add(statusBlock);
+                saveContent.Children.Add(headerRow);
 
-                saveContent.Children.Add(nameBlock);
-                saveContent.Children.Add(statusBlock);
+                // Строка с данными сохранения (только для занятых)
+                if (save._active)
+                {
+                    saveContent.Children.Add(new TextBlock
+                    {
+                        Text = $"День {save._currentDay}  |  Алтарь ур.{save._altarLevel}  |  ОВ: {save._faithPoints:F0}",
+                        Foreground = (Brush)new BrushConverter().ConvertFromString(isOccupied ? "#92400e" : "#4b7a4b"),
+                        FontSize = 10,
+                        Margin = new Thickness(0, 3, 0, 0)
+                    });
+                    if (isOccupied)
+                        saveContent.Children.Add(new TextBlock
+                        {
+                            Text = "Будет перезаписано!",
+                            Foreground = (Brush)new BrushConverter().ConvertFromString("#b45309"),
+                            FontSize = 10,
+                            FontStyle = FontStyles.Italic
+                        });
+                }
+
                 saveBtn.Child = saveContent;
 
                 saveBtn.MouseLeftButtonUp += (s, e) => OnSaveSelected(saves[idx]);

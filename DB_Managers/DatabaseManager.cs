@@ -66,10 +66,17 @@ public class DatabaseManager
                     object? scalarResult = ExecuteScalar("SELECT CurrentDay FROM Player Limit 1");
                     long currentDay = 0;
                     if (scalarResult != null)
-                    {
                         currentDay = (long)scalarResult;
-                    }
                     item._active = currentDay > 1;
+                    item._currentDay = (int)currentDay;
+
+                    object? altarResult = ExecuteScalar("SELECT AltarLevel FROM Player Limit 1");
+                    if (altarResult != null)
+                        item._altarLevel = (int)(long)altarResult;
+
+                    object? faithResult = ExecuteScalar("SELECT FaithPoints FROM Player Limit 1");
+                    if (faithResult != null)
+                        item._faithPoints = Convert.ToDouble(faithResult);
                 }
             }
             catch (Exception)
@@ -1250,6 +1257,9 @@ public class OneSave
     public string _connectionString = "";
     public string _fileName = "";
     public bool _active = false;
+    public int _currentDay = 0;
+    public int _altarLevel = 0;
+    public double _faithPoints = 0;
 
     public OneSave() { }
     public OneSave(string fileName)
