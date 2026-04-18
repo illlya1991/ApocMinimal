@@ -27,6 +27,7 @@ public class GameViewModel : INotifyPropertyChanged
     private Dictionary<string, double> _gameConfig = new();
     private List<QuestCatalogEntry> _questCatalog = new();
     private List<PlayerLibraryEntry> _playerLibrary = new();
+    private List<string> _shopUnlocks = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -138,6 +139,7 @@ public class GameViewModel : INotifyPropertyChanged
         _gameConfig = _db.GetGameConfig();
         _questCatalog = _db.GetQuestCatalog(999);
         _playerLibrary = _db.GetPlayerLibrary(_db.CurrentSaveId);
+        _shopUnlocks = _db.GetShopUnlocks(_db.CurrentSaveId);
 
         CurrentDay = _player.CurrentDay;
         FaithPoints = _player.FaithPoints;
@@ -378,31 +380,22 @@ public class GameViewModel : INotifyPropertyChanged
         _db.SaveNpc(npc);
     }
 
-    /// <summary>Process and log NPC actions for CurrentDay. Does NOT advance the day.</summary>
-    public void ProcessNpcDay(Action<string, string> logAction)
+    /// <summary>Process NPC actions for CurrentDay. Does NOT advance the day.</summary>
+    public DayResult ProcessNpcDay()
     {
-        var dayResult = GameLoopService.ProcessNpcActionsOnly(_player, _npcs, _rnd);
-        foreach (var npcResult in dayResult.NpcResults)
-        {
-            logAction($"── {npcResult.Npc.Name} ──", "#58a6ff");
-            foreach (var entry in npcResult.Actions)
-                logAction($"  [{entry.Time}] {entry.Text}", entry.IsAlert ? "#f87171" : entry.Color);
-        }
+        var ctx = new ActionContext { Resources = _resources, Locations = _locations };
+        return GameLoopService.ProcessNpcActionsOnly(_player, _npcs, _rnd, ctx);
     }
 
-    /// <summary>Process end-of-day (quests, needs, faith) and advance CurrentDay.</summary>
-    public void AdvanceToNextDay(Action<string, string> logAction)
+    /// <summary>Process end-of-day (quests, needs, faith) and advance CurrentDay. Returns results for logging.</summary>
+    public DayResult AdvanceToNextDay()
     {
         var dayResult = GameLoopService.ProcessDayEnd(_player, _npcs, _resources, _quests, _rnd, _catalog);
-
-        foreach (var (text, isAlert) in dayResult.Logs)
-            logAction(text, isAlert ? "#f87171" : "#8b949e");
 
         foreach (var (npc, q) in dayResult.QuestRewards)
         {
             var res = _resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
             if (res != null) res.Amount += q.RewardAmount;
-            logAction($"{npc.Name} выполнил «{q.Title}» → +{q.RewardAmount:F0} {res?.Name}", "#22c55e");
         }
 
         _quests.AddRange(dayResult.NewQuests);
@@ -412,6 +405,8 @@ public class GameViewModel : INotifyPropertyChanged
         CurrentDay = _player.CurrentDay;
         FaithPoints = _player.FaithPoints;
         ActionsToday = _player.PlayerActionsToday;
+
+        return dayResult;
     }
 
     public int GetFollowerLimit(int followerLevel)
@@ -427,6 +422,70 @@ public class GameViewModel : INotifyPropertyChanged
     public Npc? GetNpcById(int id)
     {
         return _npcs.FirstOrDefault(n => n.Id == id);
+    }
+
+    public List<ResourceCatalogEntry> GetShoppableResources()
+    {
+        return _catalog.Values.ToList();
+    }
+
+    public bool IsShopUnlocked(string resourceName) => _shopUnlocks.Contains(resourceName);
+
+    /// <summary>
+    /// Unlock a resource for purchase: costs 5 OV + 1 unit of the resource from community pool.
+    /// </summary>
+    public string UnlockShopResource(string resourceName)
+    {
+        if (_shopUnlocks.Contains(resourceName))
+            return $"{resourceName} уже разблокирован";
+
+        var res = _resources.FirstOrDefault(r => r.Name == resourceName);
+        if (res == null || res.Amount < 1)
+            return $"Недостаточно {resourceName} (нужна 1 ед.)";
+        if (_player.FaithPoints < 5)
+            return "Недостаточно ОВ (нужно 5)";
+
+        res.Amount -= 1;
+        _player.FaithPoints -= 5;
+        _db.SaveResource(res);
+        _db.SavePlayer(_player);
+        _db.UnlockShopResource(_db.CurrentSaveId, resourceName);
+        _shopUnlocks.Add(resourceName);
+        FaithPoints = _player.FaithPoints;
+        return $"Разблокирована покупка: {resourceName}";
+    }
+
+    /// <summary>
+    /// Buy 10 units of a resource. Returns result message.
+    /// </summary>
+    public string BuyShopResource(string resourceName)
+    {
+        if (!_shopUnlocks.Contains(resourceName))
+            return $"{resourceName} не разблокирован";
+
+        if (!_catalog.TryGetValue(resourceName, out var entry))
+            return "Ресурс не найден в каталоге";
+
+        double price = entry.Quality switch
+        {
+            1 => 2, 2 => 3, 3 => 5, 4 => 10, 5 => 20, _ => 5
+        };
+
+        if (_player.FaithPoints < price)
+            return $"Недостаточно ОВ (нужно {price:F0})";
+
+        _player.FaithPoints -= price;
+        _db.SavePlayer(_player);
+
+        var res = _resources.FirstOrDefault(r => r.Name == resourceName);
+        if (res != null)
+        {
+            res.Amount += 10;
+            _db.SaveResource(res);
+        }
+
+        FaithPoints = _player.FaithPoints;
+        return $"Куплено 10 ед. {resourceName} за {price:F0} ОВ";
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>

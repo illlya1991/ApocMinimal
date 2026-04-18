@@ -53,7 +53,7 @@ public static class GameLoopService
         catalog ??= new Dictionary<string, ResourceCatalogEntry>();
         DayResult result = new DayResult();
 
-        ProcessNpcActions(result, npcs, player, rnd);
+        ProcessNpcActions(result, npcs, player, rnd, null);
         ProcessQuests(result, quests, npcs, resources, rnd);
         ProcessLeaderBonus(result, npcs);
         ProcessFaithGeneration(result, player, npcs);
@@ -64,10 +64,10 @@ public static class GameLoopService
     }
 
     /// <summary>NPC actions only — used at the start of each player turn.</summary>
-    public static DayResult ProcessNpcActionsOnly(Player player, List<Npc> npcs, Random rnd)
+    public static DayResult ProcessNpcActionsOnly(Player player, List<Npc> npcs, Random rnd, ActionContext? ctx = null)
     {
         var result = new DayResult();
-        ProcessNpcActions(result, npcs, player, rnd);
+        ProcessNpcActions(result, npcs, player, rnd, ctx);
         return result;
     }
 
@@ -92,12 +92,12 @@ public static class GameLoopService
 
     // ── Sub-methods ──────────────────────────────────────────────────────────
 
-    private static void ProcessNpcActions(DayResult result, List<Npc> npcs, Player player, Random rnd)
+    private static void ProcessNpcActions(DayResult result, List<Npc> npcs, Player player, Random rnd, ActionContext? ctx = null)
     {
         for (int i = 0; i < npcs.Count; i++)
         {
             if (!npcs[i].IsAlive) continue;
-            List<ActionLogEntry> actions = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay);
+            List<ActionLogEntry> actions = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx);
             result.NpcResults.Add(new NpcDayResult(npcs[i], actions));
         }
     }

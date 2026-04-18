@@ -1,6 +1,7 @@
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Models.ResourceData;
 
 namespace ApocMinimal.Systems;
 
@@ -23,7 +24,7 @@ public static class ActionSystem
     private const int MaxNightHours   = 12; // максимум ночного сна
     private const int MaxSpecialPerDay = 3;
 
-    public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day)
+    public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day, ActionContext? ctx = null)
     {
         var log = new List<ActionLogEntry>();
         if (!npc.IsAlive) return log;
@@ -84,11 +85,48 @@ public static class ActionSystem
                 ? $" [{string.Join(", ", growth.Select(g => $"+{g.Gain} {g.StatName}"))}]"
                 : "";
 
+            string resourceSuffix = "";
+            if (ctx != null)
+            {
+                var sbRes = new System.Text.StringBuilder();
+                // Resource consumption
+                foreach (var kvp in action.ResourceConsumes)
+                {
+                    var res = ctx.Resources.FirstOrDefault(r => r.Name == kvp.Key);
+                    if (res != null && res.Amount >= kvp.Value)
+                    {
+                        res.Amount -= kvp.Value;
+                        sbRes.Append($" -{kvp.Value:G} {kvp.Key}");
+                    }
+                    else
+                    {
+                        sbRes.Append($" ({kvp.Key}: нет)");
+                    }
+                }
+                // Resource finding
+                foreach (var kvp in action.ResourceFinds)
+                {
+                    bool locationHasIt = ctx.Locations.Any(l => l.ResourceNodes.ContainsKey(kvp.Key) && l.ResourceNodes[kvp.Key] > 0);
+                    if (locationHasIt)
+                    {
+                        double found = Math.Round(kvp.Value * (0.5 + rnd.NextDouble()), 1);
+                        var res = ctx.Resources.FirstOrDefault(r => r.Name == kvp.Key);
+                        if (res != null) res.Amount += found;
+                        sbRes.Append($" +{found} {kvp.Key}");
+                    }
+                    else
+                    {
+                        sbRes.Append($" ({kvp.Key}: нет на карте)");
+                    }
+                }
+                resourceSuffix = sbRes.ToString();
+            }
+
             npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{hour:00}:00] {action.Name}"));
             log.Add(new ActionLogEntry
             {
                 Time  = $"{hour:00}:00",
-                Text  = action.Name + growthSuffix,
+                Text  = action.Name + resourceSuffix + growthSuffix,
                 Color = action.Category == ActionCategory.Special ? "#e879f9" : "#c9d1d9",
             });
 

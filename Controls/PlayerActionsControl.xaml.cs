@@ -66,6 +66,7 @@ public partial class PlayerActionsControl : UserControl
         RefreshMapTab();
         RefreshTechniquePanel();
         RefreshResourceCombo();
+        RefreshShopSection();
     }
 
     public void Refresh()
@@ -75,6 +76,7 @@ public partial class PlayerActionsControl : UserControl
         RefreshTechniquePanel();
         RefreshResourceCombo();
         RefreshActionCombo();
+        RefreshShopSection();
     }
 
     private void RefreshActionCombo()
@@ -562,6 +564,72 @@ public partial class PlayerActionsControl : UserControl
         {
             Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);
         }
+        Refresh();
+    }
+
+    // =========================================================
+    // Resource Shop UI
+    // =========================================================
+
+    private void RefreshShopSection()
+    {
+        ShopPanel.Children.Clear();
+        var resources = _viewModel.GetShoppableResources();
+        foreach (var entry in resources.Where(e => e.IsLocationNode).OrderBy(e => e.Name))
+        {
+            bool unlocked = _viewModel.IsShopUnlocked(entry.Name);
+            double price = entry.Quality switch
+            {
+                1 => 2, 2 => 3, 3 => 5, 4 => 10, 5 => 20, _ => 5
+            };
+
+            var resName = entry.Name;
+            Button btn;
+            if (!unlocked)
+            {
+                btn = new Button
+                {
+                    Content = $"{resName} — Разблокировать (1 ед. + 5 ОВ)",
+                    Style = (Style)FindResource("ActionBtn"),
+                    IsEnabled = _viewModel.FaithPoints >= 5,
+                    Opacity = _viewModel.FaithPoints >= 5 ? 1.0 : 0.5,
+                    Tag = resName,
+                };
+                btn.Click += ShopUnlockBtn_Click;
+            }
+            else
+            {
+                btn = new Button
+                {
+                    Content = $"{resName} ×10 → {price:F0} ОВ",
+                    Style = (Style)FindResource("ActionBtn"),
+                    IsEnabled = _viewModel.FaithPoints >= price,
+                    Opacity = _viewModel.FaithPoints >= price ? 1.0 : 0.5,
+                    Tag = resName,
+                    Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1a2a1a")!,
+                    Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
+                };
+                btn.Click += ShopBuyBtn_Click;
+            }
+            ShopPanel.Children.Add(btn);
+        }
+    }
+
+    private void ShopUnlockBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string resName) return;
+        var result = _viewModel.UnlockShopResource(resName);
+        Log(result, LogEntry.ColorSuccess);
+        _viewModel.Refresh();
+        Refresh();
+    }
+
+    private void ShopBuyBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string resName) return;
+        var result = _viewModel.BuyShopResource(resName);
+        Log(result, LogEntry.ColorSuccess);
+        _viewModel.Refresh();
         Refresh();
     }
 }

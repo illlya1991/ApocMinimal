@@ -13,4 +13,5 @@ public class ResourceCatalogEntry
     public double WaterRestore { get; set; } = 0;
     public bool IsLocationNode { get; set; } = true;
     public int LocationWeight { get; set; } = 1;
+    public int Quality { get; set; } = 1;  // 1-5 — affects shop price tier
 }

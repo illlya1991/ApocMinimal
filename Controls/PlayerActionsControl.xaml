@@ -83,6 +83,10 @@
                     <Separator Background="#30363d" Margin="0,12,0,6"/>
                     <TextBlock Text="ТЕХНИКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>
                     <StackPanel x:Name="TechniquePanel"/>
+
+                    <Separator Background="#30363d" Margin="0,12,0,6"/>
+                    <TextBlock Text="МАГАЗИН РЕСУРСОВ" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel x:Name="ShopPanel"/>
                 </StackPanel>
             </ScrollViewer>
 

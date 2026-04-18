@@ -953,6 +953,7 @@ public class DatabaseManager
                 WaterRestore  = GetDoubleOrDefault(rdr, "WaterRestore", 0),
                 IsLocationNode = GetIntOrDefault(rdr, "IsLocationNode", 1) == 1,
                 LocationWeight = GetIntOrDefault(rdr, "LocationWeight", 1),
+                Quality = GetIntOrDefault(rdr, "Quality", 1),
             });
         }
         return list;
@@ -1174,6 +1175,37 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand("DELETE FROM Quests WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@id", questId);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void EnsureResourceShopTable()
+    {
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS ResourceShop (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SaveId TEXT NOT NULL,
+            ResourceName TEXT NOT NULL,
+            UNIQUE(SaveId, ResourceName)
+        )");
+    }
+
+    public List<string> GetShopUnlocks(string saveId)
+    {
+        var list = new List<string>();
+        if (!IsTableExistsSafe("ResourceShop")) return list;
+        using var cmd = new SQLiteCommand("SELECT ResourceName FROM ResourceShop WHERE SaveId=@s", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read()) list.Add(rdr.GetString(0));
+        return list;
+    }
+
+    public void UnlockShopResource(string saveId, string resourceName)
+    {
+        EnsureResourceShopTable();
+        using var cmd = new SQLiteCommand(
+            "INSERT OR IGNORE INTO ResourceShop(SaveId, ResourceName) VALUES(@s,@r)", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        cmd.Parameters.AddWithValue("@r", resourceName);
         cmd.ExecuteNonQuery();
     }
 
