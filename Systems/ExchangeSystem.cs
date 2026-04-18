@@ -2,6 +2,7 @@ using ApocMinimal.Models.ExchangeData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.ResourceData;
+using ApocMinimal.Models.StatisticsData;
 
 namespace ApocMinimal.Systems;
 
@@ -17,7 +18,13 @@ public static class ExchangeSystem
             {
                 var stat = npc.Stats.GetByNumber(eff.StatNumber);
                 if (stat == null) continue;
-                stat.BaseValue = Math.Max(1, (int)Math.Round(stat.BaseValue * eff.Multiplier));
+                // Permanent multiplicative buff — survives save/load via NpcModifiers table
+                stat.AddModifier(new PermanentModifier(
+                    $"exchange_{ex.Id}_{stat.Id}",
+                    ex.Name,
+                    "Обмен",
+                    ModifierType.Multiplicative,
+                    eff.Multiplier));
             }
 
             foreach (var eff in ex.NeedEffects)
