@@ -40,14 +40,17 @@ public partial class GameWindow : Window
 
             for (int d = 1; d <= 9; d++)
             {
-                _viewModel.ProcessNpcDay();
-                _viewModel.AdvanceToNextDay();
+                LogControl.NewDay($"═══ ДЕНЬ {d} ══════════════════════");
+                var npcRes = _viewModel.ProcessNpcDay();
+                LogNpcDay(npcRes);
+                var endRes = _viewModel.AdvanceToNextDay();
+                LogSystemSummary(endRes);
                 _viewModel.SaveAll();
             }
             var day10Exchanges = _viewModel.SetupAndApplyDayExchanges(10);
 
             LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-            LogControl.AddSystemEntry("Первые 9 дней прошли без участия игрока.", "#8b949e");
+            LogControl.AddSystemEntry("День 10 — первый день участия игрока.", "#8b949e");
 
             foreach (var ex in day10Exchanges)
                 LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");

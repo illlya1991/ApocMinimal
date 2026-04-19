@@ -29,7 +29,8 @@ public static class ActionSystem
     private static readonly HashSet<int> SocialActionIds = new() { 10, 18, 29, 103, 130 };
     private static bool IsSocialAction(NpcAction action) => SocialActionIds.Contains(action.Id);
 
-    public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day, ActionContext? ctx = null)
+    public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day, ActionContext? ctx = null,
+        List<ActionLogEntry>? systemAlerts = null)
     {
         var log = new List<ActionLogEntry>();
         if (!npc.IsAlive) return log;
@@ -86,7 +87,11 @@ public static class ActionSystem
                     npc.Stamina = Math.Clamp(npc.Stamina - 8, 0, npc.MaxStamina);
                     hoursUsed++;
                 }
-                // Internal (same building): no stamina, no hour consumed
+                else
+                {
+                    // Internal (same building): no stamina cost, but still uses the hour slot to avoid duplicate
+                    hoursUsed++;
+                }
             }
         }
 
@@ -228,13 +233,17 @@ public static class ActionSystem
             Need need = npc.Needs[i];
             if (need.IsCritical)
             {
-                log.Add(new ActionLogEntry
+                var alert = new ActionLogEntry
                 {
                     Time    = "23:00",
-                    Text    = $"[!] Критическая нужда: {need.Name} ({need.Value:F0}%)",
+                    Text    = $"[!] {npc.Name}: критическая нужда «{need.Name}» ({need.Value:F0}%)",
                     Color   = "#f87171",
                     IsAlert = true,
-                });
+                };
+                if (systemAlerts != null)
+                    systemAlerts.Add(alert);
+                else
+                    log.Add(alert);
             }
         }
 

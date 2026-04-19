@@ -154,7 +154,7 @@ namespace ApocMinimal
                     };
                     delBtn.Click += (s, e) =>
                     {
-                        _pendingDelete = saves[idx];
+                        _pendingDelete = save;
                         _pendingDeleteContainer = container;
                         DeleteConfirmText.Text = $"Удалить «{slotName}»? Это действие нельзя отменить.";
                         DeleteConfirmPanel.Visibility = Visibility.Visible;

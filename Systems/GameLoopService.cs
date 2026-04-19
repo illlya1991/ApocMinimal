@@ -104,11 +104,14 @@ public static class GameLoopService
 
         // Pass 1: build each NPC's own log (social actions inject into partner NpcLogs)
         var ownLogs = new Dictionary<int, List<ActionLogEntry>>(npcs.Count);
+        var systemAlerts = new List<ActionLogEntry>();
         for (int i = 0; i < npcs.Count; i++)
         {
             if (!npcs[i].IsAlive) continue;
-            ownLogs[npcs[i].Id] = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx);
+            ownLogs[npcs[i].Id] = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx, systemAlerts);
         }
+        foreach (var alert in systemAlerts)
+            result.Logs.Add((alert.Text, true));
 
         // Pass 2: merge externally-injected entries (all NPCs processed, injections complete)
         for (int i = 0; i < npcs.Count; i++)

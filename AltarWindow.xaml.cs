@@ -244,15 +244,29 @@ public partial class AltarWindow : Window
             });
             sp.Children.Add(new TextBlock
             {
-                Text = "✖ " + ex.GiveText,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f87171")!,
+                Text = "▼ ОТДАНО:",
+                Foreground = MakeBrush("#f87171"),
+                FontSize = 9,
+                Margin = new Thickness(0, 4, 0, 1),
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "   " + ex.GiveText,
+                Foreground = MakeBrush("#fca5a5"),
                 FontSize = 10,
                 TextWrapping = TextWrapping.Wrap,
             });
             sp.Children.Add(new TextBlock
             {
-                Text = "✔ " + ex.GetText,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
+                Text = "▲ ПОЛУЧЕНО:",
+                Foreground = MakeBrush("#56d364"),
+                FontSize = 9,
+                Margin = new Thickness(0, 4, 0, 1),
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "   " + ex.GetText,
+                Foreground = MakeBrush("#86efac"),
                 FontSize = 10,
                 TextWrapping = TextWrapping.Wrap,
             });
