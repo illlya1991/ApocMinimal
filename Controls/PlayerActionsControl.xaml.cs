@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using ApocMinimal.Models.ExchangeData;
 using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
-using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
 using ApocMinimal.Models.UIData;
@@ -54,7 +52,6 @@ public partial class PlayerActionsControl : UserControl
     {
         ActionCombo.Items.Clear();
 
-        // Используем PlayerActionGroup из ViewModel
         foreach (var group in _viewModel.ActionGroups)
             ActionCombo.Items.Add(group);
 
@@ -63,22 +60,17 @@ public partial class PlayerActionsControl : UserControl
         SubActionRow.Visibility = Visibility.Collapsed;
         ParametersPanel.Visibility = Visibility.Collapsed;
 
-        RefreshAltarTab();
         RefreshMapTab();
         RefreshTechniquePanel();
         RefreshResourceCombo();
-        RefreshShopSection();
     }
 
     public void Refresh()
     {
-        RefreshAltarTab();
         RefreshMapTab();
         RefreshTechniquePanel();
         RefreshResourceCombo();
         RefreshActionCombo();
-        RefreshShopSection();
-        RefreshExchangeSection();
     }
 
     private void RefreshActionCombo()
@@ -95,50 +87,6 @@ public partial class PlayerActionsControl : UserControl
     private void RefreshResourceCombo()
     {
         // Для обратной совместимости
-    }
-
-    private void RefreshAltarTab()
-    {
-        AltarInfoLabel.Text =
-            $"Уровень: {_viewModel.AltarLevel} / 10\n" +
-            $"ОВ: {_viewModel.FaithPoints:F0}\n" +
-            $"Стоимость улучшения: {_viewModel.UpgradeCost:N0} ОВ";
-
-        UpgradeAltarBtn.IsEnabled = _viewModel.CanUpgrade;
-        UpgradeAltarBtn.Content = _viewModel.AltarLevel >= 10
-            ? "Максимальный уровень"
-            : $"Улучшить ({_viewModel.UpgradeCost:N0} ОВ)";
-
-        BarrierLabel.Text = $"Размер барьера: {_viewModel.BarrierSize:F0} м";
-
-        var sb = new System.Text.StringBuilder("Последователи: ");
-        for (int fl = 0; fl <= 5; fl++)
-        {
-            int lim = _viewModel.GetFollowerLimit(fl);
-            if (lim == 0) continue;
-            int cur = _viewModel.GetFollowerCountAtLevel(fl);
-            sb.Append($"lvl{fl}: {cur}/{(lim == -1 ? "∞" : lim.ToString())}  ");
-        }
-        FollowerLabel.Text = sb.ToString().TrimEnd();
-
-        AltarTechPanel.Children.Clear();
-        foreach (var tech in _viewModel.AllTechniques)
-        {
-            bool unlocked = tech.AltarLevel <= _viewModel.AltarLevel;
-            var btn = new Button
-            {
-                Content = $"{tech.Name}  ({tech.FaithCost:F0} ОВ)",
-                Style = (Style)FindResource("ActionBtn"),
-                IsEnabled = unlocked && _viewModel.FaithPoints >= tech.FaithCost,
-                Opacity = unlocked ? 1.0 : 0.4,
-                ToolTip = tech.Description,
-                Tag = tech,
-            };
-            if (unlocked) btn.Click += TechniqueBtn_Click;
-            AltarTechPanel.Children.Add(btn);
-        }
-
-        RefreshExchangeSection();
     }
 
     private void RefreshMapTab()
@@ -514,275 +462,20 @@ public partial class PlayerActionsControl : UserControl
 
     private void Tab_Click(object sender, RoutedEventArgs e)
     {
-        TabActions.IsChecked = false; TabQuests.IsChecked = false;
-        TabAltar.IsChecked = false; TabMap.IsChecked = false;
+        TabActions.IsChecked = sender == TabActions;
+        TabMap.IsChecked = sender == TabMap;
 
-        PanelActions.Visibility = Visibility.Collapsed;
-        PanelAltar.Visibility = Visibility.Collapsed;
-        PanelMap.Visibility = Visibility.Collapsed;
-
-        if (sender == TabActions) { TabActions.IsChecked = true; PanelActions.Visibility = Visibility.Visible; }
-        else if (sender == TabAltar) { TabAltar.IsChecked = true; PanelAltar.Visibility = Visibility.Visible; RefreshAltarTab(); }
-        else if (sender == TabMap) { TabMap.IsChecked = true; PanelMap.Visibility = Visibility.Visible; RefreshMapTab(); }
+        PanelActions.Visibility = TabActions.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        PanelMap.Visibility = TabMap.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    // =========================================================
-    // Button handlers
-    // =========================================================
-
-    private void UpgradeAltarBtn_Click(object sender, RoutedEventArgs e)
+    private void OpenAltarBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (!_viewModel.CanUpgrade) return;
-        long cost = _viewModel.UpgradeCost;
-        _viewModel.FaithPoints -= cost;
-        _viewModel.AltarLevel++;
-        _viewModel.SavePlayer();
-        Log($"Алтарь улучшен до уровня {_viewModel.AltarLevel}! (потрачено {cost:N0} ОВ)", LogEntry.ColorAltarColor);
-        Log($"  Макс. ОВ/NPC/день: {Player.MaxFaithPerNpcPerDay:F0}  Активных последователей: {_viewModel.MaxActiveFollowers}", LogEntry.ColorAltarColor);
-        Refresh();
-    }
-
-    private void BarrierBtn_Click(object sender, RoutedEventArgs e)
-    {
-        const double cost = 20;
-        if (_viewModel.FaithPoints < cost) { Log("Недостаточно ОВ для барьера (нужно 20).", LogEntry.ColorWarning); return; }
-        _viewModel.FaithPoints -= cost;
-        _viewModel.BarrierSize = Math.Min(100, _viewModel.BarrierSize + 10);
-        _viewModel.SavePlayer();
-        Log($"Барьер укреплён: {_viewModel.BarrierSize:F0} м (-{cost} ОВ)", LogEntry.ColorAltarColor);
-        Refresh();
-    }
-
-    private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button btn || btn.Tag is not Technique tech) return;
-        if (_viewModel.FaithPoints < tech.FaithCost) { Log($"Недостаточно ОВ для «{tech.Name}».", LogEntry.ColorWarning); return; }
-
-        _viewModel.FaithPoints -= tech.FaithCost;
-        _viewModel.SavePlayer();
-
-        var target = tech.HealAmount > 0
-            ? _viewModel.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
-            : _viewModel.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
-
-        if (target == null)
-        {
-            Log($"«{tech.Name}»: нет живых целей.", LogEntry.ColorWarning);
-            Refresh();
-            return;
-        }
-
-        if (TechniqueSystem.Apply(tech, target, out string techLog))
-        {
-            _viewModel.SaveNpc(target);
-            Log($"  {techLog}", LogEntry.ColorSuccess);
-        }
-        else
-        {
-            Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);
-        }
-        Refresh();
-    }
-
-    // =========================================================
-    // Resource Shop UI
-    // =========================================================
-
-    private void RefreshShopSection()
-    {
-        ShopPanel.Children.Clear();
-        var resources = _viewModel.GetShoppableResources();
-        var grouped = resources
-            .Where(e => e.IsLocationNode)
-            .GroupBy(e => e.Quality)
-            .OrderBy(g => g.Key);
-
-        foreach (var group in grouped)
-        {
-            string categoryName = group.Key switch
-            {
-                1 => "★ Базовые",
-                2 => "★★ Стандартные",
-                3 => "★★★ Редкие",
-                4 => "★★★★ Эпические",
-                5 => "★★★★★ Уникальные",
-                _ => "Прочее"
-            };
-
-            ShopPanel.Children.Add(new TextBlock
-            {
-                Text = categoryName,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#8b949e")!,
-                FontSize = 10,
-                Margin = new Thickness(0, 6, 0, 2),
-            });
-
-            foreach (var entry in group.OrderBy(e => e.Name))
-            {
-                bool unlocked = _viewModel.IsShopUnlocked(entry.Name);
-                double price = entry.Quality switch
-                {
-                    1 => 2, 2 => 3, 3 => 5, 4 => 10, 5 => 20, _ => 5
-                };
-
-                var resName = entry.Name;
-                Button btn;
-                if (!unlocked)
-                {
-                    btn = new Button
-                    {
-                        Content = $"{resName} — Разблокировать (1 ед. + 5 ОВ)",
-                        Style = (Style)FindResource("ActionBtn"),
-                        IsEnabled = _viewModel.FaithPoints >= 5,
-                        Opacity = _viewModel.FaithPoints >= 5 ? 1.0 : 0.5,
-                        Tag = resName,
-                    };
-                    btn.Click += ShopUnlockBtn_Click;
-                }
-                else
-                {
-                    btn = new Button
-                    {
-                        Content = $"{resName} ×10 → {price:F0} ОВ",
-                        Style = (Style)FindResource("ActionBtn"),
-                        IsEnabled = _viewModel.FaithPoints >= price,
-                        Opacity = _viewModel.FaithPoints >= price ? 1.0 : 0.5,
-                        Tag = resName,
-                        Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1a2a1a")!,
-                        Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
-                    };
-                    btn.Click += ShopBuyBtn_Click;
-                }
-                ShopPanel.Children.Add(btn);
-            }
-        }
-    }
-
-    // =========================================================
-    // Exchange Section
-    // =========================================================
-
-    private void ExchangeToggle_Click(object sender, RoutedEventArgs e)
-    {
-        bool expanded = ExchangePanel.Visibility == Visibility.Visible;
-        ExchangePanel.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-        ExchangeToggleBtn.Content = expanded ? "▶ ПРЕЗИДЕНТСКИЕ ОБМЕНЫ" : "▼ ПРЕЗИДЕНТСКИЕ ОБМЕНЫ";
-    }
-
-    private void RefreshExchangeSection()
-    {
-        ExchangeItemsPanel.Children.Clear();
-
-        var pending = _viewModel.PendingExchanges;
-
-        if (pending.Count == 0)
-        {
-            int next = _viewModel.NextCriticalDay();
-            ExchangeStatusLabel.Text = next > 0
-                ? $"Следующий обмен: день {next}"
-                : "Все обмены использованы.";
-            ExchangeToggleBtn.Content =
-                (ExchangePanel.Visibility == Visibility.Visible ? "▼" : "▶") + " ПРЕЗИДЕНТСКИЕ ОБМЕНЫ";
-            return;
-        }
-
-        ExchangeStatusLabel.Text = $"Доступно обменов: {pending.Count}  (критический день)";
-        ExchangeToggleBtn.Content =
-            (ExchangePanel.Visibility == Visibility.Visible ? "▼" : "▶") +
-            $" ПРЕЗИДЕНТСКИЕ ОБМЕНЫ [{pending.Count}]";
-
-        foreach (var ex in pending.ToList())
-        {
-            var card = new Border
-            {
-                Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#0d1f0d")!,
-                BorderBrush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f59e0b")!,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
-                Margin = new Thickness(0, 2, 0, 4),
-                Padding = new Thickness(6, 4, 6, 4),
-            };
-            var sp = new StackPanel();
-
-            sp.Children.Add(new TextBlock
-            {
-                Text = ex.Name,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f59e0b")!,
-                FontSize = 11,
-                FontWeight = System.Windows.FontWeights.Bold,
-                Margin = new Thickness(0, 0, 0, 2),
-            });
-            sp.Children.Add(new TextBlock
-            {
-                Text = "✖ " + ex.GiveText,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f87171")!,
-                FontSize = 10,
-                TextWrapping = System.Windows.TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 1),
-            });
-            sp.Children.Add(new TextBlock
-            {
-                Text = "✔ " + ex.GetText,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
-                FontSize = 10,
-                TextWrapping = System.Windows.TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4),
-            });
-
-            var btn = new Button
-            {
-                Content = "ПРИНЯТЬ ОБМЕН",
-                Style = (Style)FindResource("ActionBtn"),
-                Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1a1a00")!,
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f59e0b")!,
-                Tag = ex,
-            };
-            btn.Click += ExchangeAcceptBtn_Click;
-            sp.Children.Add(btn);
-
-            card.Child = sp;
-            ExchangeItemsPanel.Children.Add(card);
-        }
-    }
-
-    private void ExchangeAcceptBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button btn || btn.Tag is not PresidentialExchangeEntry ex) return;
-        var result = _viewModel.ApplyExchange(ex);
-        Log(result, LogEntry.ColorAltarColor);
+        var win = new AltarWindow(_viewModel);
+        win.Owner = Window.GetWindow(this);
+        win.ShowDialog();
         _viewModel.Refresh();
         Refresh();
     }
 
-    private void TechniquesToggle_Click(object sender, RoutedEventArgs e)
-    {
-        bool expanded = AltarTechPanel.Visibility == Visibility.Visible;
-        AltarTechPanel.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-        TechniquesToggleBtn.Content = expanded ? "▶ ТЕХНИКИ" : "▼ ТЕХНИКИ";
-    }
-
-    private void ShopToggle_Click(object sender, RoutedEventArgs e)
-    {
-        bool expanded = ShopPanel.Visibility == Visibility.Visible;
-        ShopPanel.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-        ShopToggleBtn.Content = expanded ? "▶ МАГАЗИН РЕСУРСОВ (ОВ)" : "▼ МАГАЗИН РЕСУРСОВ (ОВ)";
-    }
-
-    private void ShopUnlockBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button btn || btn.Tag is not string resName) return;
-        var result = _viewModel.UnlockShopResource(resName);
-        Log(result, LogEntry.ColorSuccess);
-        _viewModel.Refresh();
-        Refresh();
-    }
-
-    private void ShopBuyBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button btn || btn.Tag is not string resName) return;
-        var result = _viewModel.BuyShopResource(resName);
-        Log(result, LogEntry.ColorSuccess);
-        _viewModel.Refresh();
-        Refresh();
-    }
 }

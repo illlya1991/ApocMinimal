@@ -78,7 +78,7 @@
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="#161b22">
                 <ToggleButton x:Name="TabActions" Content="Действия" Style="{StaticResource TabBtn}" IsChecked="True" Click="Tab_Click"/>
                 <ToggleButton x:Name="TabQuests" Content="Квесты" Style="{StaticResource TabBtn}" Click="Tab_Click" Visibility="Collapsed"/>
-                <ToggleButton x:Name="TabAltar" Content="Алтарь" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
+                <Button x:Name="OpenAltarBtn" Content="⚡ Алтарь" Height="30" Padding="10,0" Background="#21262d" Foreground="#d2a8ff" BorderThickness="0" Cursor="Hand" Click="OpenAltarBtn_Click"/>
                 <ToggleButton x:Name="TabMap" Content="Карта" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
             </StackPanel>
 
@@ -100,39 +100,6 @@
                     <Separator Background="#30363d" Margin="0,12,0,6"/>
                     <TextBlock Text="ТЕХНИКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>
                     <StackPanel x:Name="TechniquePanel"/>
-                </StackPanel>
-            </ScrollViewer>
-
-            <!-- ALTAR TAB -->
-            <ScrollViewer x:Name="PanelAltar" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
-                <StackPanel>
-                    <TextBlock Text="АЛТАРЬ" Style="{StaticResource SectionHeader}"/>
-                    <TextBlock x:Name="AltarInfoLabel" Foreground="#c9d1d9" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                    <Button x:Name="UpgradeAltarBtn" Content="УЛУЧШИТЬ АЛТАРЬ" Style="{StaticResource ActionBtn}" Background="#2d1b69" Foreground="#d2a8ff" Click="UpgradeAltarBtn_Click"/>
-
-                    <Separator Background="#30363d" Margin="0,8,0,6"/>
-                    <Button x:Name="ExchangeToggleBtn" Content="▶ ПРЕЗИДЕНТСКИЕ ОБМЕНЫ" Style="{StaticResource CollapseBtn}" Foreground="#f59e0b" Click="ExchangeToggle_Click"/>
-                    <StackPanel x:Name="ExchangePanel" Visibility="Collapsed" Margin="0,2,0,4">
-                        <TextBlock x:Name="ExchangeStatusLabel" Foreground="#8b949e" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                        <StackPanel x:Name="ExchangeItemsPanel"/>
-                    </StackPanel>
-
-                    <Separator Background="#30363d" Margin="0,12,0,6"/>
-                    <TextBlock Text="БАРЬЕР" Style="{StaticResource SectionHeader}"/>
-                    <TextBlock x:Name="BarrierLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
-                    <Button Content="УКРЕПИТЬ БАРЬЕР (-20 ОВ)" Style="{StaticResource ActionBtn}" Background="#1a2a3a" Foreground="#79c0ff" Margin="0,4" Click="BarrierBtn_Click"/>
-
-                    <Separator Background="#30363d" Margin="0,12,0,6"/>
-                    <TextBlock Text="ПОСЛЕДОВАТЕЛИ" Style="{StaticResource SectionHeader}"/>
-                    <TextBlock x:Name="FollowerLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
-
-                    <Separator Background="#30363d" Margin="0,12,0,6"/>
-                    <Button x:Name="TechniquesToggleBtn" Content="▶ ТЕХНИКИ" Style="{StaticResource CollapseBtn}" Click="TechniquesToggle_Click"/>
-                    <StackPanel x:Name="AltarTechPanel" Visibility="Collapsed" Margin="0,2,0,4"/>
-
-                    <Separator Background="#30363d" Margin="0,12,0,6"/>
-                    <Button x:Name="ShopToggleBtn" Content="▶ МАГАЗИН РЕСУРСОВ (ОВ)" Style="{StaticResource CollapseBtn}" Click="ShopToggle_Click"/>
-                    <StackPanel x:Name="ShopPanel" Visibility="Collapsed" Margin="0,2,0,4"/>
                 </StackPanel>
             </ScrollViewer>
 

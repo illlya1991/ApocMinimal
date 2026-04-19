@@ -493,15 +493,41 @@ public class GameViewModel : INotifyPropertyChanged
         return $"Куплено 10 ед. {resourceName} за {price:F0} ОВ";
     }
 
-    public void SetupDayExchanges(int day)
+    public List<PresidentialExchangeEntry> AppliedExchangesList =>
+        ExchangeCatalog.All.Where(e => _appliedExchangeIds.Contains(e.Id)).ToList();
+
+    public int BarrierLevel
+    {
+        get => _player?.BarrierLevel ?? 1;
+        set { if (_player != null) _player.BarrierLevel = value; OnPropertyChanged(); }
+    }
+
+    public List<int> ControlledZoneIds => _player?.ControlledZoneIds ?? new();
+
+    public int BaseUnits => _player?.BaseUnits ?? 0;
+
+    public List<PresidentialExchangeEntry> SetupAndApplyDayExchanges(int day)
     {
         if (!ExchangeCatalog.IsCriticalDay(day))
+            return new List<PresidentialExchangeEntry>();
+
+        var exchanges = ExchangeCatalog.GetForDay(day, _appliedExchangeIds, _rnd);
+        foreach (var ex in exchanges)
         {
-            PendingExchanges = new List<PresidentialExchangeEntry>();
-            return;
+            if (_appliedExchangeIds.Contains(ex.Id)) continue;
+            ExchangeSystem.Apply(ex, _npcs, _resources);
+            _appliedExchangeIds.Add(ex.Id);
+            _db.SaveAppliedExchange(_db.CurrentSaveId, ex.Id);
+            foreach (var npc in _npcs)
+                if (npc.IsAlive) _db.SaveNpc(npc);
         }
-        PendingExchanges = ExchangeCatalog.GetForDay(day, _appliedExchangeIds, _rnd);
+        PendingExchanges = new List<PresidentialExchangeEntry>();
+        OnPropertyChanged(nameof(PendingExchanges));
+        OnPropertyChanged(nameof(AppliedExchangesList));
+        return exchanges;
     }
+
+    public void SetupDayExchanges(int day) => SetupAndApplyDayExchanges(day);
 
     public string ApplyExchange(PresidentialExchangeEntry ex)
     {

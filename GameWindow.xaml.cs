@@ -31,24 +31,53 @@ public partial class GameWindow : Window
         RefreshAll();
         Title = $"Apocalypse Simulation — {_viewModel.PlayerName}";
 
-        // Start first day
-        bool alreadyProcessed = _viewModel.AllNpcs
-            .Any(n => n.Memory.Any(m => m.Day == _viewModel.CurrentDay && m.Type == MemoryType.Action));
-
-        LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-
-        if (!alreadyProcessed)
+        if (_viewModel.CurrentDay == 1)
         {
-            var day1Result = _viewModel.ProcessNpcDay();
-            LogNpcDay(day1Result);
-            LogSystemSummary(day1Result);
+            _viewModel.SetupDayExchanges(1);
+
+            for (int d = 1; d <= 9; d++)
+            {
+                _viewModel.ProcessNpcDay();
+                _viewModel.AdvanceToNextDay();
+                _viewModel.SaveAll();
+            }
+            var day10Exchanges = _viewModel.SetupAndApplyDayExchanges(10);
+
+            LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
+            LogControl.AddSystemEntry("Первые 9 дней прошли без участия игрока.", "#8b949e");
+
+            foreach (var ex in day10Exchanges)
+                LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
+
+            var day10Result = _viewModel.ProcessNpcDay();
+            LogNpcDay(day10Result);
+            LogSystemSummary(day10Result);
+
+            _viewModel.SaveAll();
         }
         else
         {
-            LogControl.AddSystemEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
+            bool alreadyProcessed = _viewModel.AllNpcs
+                .Any(n => n.Memory.Any(m => m.Day == _viewModel.CurrentDay && m.Type == MemoryType.Action));
+
+            LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
+
+            if (!alreadyProcessed)
+            {
+                var dayResult = _viewModel.ProcessNpcDay();
+                LogNpcDay(dayResult);
+                LogSystemSummary(dayResult);
+            }
+            else
+            {
+                LogControl.AddSystemEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
+            }
+
+            var todayExchanges = _viewModel.SetupAndApplyDayExchanges(_viewModel.CurrentDay);
+            foreach (var ex in todayExchanges)
+                LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
         }
 
-        _viewModel.SetupDayExchanges(_viewModel.CurrentDay);
         PlayerActionsControl.Refresh();
     }
 
@@ -105,7 +134,9 @@ public partial class GameWindow : Window
         LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
         LogNpcDay(_viewModel.ProcessNpcDay());
 
-        _viewModel.SetupDayExchanges(_viewModel.CurrentDay);
+        var newExchanges = _viewModel.SetupAndApplyDayExchanges(_viewModel.CurrentDay);
+        foreach (var ex in newExchanges)
+            LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
 
         _viewModel.Refresh();
         RefreshAll();

@@ -1,0 +1,80 @@
+<Window x:Class="ApocMinimal.AltarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Алтарь" Width="450" Height="600"
+        Background="#0d1117" Foreground="#c9d1d9"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style x:Key="TabStyle" TargetType="TabItem">
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="Background" Value="#161b22"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="#58a6ff"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ABtn" TargetType="Button">
+            <Setter Property="Background" Value="#21262d"/>
+            <Setter Property="Foreground" Value="#c9d1d9"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363d"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="Hdr" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+    </Window.Resources>
+    <TabControl Background="#0d1117" BorderThickness="0">
+        <!-- АЛТАРЬ -->
+        <TabItem Header="Алтарь" Style="{StaticResource TabStyle}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="14">
+                    <TextBlock x:Name="AltarInfoLabel" Foreground="#c9d1d9" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                    <Button x:Name="UpgradeAltarBtn" Style="{StaticResource ABtn}" Background="#2d1b69" Foreground="#d2a8ff" Click="UpgradeAltarBtn_Click"/>
+                    <TextBlock Text="ПОСЛЕДОВАТЕЛИ" Style="{StaticResource Hdr}"/>
+                    <TextBlock x:Name="FollowerLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
+                    <TextBlock Text="ТЕХНИКИ" Style="{StaticResource Hdr}"/>
+                    <StackPanel x:Name="TechPanel"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+        <!-- БАРЬЕР -->
+        <TabItem Header="Барьер" Style="{StaticResource TabStyle}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="14">
+                    <TextBlock x:Name="BarrierInfoLabel" Foreground="#c9d1d9" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Button x:Name="BarrierUpgradeBtn" Style="{StaticResource ABtn}" Background="#1a2a3a" Foreground="#79c0ff" Content="УКРЕПИТЬ БАРЬЕР (-20 ОВ)" Click="BarrierUpgradeBtn_Click"/>
+                    <TextBlock Text="ЗАЩИЩЁННЫЕ ЗОНЫ" Style="{StaticResource Hdr}"/>
+                    <TextBlock x:Name="ControlledZonesLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+        <!-- ОБМЕНЫ -->
+        <TabItem Header="Обмены" Style="{StaticResource TabStyle}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="14">
+                    <TextBlock Text="АКТИВНЫЕ ПРЕЗИДЕНТСКИЕ ОБМЕНЫ" Style="{StaticResource Hdr}"/>
+                    <TextBlock x:Name="ExchangeEmptyLabel" Text="Нет активных обменов." Foreground="#8b949e" FontSize="10" Visibility="Collapsed"/>
+                    <StackPanel x:Name="ExchangeListPanel"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+        <!-- МАГАЗИН -->
+        <TabItem Header="Магазин" Style="{StaticResource TabStyle}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="14" x:Name="ShopPanel"/>
+            </ScrollViewer>
+        </TabItem>
+    </TabControl>
+</Window>

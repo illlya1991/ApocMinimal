@@ -144,33 +144,92 @@ public class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
+    public void DeleteAllLocations()
+    {
+        ExecuteNQ("DELETE FROM Locations");
+    }
+
+    public int InsertLocation(Location loc)
+    {
+        using var cmd = new SQLiteCommand(@"
+            INSERT INTO Locations (Name, Type, ParentId, ResourceNodes, DangerLevel, IsExplored, Status, MonsterTypeName, MapState)
+            VALUES (@nm, @ty, @pi, @rn, @dl, @ie, @st, @mt, @ms)", _conn);
+        cmd.Parameters.AddWithValue("@nm", loc.Name);
+        cmd.Parameters.AddWithValue("@ty", loc.Type.ToString());
+        cmd.Parameters.AddWithValue("@pi", loc.ParentId);
+        cmd.Parameters.AddWithValue("@rn", JsonSerializer.Serialize(loc.ResourceNodes, JsonOpts));
+        cmd.Parameters.AddWithValue("@dl", loc.DangerLevel);
+        cmd.Parameters.AddWithValue("@ie", loc.IsExplored ? 1 : 0);
+        cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
+        cmd.Parameters.AddWithValue("@mt", loc.MonsterTypeName);
+        cmd.Parameters.AddWithValue("@ms", loc.MapState.ToString());
+        cmd.ExecuteNonQuery();
+        return (int)_conn.LastInsertRowId;
+    }
+
+    public void SetInitialResources(string saveId)
+    {
+        ExecuteNQ("UPDATE Resources SET Amount=10 WHERE Name='Еда'");
+        ExecuteNQ("UPDATE Resources SET Amount=10 WHERE Name='Вода'");
+        ExecuteNQ("UPDATE Resources SET Amount=1 WHERE Name NOT IN ('Еда','Вода') AND Id IN (SELECT Id FROM Resources WHERE Name NOT IN ('Еда','Вода') LIMIT 10)");
+    }
+
+    public void SetInitialQuests(string saveId)
+    {
+        var catalog = GetQuestCatalog(999);
+        for (int i = 0; i < Math.Min(3, catalog.Count); i++)
+            PurchaseQuest(saveId, catalog[i], QuestType.OneTime);
+    }
+
     public void ResetDatabase()
     {
         if (!File.Exists(_templateSave._fileName))
-        {
             throw new FileNotFoundException($"Файл шаблону не знайдено: {_templateSave._fileName}");
-        }
 
         CloseDatabaseConnections();
 
         if (File.Exists(_thisSave._fileName))
-        {
             File.Delete(_thisSave._fileName);
-        }
 
         File.Copy(_templateSave._fileName, _thisSave._fileName);
 
         OpenConnection(_thisSave._connectionString);
 
-        // Migrate schema: add LocationId to Npcs if missing
         EnsureNpcLocationColumn();
 
-        // Distribute resources randomly across the map
+        DeleteAllLocations();
+        var (rovneLocations, startLocId) = ApocMinimal.Systems.RovneMapInitializer.GenerateLocations();
+
+        var idMap = new Dictionary<int, int>();
+        foreach (var loc in rovneLocations)
+        {
+            int oldId = loc.Id;
+            int newId = InsertLocation(loc);
+            idMap[oldId] = newId;
+            loc.Id = newId;
+        }
+
+        foreach (var loc in rovneLocations)
+        {
+            if (loc.ParentId > 0 && idMap.TryGetValue(loc.ParentId, out int newParentId))
+            {
+                using var cmd = new SQLiteCommand("UPDATE Locations SET ParentId=@p WHERE Id=@id", _conn);
+                cmd.Parameters.AddWithValue("@p", newParentId);
+                cmd.Parameters.AddWithValue("@id", loc.Id);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
         var rnd = new Random();
-        var locations = GetAllLocations();
-        ApocMinimal.Systems.MapInitializer.InitialiseMapResources(locations, rnd);
-        foreach (var loc in locations)
+        ApocMinimal.Systems.MapInitializer.InitialiseMapResources(rovneLocations, rnd);
+        foreach (var loc in rovneLocations)
             SaveLocation(loc);
+
+        int startBuildingLocId = idMap.ContainsKey(startLocId) ? idMap[startLocId] : startLocId;
+        ExecuteNQ($"UPDATE Npcs SET LocationId={startBuildingLocId}");
+
+        SetInitialResources(CurrentSaveId);
+        SetInitialQuests(CurrentSaveId);
     }
 
     private void EnsureNpcLocationColumn()

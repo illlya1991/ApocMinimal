@@ -118,6 +118,8 @@ public static class GameLoopService
 
             if (ctx != null && ctx.NpcLogs.TryGetValue(npcs[i].Id, out var external) && external.Count > 0)
             {
+                var injectedTimes = new HashSet<string>(external.Select(e => e.Time));
+                actions.RemoveAll(a => injectedTimes.Contains(a.Time));
                 actions.AddRange(external);
                 actions.Sort((a, b) => string.Compare(a.Time, b.Time, StringComparison.Ordinal));
             }
