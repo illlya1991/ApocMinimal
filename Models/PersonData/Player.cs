@@ -110,6 +110,10 @@ public class Player
     // ── Techniques (unlocked every 2 levels) ──────────────────────────
     public static readonly Technique[] AllTechniques =
     {
+        new() { Name="Ученик базовый",        AltarLevel=1,  FaithCost=5,
+                TechLevel=TechniqueLevel.Genin,       TechType=TechniqueType.Energy,
+                ChakraCost=5,   StaminaCost=2,  HealAmount=10,
+                Description="Базовая техника ученика. Даёт +10 здоровья одному НПС." },
         new() { Name="Благословение",        AltarLevel=2,  FaithCost=10,
                 TechLevel=TechniqueLevel.Genin,       TechType=TechniqueType.Energy,
                 ChakraCost=10,  StaminaCost=5,  HealAmount=20,
