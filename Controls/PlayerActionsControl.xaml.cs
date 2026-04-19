@@ -92,51 +92,88 @@ public partial class PlayerActionsControl : UserControl
     private void RefreshMapTab()
     {
         MapPanel.Children.Clear();
-        foreach (var city in _viewModel.Locations.Where(l => l.Type == LocationType.City))
-            MapPanel.Children.Add(BuildLocationNode(city, 0));
-    }
+        var locs = _viewModel.Locations;
+        var controlled = _viewModel.ControlledZoneIds;
 
-    private UIElement BuildLocationNode(Location loc, int depth)
-    {
-        var sp = new StackPanel { Margin = new Thickness(depth * 10, 0, 0, 2) };
-
-        // NPCs currently at this location
-        var npcsHere = _viewModel.AllNpcs.Where(n => n.IsAlive && n.LocationId == loc.Id).ToList();
-        string npcBadge = npcsHere.Count > 0 ? $" 👤{npcsHere.Count}" : "";
-
-        var header = new TextBlock
+        foreach (var city in locs.Where(l => l.Type == LocationType.City))
         {
-            Text = $"{(loc.IsExplored ? "" : "? ")}{loc.TypeLabel}: {loc.Name}{npcBadge}",
-            Foreground = loc.IsExplored
-                ? (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#c9d1d9")!
-                : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#8b949e")!,
-            FontSize = 11,
-        };
-        if (loc.DangerLevel > 50) header.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#f87171")!;
-        sp.Children.Add(header);
+            MapPanel.Children.Add(MapRow("🌆 " + city.Name, 0, "#58a6ff", "#0d1f35", controlled.Contains(city.Id)));
 
-        if (loc.IsExplored && loc.ResourceNodes.Count > 0)
-            sp.Children.Add(new TextBlock
+            foreach (var district in locs.Where(l => l.ParentId == city.Id).OrderBy(l => l.Name))
             {
-                Text = "  " + string.Join("  ", loc.ResourceNodes.Select(kv => $"{kv.Key}: {kv.Value:F1}")),
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
-                FontSize = 9,
-            });
+                var distStreets = locs.Where(l => l.ParentId == district.Id).ToList();
+                int totalBld = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id)).Count();
+                int expBld   = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id && l.IsExplored)).Count();
 
-        if (npcsHere.Count > 0)
-            sp.Children.Add(new TextBlock
-            {
-                Text = "  " + string.Join(", ", npcsHere.Select(n => n.Name)),
-                Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#94a3b8")!,
-                FontSize = 9,
-            });
+                if (!district.IsExplored)
+                {
+                    MapPanel.Children.Add(MapRow($"  ? Район: {district.Name}  ({totalBld} зданий, не исследован)", 0, "#4b5563", "#0d1117", false));
+                    continue;
+                }
 
-        if (loc.Type > LocationType.Floor)
-            foreach (var child in _viewModel.Locations.Where(l => l.ParentId == loc.Id))
-                sp.Children.Add(BuildLocationNode(child, depth + 1));
+                MapPanel.Children.Add(MapRow($"  🏘 {district.Name}  [{expBld}/{totalBld} зд.]", 0, "#a5b4fc", "#0f1535", controlled.Contains(district.Id)));
 
-        return sp;
+                foreach (var street in distStreets.Where(s => s.IsExplored).OrderBy(s => s.Name))
+                {
+                    var buildings = locs.Where(l => l.ParentId == street.Id).ToList();
+                    int expB = buildings.Count(b => b.IsExplored);
+                    int unkB = buildings.Count - expB;
+
+                    MapPanel.Children.Add(MapRow($"    🛣 {street.Name}  [{expB} иссл.]", 0, "#7dd3fc", "#0a1a28", controlled.Contains(street.Id)));
+
+                    foreach (var bld in buildings.Where(b => b.IsExplored).OrderBy(b => b.Name))
+                    {
+                        var npcsB = _viewModel.AllNpcs.Where(n => n.IsAlive && n.LocationId == bld.Id).ToList();
+                        string status = bld.Status == LocationStatus.Cleared ? "✓" : "⚠";
+                        string color  = bld.Status == LocationStatus.Cleared ? "#56d364" : "#fbbf24";
+                        string npcTag = npcsB.Count > 0 ? $"  👤{npcsB.Count}" : "";
+                        MapPanel.Children.Add(MapRow($"      🏢 {bld.Name}  {status}{npcTag}", 0, color, "#111820", controlled.Contains(bld.Id)));
+
+                        foreach (var floor in locs.Where(l => l.ParentId == bld.Id && l.IsExplored).OrderBy(l => l.Name))
+                        {
+                            var npcsF = _viewModel.AllNpcs.Where(n => n.IsAlive && n.LocationId == floor.Id).ToList();
+                            string resLine = floor.ResourceNodes.Count > 0
+                                ? "  " + string.Join(" | ", floor.ResourceNodes.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value:F0}"))
+                                : "";
+                            string npcF = npcsF.Count > 0 ? $"  👤{string.Join(",", npcsF.Select(n => n.Name))}" : "";
+                            string floorStatus = floor.Status == LocationStatus.Cleared ? "#56d364" : "#f87171";
+                            MapPanel.Children.Add(MapRow($"        ▸ {floor.Name}{npcF}{resLine}", 0, floorStatus, "#0d1117", controlled.Contains(floor.Id)));
+                        }
+                    }
+
+                    if (unkB > 0)
+                        MapPanel.Children.Add(MapRow($"      + ещё {unkB} зд. (не исследовано)", 0, "#4b5563", "#0d1117", false));
+                }
+            }
+        }
+
+        if (!_viewModel.Locations.Any())
+            MapPanel.Children.Add(new TextBlock { Text = "Карта не загружена.", Foreground = MkBrush("#8b949e"), FontSize = 10 });
     }
+
+    private static Border MapRow(string text, double leftStripWidth, string textColor, string bgColor, bool isProtected)
+    {
+        string stripColor = isProtected ? "#60a5fa" : textColor;
+        var border = new Border
+        {
+            Background = MkBrush(bgColor),
+            BorderBrush = MkBrush(stripColor),
+            BorderThickness = new Thickness(2, 0, 0, 0),
+            Margin = new Thickness(0, 1, 0, 0),
+            Padding = new Thickness(4, 2, 2, 2),
+        };
+        border.Child = new TextBlock
+        {
+            Text = text,
+            Foreground = MkBrush(textColor),
+            FontSize = 10,
+            TextWrapping = TextWrapping.NoWrap,
+        };
+        return border;
+    }
+
+    private static System.Windows.Media.SolidColorBrush MkBrush(string hex) =>
+        (System.Windows.Media.SolidColorBrush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
 
     private void RefreshTechniquePanel()
     {
@@ -474,6 +511,33 @@ public partial class PlayerActionsControl : UserControl
         var win = new AltarWindow(_viewModel);
         win.Owner = Window.GetWindow(this);
         win.ShowDialog();
+        _viewModel.Refresh();
+        Refresh();
+    }
+
+    private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not Technique tech) return;
+        _viewModel.FaithPoints -= tech.FaithCost;
+        _viewModel.SavePlayer();
+        var target = tech.HealAmount > 0
+            ? _viewModel.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
+            : _viewModel.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
+        if (target == null)
+        {
+            Log($"«{tech.Name}»: нет живых целей.", LogEntry.ColorWarning);
+            Refresh();
+            return;
+        }
+        if (TechniqueSystem.Apply(tech, target, out string techLog))
+        {
+            _viewModel.SaveNpc(target);
+            Log($"  {techLog}", LogEntry.ColorSuccess);
+        }
+        else
+        {
+            Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);
+        }
         _viewModel.Refresh();
         Refresh();
     }
