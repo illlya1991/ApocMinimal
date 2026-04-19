@@ -1286,6 +1286,13 @@ public class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
+    public void DeleteLibraryEntry(int id)
+    {
+        using var cmd = new SQLiteCommand("DELETE FROM PlayerQuestLibrary WHERE Id=@id", _conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        cmd.ExecuteNonQuery();
+    }
+
     public void SaveQuestFull(Quest q)
     {
         if (q.Id == 0)

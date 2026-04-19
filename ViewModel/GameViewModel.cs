@@ -256,7 +256,15 @@ public class GameViewModel : INotifyPropertyChanged
 
         if (entry.PublishesLeft != -1)
             entry.PublishesLeft--;
-        _db.UpdateLibraryEntry(entry);
+
+        if (entry.QuestType == QuestType.OneTime && entry.PublishesLeft == 0)
+        {
+            _db.DeleteLibraryEntry(entry.Id);
+        }
+        else
+        {
+            _db.UpdateLibraryEntry(entry);
+        }
         ReloadQuestLibrary();
 
         return $"Квест «{quest.Title}» опубликован";
