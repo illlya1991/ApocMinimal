@@ -67,6 +67,10 @@ public class Npc
     // ── INJURIES ────────────────────────────────────────────────────────────
     public List<Injury> Injuries { get; set; } = new();
 
+    // ── LEARNED TECHNIQUES & ABILITIES ─────────────────────────────────────
+    public List<string> LearnedTechIds    { get; set; } = new();
+    public List<string> LearnedAbilityIds { get; set; } = new();
+
     // ── LOCATION ─────────────────────────────────────────────────────────────
     /// <summary>Current location Id. 0 = home base (community).</summary>
     public int LocationId { get; set; } = 0;

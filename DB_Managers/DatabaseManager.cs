@@ -290,6 +290,62 @@ public class DatabaseManager
         }
     }
 
+    public void EnsureNpcTechSchema()
+    {
+        string[] alters =
+        {
+            "ALTER TABLE Npcs ADD COLUMN LearnedTechIds TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE Npcs ADD COLUMN LearnedAbilityIds TEXT NOT NULL DEFAULT '[]'",
+        };
+        foreach (var sql in alters)
+        {
+            try { ExecuteNQ(sql); } catch { }
+        }
+        ExecuteNQ(@"
+            CREATE TABLE IF NOT EXISTS PlayerTechInventory (
+                Id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                SaveId  TEXT    NOT NULL,
+                ItemId  TEXT    NOT NULL,
+                ItemType TEXT   NOT NULL
+            )");
+    }
+
+    // ── Player tech/ability inventory ────────────────────────────────────────
+
+    public List<(int RowId, string ItemId, string ItemType)> GetTechInventory(string saveId)
+    {
+        var list = new List<(int, string, string)>();
+        try
+        {
+            using var cmd = new SQLiteCommand(
+                "SELECT Id, ItemId, ItemType FROM PlayerTechInventory WHERE SaveId=@s ORDER BY Id", _conn);
+            cmd.Parameters.AddWithValue("@s", saveId);
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+                list.Add((rdr.GetInt32(0), rdr.GetString(1), rdr.GetString(2)));
+        }
+        catch { }
+        return list;
+    }
+
+    public void AddTechInventoryItem(string saveId, string itemId, string itemType)
+    {
+        using var cmd = new SQLiteCommand(
+            "INSERT INTO PlayerTechInventory (SaveId, ItemId, ItemType) VALUES (@s,@i,@t)", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        cmd.Parameters.AddWithValue("@i", itemId);
+        cmd.Parameters.AddWithValue("@t", itemType);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void RemoveTechInventoryItem(int rowId)
+    {
+        using var cmd = new SQLiteCommand(
+            "DELETE FROM PlayerTechInventory WHERE Id=@id", _conn);
+        cmd.Parameters.AddWithValue("@id", rowId);
+        cmd.ExecuteNonQuery();
+    }
+
     public void DeleteSave(OneSave value)
     {
         CloseDatabaseConnections();
@@ -549,7 +605,8 @@ public class DatabaseManager
             Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
             CharTraits=@ct, Specializations=@sp, Emotions=@em,
             Goal=@gl, Dream=@dr, Desire=@de,
-            Needs=@nd, Memory=@me, Statistics=@stat, LocationId=@li
+            Needs=@nd, Memory=@me, Statistics=@stat, LocationId=@li,
+            LearnedTechIds=@lti, LearnedAbilityIds=@lai
         WHERE Id=@id", _conn);
 
         cmd.Parameters.AddWithValue("@hp", n.Health);
@@ -577,6 +634,8 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@stat", JsonSerializer.Serialize(n.Stats, JsonOpts));
         cmd.Parameters.AddWithValue("@id", n.Id);
         cmd.Parameters.AddWithValue("@li", n.LocationId);
+        cmd.Parameters.AddWithValue("@lti", JsonSerializer.Serialize(n.LearnedTechIds, JsonOpts));
+        cmd.Parameters.AddWithValue("@lai", JsonSerializer.Serialize(n.LearnedAbilityIds, JsonOpts));
 
         SaveModifiersForNpc(n.Id, n.Stats);
         cmd.ExecuteNonQuery();
@@ -836,6 +895,8 @@ public class DatabaseManager
         }
 
         npc.LocationId = GetIntOrDefault(rdr, "LocationId", 0);
+        npc.LearnedTechIds    = DeserializeOrDefault<List<string>>(rdr, "LearnedTechIds")    ?? new();
+        npc.LearnedAbilityIds = DeserializeOrDefault<List<string>>(rdr, "LearnedAbilityIds") ?? new();
 
         return npc;
     }

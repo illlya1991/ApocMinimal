@@ -7,6 +7,8 @@ using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.ResourceData;
+using ApocMinimal.Models.StatisticsData;
+using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Systems;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -30,6 +32,7 @@ public class GameViewModel : INotifyPropertyChanged
     private List<PlayerLibraryEntry> _playerLibrary = new();
     private List<string> _shopUnlocks = new();
     private List<int> _appliedExchangeIds = new();
+    private List<(int RowId, string ItemId, string ItemType)> _techInventory = new();
     public List<PresidentialExchangeEntry> PendingExchanges { get; private set; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -144,6 +147,7 @@ public class GameViewModel : INotifyPropertyChanged
         _playerLibrary = _db.GetPlayerLibrary(_db.CurrentSaveId);
         _shopUnlocks = _db.GetShopUnlocks(_db.CurrentSaveId);
         _appliedExchangeIds = _db.GetAppliedExchanges(_db.CurrentSaveId);
+        _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
 
         CurrentDay = _player.CurrentDay;
         FaithPoints = _player.FaithPoints;
@@ -599,6 +603,125 @@ public class GameViewModel : INotifyPropertyChanged
         foreach (int d in ExchangeCatalog.CriticalDays)
             if (d > CurrentDay) return d;
         return -1;
+    }
+
+    // ── Tech / Ability inventory ─────────────────────────────────────────────
+
+    public List<(int RowId, string ItemId, string ItemType)> TechInventory => _techInventory;
+
+    /// <summary>Buy one copy of a technique or ability from the altar shop.</summary>
+    public string BuyTechItem(string itemId, string itemType)
+    {
+        double cost;
+        string name;
+        int reqAltar;
+
+        if (itemType == "Technique")
+        {
+            var def = TechAbilityCatalog.FindTech(itemId);
+            if (def == null) return "Техника не найдена";
+            cost = def.BuyCost;
+            name = def.Name;
+            reqAltar = def.AltarLevel;
+        }
+        else
+        {
+            var def = TechAbilityCatalog.FindAbility(itemId);
+            if (def == null) return "Способность не найдена";
+            cost = def.BuyCost;
+            name = def.Name;
+            reqAltar = def.AltarLevel;
+        }
+
+        if (AltarLevel < reqAltar)
+            return $"Требуется уровень алтаря {reqAltar} (сейчас {AltarLevel})";
+        if (_player.FaithPoints < cost)
+            return $"Недостаточно ОВ (нужно {cost:F0}, есть {_player.FaithPoints:F0})";
+
+        _player.FaithPoints -= cost;
+        _db.SavePlayer(_player);
+        _db.AddTechInventoryItem(_db.CurrentSaveId, itemId, itemType);
+        _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
+        FaithPoints = _player.FaithPoints;
+        return $"Куплено: «{name}» за {cost:F0} ОВ";
+    }
+
+    /// <summary>
+    /// Teach a technique or ability from inventory to an NPC.
+    /// Removes the item from player inventory. Applies passive stat bonuses.
+    /// </summary>
+    public string TeachTechItem(Npc npc, int rowId, string itemId, string itemType)
+    {
+        // Confirm the row still exists
+        var entry = _techInventory.FirstOrDefault(e => e.RowId == rowId);
+        if (entry == default) return "Предмет не найден в инвентаре";
+
+        if (itemType == "Technique")
+        {
+            var def = TechAbilityCatalog.FindTech(itemId);
+            if (def == null) return "Техника не найдена";
+
+            // Cannot re-learn standalone tech if already learned standalone
+            if (npc.LearnedTechIds.Contains(itemId))
+                return $"«{npc.Name}» уже знает технику «{def.Name}»";
+
+            // Cannot learn standalone tech if it's already part of a learned ability
+            foreach (var abilId in npc.LearnedAbilityIds)
+            {
+                var abil = TechAbilityCatalog.FindAbility(abilId);
+                if (abil != null && abil.TechniqueIds.Contains(itemId))
+                    return $"Техника «{def.Name}» уже входит в способность «{abil.Name}»";
+            }
+
+            npc.LearnedTechIds.Add(itemId);
+            ApplyTechStatBonus(npc, def);
+        }
+        else // Ability
+        {
+            var def = TechAbilityCatalog.FindAbility(itemId);
+            if (def == null) return "Способность не найдена";
+
+            if (npc.LearnedAbilityIds.Contains(itemId))
+                return $"«{npc.Name}» уже знает способность «{def.Name}»";
+
+            // Merge standalone techs that are included in the ability
+            foreach (var techId in def.TechniqueIds)
+            {
+                if (npc.LearnedTechIds.Remove(techId))
+                {
+                    // Stat bonus was already applied when tech was learned standalone — skip re-apply
+                }
+                else
+                {
+                    // Tech not yet learned: apply its passive bonus now
+                    var techDef = TechAbilityCatalog.FindTech(techId);
+                    if (techDef != null) ApplyTechStatBonus(npc, techDef);
+                }
+            }
+
+            npc.LearnedAbilityIds.Add(itemId);
+        }
+
+        _db.RemoveTechInventoryItem(rowId);
+        _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
+        _db.SaveNpc(npc);
+        return $"«{npc.Name}» обучен успешно";
+    }
+
+    private static void ApplyTechStatBonus(Npc npc, TechniqueDefinition def)
+    {
+        if (def.Kind != TechKind.Passive) return;
+        foreach (var (statId, bonus) in def.StatBonus)
+        {
+            var stat = npc.Stats.GetByNumber(statId);
+            if (stat == null) continue;
+            stat.AddModifier(new PermanentModifier(
+                $"tech_{def.Id}",
+                def.Name,
+                "Техника",
+                ModifierType.Additive,
+                bonus));
+        }
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>

@@ -23,6 +23,7 @@ public partial class GameWindow : Window
         db.OpenCurrentSave();
         db.EnsureNpcModifiersSchema();
         db.EnsurePlayerSchema();
+        db.EnsureNpcTechSchema();
         _viewModel = new GameViewModel(db, LogPlayer);
         DataContext = _viewModel;
         _viewModel.PropertyChanged += (s, e) => RefreshHeader();

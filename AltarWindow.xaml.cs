@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
+using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Models.UIData;
 using ApocMinimal.Systems;
 using ApocMinimal.ViewModels;
@@ -26,6 +27,7 @@ public partial class AltarWindow : Window
         RefreshBarrierTab();
         RefreshExchangesTab();
         RefreshShopTab();
+        RefreshTechTab();
     }
 
     private void RefreshAltarTab()
@@ -213,6 +215,203 @@ public partial class AltarWindow : Window
         _vm.Refresh();
         RefreshBarrierTab();
     }
+
+    // =========================================================
+    // Техники / Способности
+    // =========================================================
+
+    private void RefreshTechTab()
+    {
+        // Repopulate NPC combo (preserve selection if possible)
+        var prevNpc = TeachNpcCombo.SelectedItem as Npc;
+        TeachNpcCombo.SelectionChanged -= TeachNpcCombo_SelectionChanged;
+        TeachNpcCombo.Items.Clear();
+        foreach (var n in _vm.AliveNpcs)
+            TeachNpcCombo.Items.Add(n);
+        if (prevNpc != null)
+        {
+            var match = _vm.AliveNpcs.FirstOrDefault(n => n.Id == prevNpc.Id);
+            if (match != null) TeachNpcCombo.SelectedItem = match;
+        }
+        TeachNpcCombo.SelectionChanged += TeachNpcCombo_SelectionChanged;
+
+        TechShopPanel.Children.Clear();
+
+        // ── Shop: Techniques ──────────────────────────────────────────────
+        TechShopPanel.Children.Add(MakeHdr("ТЕХНИКИ"));
+        foreach (var tech in TechAbilityCatalog.Techniques.OrderBy(t => t.AltarLevel).ThenBy(t => t.Name))
+        {
+            bool unlocked = _vm.AltarLevel >= tech.AltarLevel;
+            string kindLabel = tech.Kind == TechKind.Passive ? "[П]" : "[А]";
+            string tooltip = tech.Kind == TechKind.Passive
+                ? tech.Description
+                : $"{tech.Description}\n⚔ {tech.CombatEffect}\n🌿 {tech.LifeEffect}";
+
+            var btn = new Button
+            {
+                Content = $"ур.{tech.AltarLevel}  {kindLabel}  {tech.Name}  ({tech.BuyCost:F0} ОВ)",
+                Style = (Style)FindResource("ABtn"),
+                IsEnabled = unlocked && _vm.FaithPoints >= tech.BuyCost,
+                Opacity = unlocked ? 1.0 : 0.45,
+                ToolTip = tooltip,
+                Tag = tech.Id,
+            };
+            if (unlocked) btn.Click += TechShopBuy_Click;
+            TechShopPanel.Children.Add(btn);
+        }
+
+        // ── Shop: Abilities ───────────────────────────────────────────────
+        TechShopPanel.Children.Add(MakeHdr("СПОСОБНОСТИ"));
+        foreach (var abil in TechAbilityCatalog.Abilities.OrderBy(a => a.AltarLevel).ThenBy(a => a.Name))
+        {
+            bool unlocked = _vm.AltarLevel >= abil.AltarLevel;
+            var techNames = abil.TechniqueIds
+                .Select(id => TechAbilityCatalog.FindTech(id)?.Name ?? id)
+                .ToList();
+            string tooltip = $"{abil.Description}\nВключает: {string.Join(", ", techNames)}";
+
+            var btn = new Button
+            {
+                Content = $"ур.{abil.AltarLevel}  [Сп]  {abil.Name}  ({abil.BuyCost:F0} ОВ)",
+                Style = (Style)FindResource("ABtn"),
+                Background = MakeBrush("#1a1a2e"),
+                Foreground = MakeBrush("#c084fc"),
+                IsEnabled = unlocked && _vm.FaithPoints >= abil.BuyCost,
+                Opacity = unlocked ? 1.0 : 0.45,
+                ToolTip = tooltip,
+                Tag = abil.Id,
+            };
+            if (unlocked) btn.Click += AbilShopBuy_Click;
+            TechShopPanel.Children.Add(btn);
+        }
+
+        // ── Inventory panel ───────────────────────────────────────────────
+        RefreshTechInventoryPanel();
+    }
+
+    private void RefreshTechInventoryPanel()
+    {
+        TechInventoryPanel.Children.Clear();
+
+        var inv = _vm.TechInventory;
+        if (inv.Count == 0)
+        {
+            TechInventoryPanel.Children.Add(new TextBlock
+            {
+                Text = "Инвентарь пуст.",
+                Foreground = MakeBrush("#8b949e"),
+                FontSize = 10,
+                Margin = new Thickness(0, 2, 0, 2),
+            });
+            return;
+        }
+
+        // Count how many of each item
+        var grouped = inv
+            .GroupBy(e => (e.ItemId, e.ItemType))
+            .Select(g => new { g.Key.ItemId, g.Key.ItemType, Count = g.Count(), FirstRowId = g.First().RowId })
+            .ToList();
+
+        Npc? selectedNpc = TeachNpcCombo.SelectedItem as Npc;
+
+        foreach (var item in grouped)
+        {
+            string name;
+            string tooltip;
+            string fgColor = "#c9d1d9";
+
+            if (item.ItemType == "Technique")
+            {
+                var def = TechAbilityCatalog.FindTech(item.ItemId);
+                name = def?.Name ?? item.ItemId;
+                string kindLabel = def?.Kind == TechKind.Passive ? "[Пассив]" : "[Актив]";
+                tooltip = def == null ? "" :
+                    (def.Kind == TechKind.Passive
+                        ? def.Description
+                        : $"{def.Description}\n⚔ {def.CombatEffect}\n🌿 {def.LifeEffect}");
+                fgColor = def?.Kind == TechKind.Passive ? "#7ee787" : "#79c0ff";
+            }
+            else
+            {
+                var def = TechAbilityCatalog.FindAbility(item.ItemId);
+                name = def?.Name ?? item.ItemId;
+                var techNames = def?.TechniqueIds
+                    .Select(id => TechAbilityCatalog.FindTech(id)?.Name ?? id) ?? Enumerable.Empty<string>();
+                tooltip = def == null ? "" : $"{def.Description}\nВключает: {string.Join(", ", techNames)}";
+                fgColor = "#c084fc";
+            }
+
+            string countStr = item.Count > 1 ? $" ×{item.Count}" : "";
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+            row.Children.Add(new TextBlock
+            {
+                Text = $"  {name}{countStr}",
+                Foreground = MakeBrush(fgColor),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 200,
+                ToolTip = tooltip,
+            });
+
+            var teachBtn = new Button
+            {
+                Content = "Обучить",
+                Style = (Style)FindResource("ABtn"),
+                Width = 70,
+                Height = 22,
+                FontSize = 10,
+                IsEnabled = selectedNpc != null,
+                Tag = (item.FirstRowId, item.ItemId, item.ItemType),
+            };
+            teachBtn.Click += TeachBtn_Click;
+            row.Children.Add(teachBtn);
+
+            TechInventoryPanel.Children.Add(row);
+        }
+    }
+
+    private void TechShopBuy_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string id) return;
+        _vm.BuyTechItem(id, "Technique");
+        _vm.Refresh();
+        RefreshAltarTab();
+        RefreshTechTab();
+    }
+
+    private void AbilShopBuy_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string id) return;
+        _vm.BuyTechItem(id, "Ability");
+        _vm.Refresh();
+        RefreshAltarTab();
+        RefreshTechTab();
+    }
+
+    private void TeachNpcCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        RefreshTechInventoryPanel();
+    }
+
+    private void TeachBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        if (btn.Tag is not (int rowId, string itemId, string itemType)) return;
+        if (TeachNpcCombo.SelectedItem is not Npc npc) return;
+
+        string result = _vm.TeachTechItem(npc, rowId, itemId, itemType);
+        _vm.Refresh();
+        RefreshTechTab();
+    }
+
+    private TextBlock MakeHdr(string text) => new TextBlock
+    {
+        Text = text,
+        FontSize = 10,
+        Foreground = MakeBrush("#8b949e"),
+        Margin = new Thickness(0, 8, 0, 4),
+    };
 
     private static System.Windows.Media.SolidColorBrush MakeBrush(string hex) =>
         (System.Windows.Media.SolidColorBrush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
