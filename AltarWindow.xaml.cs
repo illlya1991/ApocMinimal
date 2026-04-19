@@ -96,22 +96,111 @@ public partial class AltarWindow : Window
     private void RefreshBarrierTab()
     {
         int units = _vm.BaseUnits;
+        int protectedCount = _vm.ControlledZoneIds.Count;
         BarrierInfoLabel.Text =
-            $"Уровень барьера: {_vm.BarrierLevel}\n" +
-            $"Базовые единицы: {units}\n" +
-            $"Формула: Алтарь({_vm.AltarLevel}) × Барьер({_vm.BarrierLevel}) × (Барьер+1) / 2\n" +
+            $"Уровень барьера: {_vm.BarrierLevel}  |  ОВ: {_vm.FaithPoints:F0}\n" +
+            $"Базовые единицы: {units}  |  Защищено зон: {protectedCount}\n" +
             $"Размер барьера: {_vm.BarrierSize:F0} м";
 
         BarrierUpgradeBtn.IsEnabled = _vm.FaithPoints >= 20;
 
-        var zones = _vm.ControlledZoneIds;
-        ControlledZonesLabel.Text = zones.Count == 0
-            ? "Нет защищённых зон."
-            : string.Join(", ", zones.Select(id =>
+        BarrierHintLabel.Text = "Квартира: 5 ОВ  |  Этаж: 10 ОВ  |  Здание: 20 ОВ  |  Улица: 50 ОВ";
+
+        BarrierMapPanel.Children.Clear();
+
+        var exploredLocs = _vm.Locations
+            .Where(l => l.IsExplored &&
+                        (l.Type == ApocMinimal.Models.LocationData.LocationType.Apartment ||
+                         l.Type == ApocMinimal.Models.LocationData.LocationType.Floor ||
+                         l.Type == ApocMinimal.Models.LocationData.LocationType.Building ||
+                         l.Type == ApocMinimal.Models.LocationData.LocationType.Street))
+            .OrderBy(l => (int)l.Type)
+            .ThenBy(l => l.Name)
+            .ToList();
+
+        if (exploredLocs.Count == 0)
+        {
+            BarrierMapPanel.Children.Add(new TextBlock
             {
-                var loc = _vm.Locations.FirstOrDefault(l => l.Id == id);
-                return loc != null ? $"{loc.Name}" : $"Зона #{id}";
-            }));
+                Text = "Нет исследованных локаций.",
+                Foreground = MakeBrush("#8b949e"),
+                FontSize = 10,
+            });
+            return;
+        }
+
+        foreach (var loc in exploredLocs)
+        {
+            bool isProtected = _vm.ControlledZoneIds.Contains(loc.Id);
+            double cost = loc.Type switch
+            {
+                ApocMinimal.Models.LocationData.LocationType.Apartment => 5,
+                ApocMinimal.Models.LocationData.LocationType.Floor => 10,
+                ApocMinimal.Models.LocationData.LocationType.Building => 20,
+                ApocMinimal.Models.LocationData.LocationType.Street => 50,
+                _ => 100,
+            };
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+            string label = $"[{loc.TypeLabel}]  {loc.Name}";
+            row.Children.Add(new TextBlock
+            {
+                Text = label,
+                Foreground = isProtected ? MakeBrush("#56d364") : MakeBrush("#c9d1d9"),
+                FontSize = 10,
+                Width = 260,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
+            if (isProtected)
+            {
+                var unprotectBtn = new Button
+                {
+                    Content = "Снять",
+                    Style = (Style)FindResource("ABtn"),
+                    Background = MakeBrush("#1a2a1a"),
+                    Foreground = MakeBrush("#f87171"),
+                    Width = 60,
+                    Height = 22,
+                    FontSize = 10,
+                    Tag = loc.Id,
+                };
+                unprotectBtn.Click += UnprotectBtn_Click;
+                row.Children.Add(unprotectBtn);
+            }
+            else
+            {
+                var protectBtn = new Button
+                {
+                    Content = $"Защитить ({cost:F0} ОВ)",
+                    Style = (Style)FindResource("ABtn"),
+                    IsEnabled = _vm.FaithPoints >= cost,
+                    Width = 110,
+                    Height = 22,
+                    FontSize = 10,
+                    Tag = loc.Id,
+                };
+                protectBtn.Click += ProtectBtn_Click;
+                row.Children.Add(protectBtn);
+            }
+
+            BarrierMapPanel.Children.Add(row);
+        }
+    }
+
+    private void ProtectBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not int id) return;
+        _vm.ProtectLocation(id);
+        RefreshBarrierTab();
+    }
+
+    private void UnprotectBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not int id) return;
+        _vm.UnprotectLocation(id);
+        RefreshBarrierTab();
     }
 
     private void BarrierUpgradeBtn_Click(object sender, RoutedEventArgs e)
@@ -124,6 +213,9 @@ public partial class AltarWindow : Window
         _vm.Refresh();
         RefreshBarrierTab();
     }
+
+    private static System.Windows.Media.SolidColorBrush MakeBrush(string hex) =>
+        (System.Windows.Media.SolidColorBrush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
 
     private void RefreshExchangesTab()
     {

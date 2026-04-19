@@ -55,8 +55,9 @@
                 <StackPanel Margin="14">
                     <TextBlock x:Name="BarrierInfoLabel" Foreground="#c9d1d9" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <Button x:Name="BarrierUpgradeBtn" Style="{StaticResource ABtn}" Background="#1a2a3a" Foreground="#79c0ff" Content="УКРЕПИТЬ БАРЬЕР (-20 ОВ)" Click="BarrierUpgradeBtn_Click"/>
-                    <TextBlock Text="ЗАЩИЩЁННЫЕ ЗОНЫ" Style="{StaticResource Hdr}"/>
-                    <TextBlock x:Name="ControlledZonesLabel" Foreground="#8b949e" TextWrapping="Wrap"/>
+                    <TextBlock Text="ЗАЩИТА ЛОКАЦИЙ" Style="{StaticResource Hdr}"/>
+                    <TextBlock x:Name="BarrierHintLabel" Foreground="#8b949e" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                    <StackPanel x:Name="BarrierMapPanel"/>
                 </StackPanel>
             </ScrollViewer>
         </TabItem>

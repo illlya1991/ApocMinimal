@@ -506,6 +506,46 @@ public class GameViewModel : INotifyPropertyChanged
 
     public int BaseUnits => _player?.BaseUnits ?? 0;
 
+    public string ProtectLocation(int locationId)
+    {
+        if (_player == null) return "Ошибка";
+        var loc = _locations.FirstOrDefault(l => l.Id == locationId);
+        if (loc == null) return "Локация не найдена";
+        if (_player.ControlledZoneIds.Contains(locationId))
+            return $"«{loc.Name}» уже под защитой";
+
+        double cost = loc.Type switch
+        {
+            LocationType.Apartment => 5,
+            LocationType.Floor => 10,
+            LocationType.Building => 20,
+            LocationType.Street => 50,
+            _ => 100
+        };
+        if (_player.FaithPoints < cost)
+            return $"Недостаточно ОВ (нужно {cost:F0})";
+
+        _player.FaithPoints -= cost;
+        _player.ControlledZoneIds.Add(locationId);
+        _player.TerritoryControl = _player.ControlledZoneIds.Count;
+        _db.SavePlayer(_player);
+        FaithPoints = _player.FaithPoints;
+        return $"«{loc.Name}» взята под защиту ({cost:F0} ОВ)";
+    }
+
+    public string UnprotectLocation(int locationId)
+    {
+        if (_player == null) return "Ошибка";
+        var loc = _locations.FirstOrDefault(l => l.Id == locationId);
+        if (!_player.ControlledZoneIds.Contains(locationId))
+            return "Локация не защищена";
+
+        _player.ControlledZoneIds.Remove(locationId);
+        _player.TerritoryControl = _player.ControlledZoneIds.Count;
+        _db.SavePlayer(_player);
+        return $"«{loc?.Name ?? $"#{locationId}"}» снята с защиты";
+    }
+
     public List<PresidentialExchangeEntry> SetupAndApplyDayExchanges(int day)
     {
         if (!ExchangeCatalog.IsCriticalDay(day))

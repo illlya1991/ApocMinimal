@@ -20,6 +20,9 @@ public partial class GameWindow : Window
     {
         InitializeComponent();
 
+        db.OpenCurrentSave();
+        db.EnsureNpcModifiersSchema();
+        db.EnsurePlayerSchema();
         _viewModel = new GameViewModel(db, LogPlayer);
         DataContext = _viewModel;
         _viewModel.PropertyChanged += (s, e) => RefreshHeader();
@@ -127,11 +130,9 @@ public partial class GameWindow : Window
         var endResult = _viewModel.AdvanceToNextDay();
         _viewModel.SaveAll();
 
-        // Log system summary into Система section of the CURRENT (just ended) day
-        LogSystemSummary(endResult);
-
-        // Start new day
+        // Start new day header first — system summary goes into the NEW day's Система section
         LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
+        LogSystemSummary(endResult);
         LogNpcDay(_viewModel.ProcessNpcDay());
 
         var newExchanges = _viewModel.SetupAndApplyDayExchanges(_viewModel.CurrentDay);

@@ -144,6 +144,12 @@ public class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
+    public void OpenCurrentSave()
+    {
+        if (!string.IsNullOrEmpty(_thisSave._connectionString))
+            OpenConnection(_thisSave._connectionString);
+    }
+
     public void DeleteAllLocations()
     {
         ExecuteNQ("DELETE FROM Locations");
@@ -196,6 +202,8 @@ public class DatabaseManager
         OpenConnection(_thisSave._connectionString);
 
         EnsureNpcLocationColumn();
+        EnsureNpcModifiersSchema();
+        EnsurePlayerSchema();
 
         DeleteAllLocations();
         var (rovneLocations, startLocId) = ApocMinimal.Systems.RovneMapInitializer.GenerateLocations();
@@ -234,11 +242,38 @@ public class DatabaseManager
 
     private void EnsureNpcLocationColumn()
     {
-        try
+        try { ExecuteNQ("ALTER TABLE Npcs ADD COLUMN LocationId INTEGER NOT NULL DEFAULT 0"); }
+        catch { }
+    }
+
+    public void EnsureNpcModifiersSchema()
+    {
+        // Add missing columns to NpcModifiers if they don't exist (schema migration)
+        string[] alterStatements =
         {
-            ExecuteNQ("ALTER TABLE Npcs ADD COLUMN LocationId INTEGER NOT NULL DEFAULT 0");
+            "ALTER TABLE NpcModifiers ADD COLUMN ModifierClass TEXT NOT NULL DEFAULT 'Permanent'",
+            "ALTER TABLE NpcModifiers ADD COLUMN IsActive INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE NpcModifiers ADD COLUMN TimeUnit INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE NpcModifiers ADD COLUMN Duration INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE NpcModifiers ADD COLUMN Remaining INTEGER NOT NULL DEFAULT 0",
+        };
+        foreach (var sql in alterStatements)
+        {
+            try { ExecuteNQ(sql); } catch { }
         }
-        catch { /* column already exists */ }
+    }
+
+    public void EnsurePlayerSchema()
+    {
+        string[] alters =
+        {
+            "ALTER TABLE Player ADD COLUMN BarrierLevel INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE Player ADD COLUMN ControlledZoneIds TEXT NOT NULL DEFAULT '[]'",
+        };
+        foreach (var sql in alters)
+        {
+            try { ExecuteNQ(sql); } catch { }
+        }
     }
 
     public void DeleteSave(OneSave value)
@@ -407,13 +442,15 @@ public class DatabaseManager
     public void SavePlayer(Player p)
     {
         using var cmd = new SQLiteCommand(
-            "UPDATE Player SET FaithPoints=@fp,AltarLevel=@al,CurrentDay=@cd,BarrierSize=@bs,TerritoryControl=@tc,PlayerActionsToday=@pa WHERE Id=@id", _conn);
+            "UPDATE Player SET FaithPoints=@fp,AltarLevel=@al,CurrentDay=@cd,BarrierSize=@bs,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@fp", p.FaithPoints);
         cmd.Parameters.AddWithValue("@al", p.AltarLevel);
         cmd.Parameters.AddWithValue("@cd", p.CurrentDay);
         cmd.Parameters.AddWithValue("@bs", p.BarrierSize);
+        cmd.Parameters.AddWithValue("@bl", p.BarrierLevel);
         cmd.Parameters.AddWithValue("@tc", p.TerritoryControl);
         cmd.Parameters.AddWithValue("@pa", p.PlayerActionsToday);
+        cmd.Parameters.AddWithValue("@cz", System.Text.Json.JsonSerializer.Serialize(p.ControlledZoneIds, JsonOpts));
         cmd.Parameters.AddWithValue("@id", p.Id);
         cmd.ExecuteNonQuery();
     }
@@ -535,34 +572,48 @@ public class DatabaseManager
 
     private void SaveModifiersForNpc(int npcId, Statistics stats)
     {
-        ExecuteNQ($"DELETE FROM NpcModifiers WHERE NpcId = {npcId}");
+        using (var del = new SQLiteCommand("DELETE FROM NpcModifiers WHERE NpcId=@id", _conn))
+        {
+            del.Parameters.AddWithValue("@id", npcId);
+            del.ExecuteNonQuery();
+        }
 
         for (int i = 0; i < stats.AllStats.Count; i++)
         {
             Characteristic stat = stats.AllStats[i];
 
-            // Исправление: явное преобразование типов
-            List<PermanentModifier> permMods = stat.GetModifiersByType<PermanentModifier>();
-            for (int j = 0; j < permMods.Count; j++)
+            foreach (var mod in stat.GetModifiersByType<PermanentModifier>())
             {
-                PermanentModifier mod = permMods[j];
-                string isActiveStr = mod.IsActiveFlag ? "1" : "0";
-                ExecuteNQ($@"
-                INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, Type, Value, ModifierClass, IsActive)
-                VALUES ({npcId}, '{stat.Id}', '{mod.Id}', '{mod.Name}', '{mod.Source}', 
-                       {(int)mod.Type}, {mod.Value}, 'Permanent', {isActiveStr})");
+                using var cmd = new SQLiteCommand(@"
+                    INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, ModifierType, Value, ModifierClass, IsActive)
+                    VALUES (@nid,@sid,@mid,@nm,@src,@mty,@val,'Permanent',@act)", _conn);
+                cmd.Parameters.AddWithValue("@nid", npcId);
+                cmd.Parameters.AddWithValue("@sid", stat.Id);
+                cmd.Parameters.AddWithValue("@mid", mod.Id);
+                cmd.Parameters.AddWithValue("@nm",  mod.Name);
+                cmd.Parameters.AddWithValue("@src", mod.Source);
+                cmd.Parameters.AddWithValue("@mty", (int)mod.Type);
+                cmd.Parameters.AddWithValue("@val", mod.Value);
+                cmd.Parameters.AddWithValue("@act", mod.IsActiveFlag ? 1 : 0);
+                cmd.ExecuteNonQuery();
             }
 
-            List<IndependentModifier> indMods = stat.GetModifiersByType<IndependentModifier>();
-            for (int j = 0; j < indMods.Count; j++)
+            foreach (var mod in stat.GetModifiersByType<IndependentModifier>())
             {
-                IndependentModifier mod = indMods[j];
-                ExecuteNQ($@"
-                INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, Type, Value, ModifierClass, 
-                       TimeUnit, Duration, Remaining)
-                VALUES ({npcId}, '{stat.Id}', '{mod.Id}', '{mod.Name}', '{mod.Source}', 
-                       {(int)mod.Type}, {mod.Value}, 'Independent', 
-                       {(int)mod.TimeUnit}, {mod.Duration}, {mod.Remaining})");
+                using var cmd = new SQLiteCommand(@"
+                    INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, ModifierType, Value, ModifierClass, TimeUnit, Duration, Remaining)
+                    VALUES (@nid,@sid,@mid,@nm,@src,@mty,@val,'Independent',@tu,@dur,@rem)", _conn);
+                cmd.Parameters.AddWithValue("@nid", npcId);
+                cmd.Parameters.AddWithValue("@sid", stat.Id);
+                cmd.Parameters.AddWithValue("@mid", mod.Id);
+                cmd.Parameters.AddWithValue("@nm",  mod.Name);
+                cmd.Parameters.AddWithValue("@src", mod.Source);
+                cmd.Parameters.AddWithValue("@mty", (int)mod.Type);
+                cmd.Parameters.AddWithValue("@val", mod.Value);
+                cmd.Parameters.AddWithValue("@tu",  (int)mod.TimeUnit);
+                cmd.Parameters.AddWithValue("@dur", mod.Duration);
+                cmd.Parameters.AddWithValue("@rem", mod.Remaining);
+                cmd.ExecuteNonQuery();
             }
         }
     }
@@ -587,7 +638,7 @@ public class DatabaseManager
                 string modId = rdr.GetString(rdr.GetOrdinal("ModifierId"));
                 string modName = rdr.GetString(rdr.GetOrdinal("Name"));
                 string modSource = rdr.GetString(rdr.GetOrdinal("Source"));
-                ModifierType modType = (ModifierType)rdr.GetInt32(rdr.GetOrdinal("Type"));
+                ModifierType modType = (ModifierType)rdr.GetInt32(rdr.GetOrdinal("ModifierType"));
                 double modValue = rdr.GetDouble(rdr.GetOrdinal("Value"));
                 int isActive = rdr.GetInt32(rdr.GetOrdinal("IsActive"));
 
@@ -601,7 +652,7 @@ public class DatabaseManager
                 string modId = rdr.GetString(rdr.GetOrdinal("ModifierId"));
                 string modName = rdr.GetString(rdr.GetOrdinal("Name"));
                 string modSource = rdr.GetString(rdr.GetOrdinal("Source"));
-                ModifierType modType = (ModifierType)rdr.GetInt32(rdr.GetOrdinal("Type"));
+                ModifierType modType = (ModifierType)rdr.GetInt32(rdr.GetOrdinal("ModifierType"));
                 double modValue = rdr.GetDouble(rdr.GetOrdinal("Value"));
                 TimeUnit timeUnit = (TimeUnit)rdr.GetInt32(rdr.GetOrdinal("TimeUnit"));
                 int duration = rdr.GetInt32(rdr.GetOrdinal("Duration"));
@@ -678,8 +729,12 @@ public class DatabaseManager
         p.AltarLevel = rdr.GetInt32(rdr.GetOrdinal("AltarLevel"));
         p.CurrentDay = rdr.GetInt32(rdr.GetOrdinal("CurrentDay"));
         p.BarrierSize = GetDoubleOrDefault(rdr, "BarrierSize");
+        p.BarrierLevel = GetIntOrDefault(rdr, "BarrierLevel", 1);
         p.TerritoryControl = GetIntOrDefault(rdr, "TerritoryControl");
         p.PlayerActionsToday = GetIntOrDefault(rdr, "PlayerActionsToday");
+        string zonesJson = GetStringOrDefault(rdr, "ControlledZoneIds", "[]");
+        try { p.ControlledZoneIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(zonesJson) ?? new(); }
+        catch { p.ControlledZoneIds = new(); }
         return p;
     }
 
