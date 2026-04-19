@@ -192,6 +192,9 @@ public class DatabaseManager
         if (!File.Exists(_templateSave._fileName))
             throw new FileNotFoundException($"Файл шаблону не знайдено: {_templateSave._fileName}");
 
+        // Ensure template DB has Rovne map; generate it once if missing
+        EnsureTemplateHasMap();
+
         CloseDatabaseConnections();
 
         if (File.Exists(_thisSave._fileName))
@@ -205,39 +208,50 @@ public class DatabaseManager
         EnsureNpcModifiersSchema();
         EnsurePlayerSchema();
 
-        DeleteAllLocations();
-        var (rovneLocations, startLocId) = ApocMinimal.Systems.RovneMapInitializer.GenerateLocations();
-
-        var idMap = new Dictionary<int, int>();
-        foreach (var loc in rovneLocations)
-        {
-            int oldId = loc.Id;
-            int newId = InsertLocation(loc);
-            idMap[oldId] = newId;
-            loc.Id = newId;
-        }
-
-        foreach (var loc in rovneLocations)
-        {
-            if (loc.ParentId > 0 && idMap.TryGetValue(loc.ParentId, out int newParentId))
-            {
-                using var cmd = new SQLiteCommand("UPDATE Locations SET ParentId=@p WHERE Id=@id", _conn);
-                cmd.Parameters.AddWithValue("@p", newParentId);
-                cmd.Parameters.AddWithValue("@id", loc.Id);
-                cmd.ExecuteNonQuery();
-            }
-        }
-
+        // Re-randomise resource nodes on all map locations
+        var locations = GetAllLocations();
         var rnd = new Random();
-        ApocMinimal.Systems.MapInitializer.InitialiseMapResources(rovneLocations, rnd);
-        foreach (var loc in rovneLocations)
+        ApocMinimal.Systems.MapInitializer.InitialiseMapResources(locations, rnd);
+        foreach (var loc in locations)
             SaveLocation(loc);
 
-        int startBuildingLocId = idMap.ContainsKey(startLocId) ? idMap[startLocId] : startLocId;
-        ExecuteNQ($"UPDATE Npcs SET LocationId={startBuildingLocId}");
+        // Place all NPCs at starting floor (first explored Floor by Id)
+        object? startIdObj = ExecuteScalar("SELECT MIN(Id) FROM Locations WHERE Type='Floor' AND IsExplored=1");
+        int startLocId = startIdObj is long sl ? (int)sl : 1;
+        ExecuteNQ($"UPDATE Npcs SET LocationId={startLocId}");
 
         SetInitialResources(CurrentSaveId);
         SetInitialQuests(CurrentSaveId);
+    }
+
+    private void EnsureTemplateHasMap()
+    {
+        OpenConnection(_templateSave._connectionString);
+        object? cnt = ExecuteScalar("SELECT COUNT(*) FROM Locations");
+        bool hasMap = cnt is long n && n > 0;
+        if (!hasMap)
+        {
+            var (rovneLocations, _) = ApocMinimal.Systems.RovneMapInitializer.GenerateLocations();
+            var idMap = new Dictionary<int, int>();
+            foreach (var loc in rovneLocations)
+            {
+                int oldId = loc.Id;
+                int newId = InsertLocation(loc);
+                idMap[oldId] = newId;
+                loc.Id = newId;
+            }
+            foreach (var loc in rovneLocations)
+            {
+                if (loc.ParentId > 0 && idMap.TryGetValue(loc.ParentId, out int newParentId))
+                {
+                    using var cmd = new SQLiteCommand("UPDATE Locations SET ParentId=@p WHERE Id=@id", _conn);
+                    cmd.Parameters.AddWithValue("@p", newParentId);
+                    cmd.Parameters.AddWithValue("@id", loc.Id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+        OpenConnection(""); // close template connection
     }
 
     private void EnsureNpcLocationColumn()
