@@ -154,12 +154,11 @@ public class DatabaseManager
     {
         ExecuteNQ("DELETE FROM Locations");
     }
-
     public int InsertLocation(Location loc)
     {
         using var cmd = new SQLiteCommand(@"
-            INSERT INTO Locations (Name, Type, ParentId, ResourceNodes, DangerLevel, IsExplored, Status, MonsterTypeName, MapState)
-            VALUES (@nm, @ty, @pi, @rn, @dl, @ie, @st, @mt, @ms)", _conn);
+        INSERT INTO Locations (Name, Type, ParentId, ResourceNodes, DangerLevel, IsExplored, Status, MonsterTypeName, MapState, CommercialType)
+        VALUES (@nm, @ty, @pi, @rn, @dl, @ie, @st, @mt, @ms, @ct)", _conn);
         cmd.Parameters.AddWithValue("@nm", loc.Name);
         cmd.Parameters.AddWithValue("@ty", loc.Type.ToString());
         cmd.Parameters.AddWithValue("@pi", loc.ParentId);
@@ -169,10 +168,10 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
         cmd.Parameters.AddWithValue("@mt", loc.MonsterTypeName);
         cmd.Parameters.AddWithValue("@ms", loc.MapState.ToString());
+        cmd.Parameters.AddWithValue("@ct", loc.CommercialType.ToString());
         cmd.ExecuteNonQuery();
         return (int)_conn.LastInsertRowId;
     }
-
     public void SetInitialResources(string saveId)
     {
         ExecuteNQ("UPDATE Resources SET Amount=10 WHERE Name='Еда'");
@@ -227,6 +226,10 @@ public class DatabaseManager
     private void EnsureTemplateHasMap()
     {
         OpenConnection(_templateSave._connectionString);
+
+        // Добавляем столбец CommercialType, если его нет
+        try { ExecuteNQ("ALTER TABLE Locations ADD COLUMN CommercialType TEXT NOT NULL DEFAULT 'None'"); } catch { }
+
         object? cnt = ExecuteScalar("SELECT COUNT(*) FROM Locations");
         bool hasMap = cnt is long n && n > 0;
         if (!hasMap)
@@ -475,6 +478,8 @@ public class DatabaseManager
             else if (typeStr == "Street") loc.Type = LocationType.Street;
             else if (typeStr == "Building") loc.Type = LocationType.Building;
             else if (typeStr == "Floor") loc.Type = LocationType.Floor;
+            else if (typeStr == "Apartment") loc.Type = LocationType.Apartment;
+            else if (typeStr == "Commercial") loc.Type = LocationType.Commercial;
             else loc.Type = LocationType.Apartment;
 
             loc.ParentId = rdr.GetInt32(rdr.GetOrdinal("ParentId"));
@@ -503,6 +508,19 @@ public class DatabaseManager
             if (mapStateStr == "Template") loc.MapState = MapState.Template;
             else if (mapStateStr == "ApocStart") loc.MapState = MapState.ApocStart;
             else loc.MapState = MapState.Current;
+
+            string commercialTypeStr = GetStringOrDefault(rdr, "CommercialType", "None");
+            if (commercialTypeStr == "Shop") loc.CommercialType = CommercialType.Shop;
+            else if (commercialTypeStr == "Supermarket") loc.CommercialType = CommercialType.Supermarket;
+            else if (commercialTypeStr == "Mall") loc.CommercialType = CommercialType.Mall;
+            else if (commercialTypeStr == "Market") loc.CommercialType = CommercialType.Market;
+            else if (commercialTypeStr == "Hairdresser") loc.CommercialType = CommercialType.Hairdresser;
+            else if (commercialTypeStr == "BeautySalon") loc.CommercialType = CommercialType.BeautySalon;
+            else if (commercialTypeStr == "Pharmacy") loc.CommercialType = CommercialType.Pharmacy;
+            else if (commercialTypeStr == "Hospital") loc.CommercialType = CommercialType.Hospital;
+            else if (commercialTypeStr == "Factory") loc.CommercialType = CommercialType.Factory;
+            else if (commercialTypeStr == "Hotel") loc.CommercialType = CommercialType.Hotel;
+            else loc.CommercialType = CommercialType.None;
 
             list.Add(loc);
         }

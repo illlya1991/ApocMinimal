@@ -102,8 +102,8 @@ public partial class PlayerActionsControl : UserControl
             foreach (var district in locs.Where(l => l.ParentId == city.Id).OrderBy(l => l.Name))
             {
                 var distStreets = locs.Where(l => l.ParentId == district.Id).ToList();
-                int totalBld = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id)).Count();
-                int expBld   = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id && l.IsExplored)).Count();
+                int totalBld = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id && l.Type == LocationType.Building)).Count();
+                int expBld = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id && l.Type == LocationType.Building && l.IsExplored)).Count();
 
                 if (!district.IsExplored)
                 {
@@ -115,7 +115,8 @@ public partial class PlayerActionsControl : UserControl
 
                 foreach (var street in distStreets.Where(s => s.IsExplored).OrderBy(s => s.Name))
                 {
-                    var buildings = locs.Where(l => l.ParentId == street.Id).ToList();
+                    var buildings = locs.Where(l => l.ParentId == street.Id && l.Type == LocationType.Building).ToList();
+                    var commercials = locs.Where(l => l.ParentId == street.Id && l.Type == LocationType.Commercial).ToList();
                     int expB = buildings.Count(b => b.IsExplored);
                     int unkB = buildings.Count - expB;
 
@@ -125,7 +126,7 @@ public partial class PlayerActionsControl : UserControl
                     {
                         var npcsB = _viewModel.AllNpcs.Where(n => n.IsAlive && n.LocationId == bld.Id).ToList();
                         string status = bld.Status == LocationStatus.Cleared ? "✓" : "⚠";
-                        string color  = bld.Status == LocationStatus.Cleared ? "#56d364" : "#fbbf24";
+                        string color = bld.Status == LocationStatus.Cleared ? "#56d364" : "#fbbf24";
                         string npcTag = npcsB.Count > 0 ? $"  👤{npcsB.Count}" : "";
                         MapPanel.Children.Add(MapRow($"      🏢 {bld.Name}  {status}{npcTag}", 0, color, "#111820", controlled.Contains(bld.Id)));
 
@@ -139,6 +140,28 @@ public partial class PlayerActionsControl : UserControl
                             string floorStatus = floor.Status == LocationStatus.Cleared ? "#56d364" : "#f87171";
                             MapPanel.Children.Add(MapRow($"        ▸ {floor.Name}{npcF}{resLine}", 0, floorStatus, "#0d1117", controlled.Contains(floor.Id)));
                         }
+                    }
+
+                    // Отображаем коммерческие локации
+                    foreach (var comm in commercials.Where(c => c.IsExplored).OrderBy(c => c.Name))
+                    {
+                        string icon = comm.CommercialType switch
+                        {
+                            CommercialType.Shop => "🛒",
+                            CommercialType.Supermarket => "🏪",
+                            CommercialType.Mall => "🏬",
+                            CommercialType.Market => "🛍️",
+                            CommercialType.Hairdresser => "💈",
+                            CommercialType.BeautySalon => "💅",
+                            CommercialType.Pharmacy => "💊",
+                            CommercialType.Hospital => "🏥",
+                            CommercialType.Factory => "🏭",
+                            CommercialType.Hotel => "🏨",
+                            _ => "🏢"
+                        };
+                        string status = comm.Status == LocationStatus.Cleared ? "✓" : "⚠";
+                        string color = comm.Status == LocationStatus.Cleared ? "#56d364" : "#fbbf24";
+                        MapPanel.Children.Add(MapRow($"      {icon} {comm.Name}  {status}", 0, color, "#111820", controlled.Contains(comm.Id)));
                     }
 
                     if (unkB > 0)
