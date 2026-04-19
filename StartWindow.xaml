@@ -2,13 +2,13 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Симуляция Апокалипсиса"
-        Height="420" Width="560"
+        Height="520" Width="660"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="#0d0d1a">
 
     <Grid>
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="300">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="420">
 
             <TextBlock Text="СИМУЛЯЦИЯ АПОКАЛИПСИСА"
                        Foreground="#e0e0e0"
