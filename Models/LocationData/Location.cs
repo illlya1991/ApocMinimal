@@ -1,27 +1,32 @@
+// Models/LocationData/Location.cs
+
+using System.Text.Json.Serialization;
+using System.Collections.Generic;
+
 namespace ApocMinimal.Models.LocationData;
 
 public enum LocationType
 {
-    Apartment,  // квартира
-    Floor,      // этаж
-    Building,   // здание
-    Street,     // улица
-    District,   // район
-    City,       // город
-    Commercial  // магазин, аптека, больница и т.д.
+    Apartment,
+    Floor,
+    Building,
+    Street,
+    District,
+    City,
+    Commercial
 }
 
 public enum LocationStatus
 {
-    Dangerous, // есть монстры
-    Cleared,   // зачищено
+    Dangerous,
+    Cleared,
 }
 
 public enum MapState
 {
-    Template,  // шаблон мира (не активен)
-    ApocStart, // состояние на начало апокалипсиса
-    Current,   // текущее состояние мира
+    Template,
+    ApocStart,
+    Current,
 }
 
 public enum CommercialType
@@ -41,34 +46,67 @@ public enum CommercialType
 
 public class Location
 {
+    private Dictionary<string, double> _resourceNodes = new();
+    private bool _isExplored;
+    private LocationStatus _status = LocationStatus.Dangerous;
+    private double _dangerLevel;
+
     public int Id { get; set; }
     public string Name { get; set; } = "";
     public string FullName { get; set; } = "";
     public LocationType Type { get; set; }
-    public int ParentId { get; set; }  // 0 = top level (City)
+    public int ParentId { get; set; }
 
-    /// <summary>Resource nodes available in this location (ResourceName → maxAmount).</summary>
-    public Dictionary<string, double> ResourceNodes { get; set; } = new();
+    public Dictionary<string, double> ResourceNodes
+    {
+        get => _resourceNodes;
+        set
+        {
+            _resourceNodes = value;
+            IsDirty = true;
+        }
+    }
 
-    /// <summary>Danger level 0–100: affects combat chance and action costs.</summary>
-    public double DangerLevel { get; set; }
+    public double DangerLevel
+    {
+        get => _dangerLevel;
+        set
+        {
+            if (Math.Abs(_dangerLevel - value) > 0.01)
+                IsDirty = true;
+            _dangerLevel = value;
+        }
+    }
 
-    /// <summary>Is this location explored/visible to the player?</summary>
-    public bool IsExplored { get; set; }
+    public bool IsExplored
+    {
+        get => _isExplored;
+        set
+        {
+            if (_isExplored != value)
+                IsDirty = true;
+            _isExplored = value;
+        }
+    }
 
-    /// <summary>Whether the location has been cleared of monsters.</summary>
-    public LocationStatus Status { get; set; } = LocationStatus.Dangerous;
-    /// <summary>Type of monsters present (empty when Cleared).</summary>
+    public LocationStatus Status
+    {
+        get => _status;
+        set
+        {
+            if (_status != value)
+                IsDirty = true;
+            _status = value;
+        }
+    }
+
     public string MonsterTypeName { get; set; } = "";
-
-    /// <summary>Which map snapshot this location belongs to.</summary>
     public MapState MapState { get; set; } = MapState.Current;
-
-    /// <summary>Type of commercial location if Type is Commercial.</summary>
     public CommercialType CommercialType { get; set; } = CommercialType.None;
-
-    /// <summary>Количество подчинённых локаций (районов у города, улиц у района, домов у улицы, этажей у дома, квартир у этажа)</summary>
     public int SubCount { get; set; } = 0;
+
+    [JsonIgnore]
+    public bool IsDirty { get; set; } = false;
 
     public string TypeLabel => Type switch
     {
@@ -94,4 +132,36 @@ public class Location
         },
         _ => Type.ToString(),
     };
+
+    // Вспомогательные методы для работы с ResourceNodes
+    public void AddResource(string resourceName, double amount)
+    {
+        if (_resourceNodes.ContainsKey(resourceName))
+            _resourceNodes[resourceName] += amount;
+        else
+            _resourceNodes[resourceName] = amount;
+        IsDirty = true;
+    }
+
+    public bool RemoveResource(string resourceName, double amount)
+    {
+        if (!_resourceNodes.TryGetValue(resourceName, out double current))
+            return false;
+
+        if (current <= amount)
+        {
+            _resourceNodes.Remove(resourceName);
+        }
+        else
+        {
+            _resourceNodes[resourceName] = Math.Round((current - amount) * 10) / 10.0;
+        }
+        IsDirty = true;
+        return true;
+    }
+
+    public void ClearDirty()
+    {
+        IsDirty = false;
+    }
 }

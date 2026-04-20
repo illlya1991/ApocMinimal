@@ -186,77 +186,112 @@ public class DatabaseManager
             PurchaseQuest(saveId, catalog[i], QuestType.OneTime);
     }
 
-    public void ResetDatabase()
+    // Database/DatabaseManager.cs
+
+    public void SaveLocation(Location loc)
     {
+        using var cmd = new SQLiteCommand(
+            "UPDATE Locations SET ResourceNodes=@rn, DangerLevel=@dl, IsExplored=@ie, Status=@st WHERE Id=@id", _conn);
+        cmd.Parameters.AddWithValue("@rn", JsonSerializer.Serialize(loc.ResourceNodes, JsonOpts));
+        cmd.Parameters.AddWithValue("@dl", loc.DangerLevel);
+        cmd.Parameters.AddWithValue("@ie", loc.IsExplored ? 1 : 0);
+        cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
+        cmd.Parameters.AddWithValue("@id", loc.Id);
+        cmd.ExecuteNonQuery();
+    }
+
+    // Новый метод для пакетного сохранения
+    public void SaveLocationsBatch(IEnumerable<Location> locations)
+    {
+        var locList = locations.ToList();
+        if (locList.Count == 0) return;
+
+        using var transaction = _conn.BeginTransaction();
+        try
+        {
+            foreach (var loc in locList)
+            {
+                using var cmd = new SQLiteCommand(
+                    "UPDATE Locations SET ResourceNodes=@rn, DangerLevel=@dl, IsExplored=@ie, Status=@st WHERE Id=@id",
+                    _conn, transaction);
+
+                cmd.Parameters.AddWithValue("@rn", JsonSerializer.Serialize(loc.ResourceNodes, JsonOpts));
+                cmd.Parameters.AddWithValue("@dl", loc.DangerLevel);
+                cmd.Parameters.AddWithValue("@ie", loc.IsExplored ? 1 : 0);
+                cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
+                cmd.Parameters.AddWithValue("@id", loc.Id);
+                cmd.ExecuteNonQuery();
+            }
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    // Модифицируем ResetDatabase для быстрой инициализации
+    // DatabaseManager.cs
+    public void ResetDatabase(Action<int, string, string>? progressCallback = null)
+    {
+        void Report(int p, string s, string d = "") => progressCallback?.Invoke(p, s, d);
+
+        Report(0, "Проверка шаблона...");
         if (!File.Exists(_templateSave._fileName))
             throw new FileNotFoundException($"Файл шаблону не знайдено: {_templateSave._fileName}");
 
-        // Ensure template DB has Rovne map; generate it once if missing
-        EnsureTemplateHasMap();
-
+        Report(5, "Закрытие соединений...");
         CloseDatabaseConnections();
 
+        Report(10, "Создание файла сохранения...");
         if (File.Exists(_thisSave._fileName))
             File.Delete(_thisSave._fileName);
 
         File.Copy(_templateSave._fileName, _thisSave._fileName);
 
+        Report(15, "Подключение к базе...");
         OpenConnection(_thisSave._connectionString);
 
+        Report(20, "Проверка схемы БД...");
         EnsureNpcLocationColumn();
         EnsureNpcModifiersSchema();
         EnsurePlayerSchema();
 
-        // Re-randomise resource nodes on all map locations
+        Report(30, "Загрузка локаций...");
         var locations = GetAllLocations();
         var rnd = new Random();
-        ApocMinimal.Systems.MapInitializer.InitialiseMapResources(locations, rnd);
-        foreach (var loc in locations)
-            SaveLocation(loc);
 
-        // Place all NPCs at starting floor (first explored Floor by Id)
+        Report(40, "Генерация ресурсов...", $"Обработано 0 из {locations.Count} локаций");
+        MapInitializer.InitialiseMapResources(locations, rnd, (current, total) =>
+        {
+            if (current % 100 == 0 || current == total)
+            {
+                int percent = 40 + (int)(current * 30.0 / total);
+                Report(percent, "Распределение ресурсов...", $"Обработано {current} из {total} локаций");
+            }
+        });
+
+        Report(75, "Сохранение локаций...");
+        SaveLocationsBatch(locations);
+
+        Report(80, "Сброс флагов изменений...");
+        foreach (var loc in locations)
+            loc.ClearDirty();
+
+        Report(85, "Размещение NPC...");
         object? startIdObj = ExecuteScalar("SELECT MIN(Id) FROM Locations WHERE Type='Floor' AND IsExplored=1");
         int startLocId = startIdObj is long sl ? (int)sl : 1;
         ExecuteNQ($"UPDATE Npcs SET LocationId={startLocId}");
 
+        Report(90, "Начальные ресурсы...");
         SetInitialResources(CurrentSaveId);
+
+        Report(95, "Начальные квесты...");
         SetInitialQuests(CurrentSaveId);
+
+        Report(100, "Готово!");
     }
-
-    private void EnsureTemplateHasMap()
-    {
-        OpenConnection(_templateSave._connectionString);
-
-        // Добавляем столбец CommercialType, если его нет
-        try { ExecuteNQ("ALTER TABLE Locations ADD COLUMN CommercialType TEXT NOT NULL DEFAULT 'None'"); } catch { }
-
-        object? cnt = ExecuteScalar("SELECT COUNT(*) FROM Locations");
-        bool hasMap = cnt is long n && n > 0;
-        if (!hasMap)
-        {
-            var (rovneLocations, _) = ApocMinimal.Systems.RovneMapInitializer.GenerateLocations();
-            var idMap = new Dictionary<int, int>();
-            foreach (var loc in rovneLocations)
-            {
-                int oldId = loc.Id;
-                int newId = InsertLocation(loc);
-                idMap[oldId] = newId;
-                loc.Id = newId;
-            }
-            foreach (var loc in rovneLocations)
-            {
-                if (loc.ParentId > 0 && idMap.TryGetValue(loc.ParentId, out int newParentId))
-                {
-                    using var cmd = new SQLiteCommand("UPDATE Locations SET ParentId=@p WHERE Id=@id", _conn);
-                    cmd.Parameters.AddWithValue("@p", newParentId);
-                    cmd.Parameters.AddWithValue("@id", loc.Id);
-                    cmd.ExecuteNonQuery();
-                }
-            }
-        }
-        OpenConnection(""); // close template connection
-    }
-
     private void EnsureNpcLocationColumn()
     {
         try { ExecuteNQ("ALTER TABLE Npcs ADD COLUMN LocationId INTEGER NOT NULL DEFAULT 0"); }
@@ -540,18 +575,6 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@pa", p.PlayerActionsToday);
         cmd.Parameters.AddWithValue("@cz", System.Text.Json.JsonSerializer.Serialize(p.ControlledZoneIds, JsonOpts));
         cmd.Parameters.AddWithValue("@id", p.Id);
-        cmd.ExecuteNonQuery();
-    }
-
-    public void SaveLocation(Location loc)
-    {
-        using var cmd = new SQLiteCommand(
-            "UPDATE Locations SET ResourceNodes=@rn, DangerLevel=@dl, IsExplored=@ie, Status=@st WHERE Id=@id", _conn);
-        cmd.Parameters.AddWithValue("@rn", JsonSerializer.Serialize(loc.ResourceNodes, JsonOpts));
-        cmd.Parameters.AddWithValue("@dl", loc.DangerLevel);
-        cmd.Parameters.AddWithValue("@ie", loc.IsExplored ? 1 : 0);
-        cmd.Parameters.AddWithValue("@st", loc.Status.ToString());
-        cmd.Parameters.AddWithValue("@id", loc.Id);
         cmd.ExecuteNonQuery();
     }
 

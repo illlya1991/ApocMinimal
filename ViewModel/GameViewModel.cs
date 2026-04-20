@@ -12,6 +12,7 @@ using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Systems;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using ApocMinimal.Services;
 
 namespace ApocMinimal.ViewModels;
 
@@ -20,6 +21,7 @@ public class GameViewModel : INotifyPropertyChanged
     private readonly DatabaseManager _db;
     private readonly ActionManager _actionManager;
     private readonly Random _rnd = new();
+    private readonly LocationService _locationService;
 
     private Player _player = null!;
     private List<Npc> _npcs = new();
@@ -36,6 +38,22 @@ public class GameViewModel : INotifyPropertyChanged
     public List<PresidentialExchangeEntry> PendingExchanges { get; private set; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public GameViewModel(DatabaseManager db, Action<string, string> logAction)
+    {
+        _db = db;
+        // Инициализируем сервис локаций
+        _locationService = new LocationService(_db);
+        _locationService.Initialize();
+
+        LoadData();
+
+        // Обновляем кэш NPC
+        _locationService.UpdateNpcCache(_npcs);
+
+        _actionManager = new ActionManager(_db, _rnd, logAction, _catalog, _gameConfig);
+        ActionGroups = _actionManager.GetGroups();
+    }
 
     // Observable properties
     private int _currentDay;
@@ -87,14 +105,6 @@ public class GameViewModel : INotifyPropertyChanged
     public List<PlayerActionGroup> ActionGroups { get; private set; } = new();
     public PlayerGameAction? SelectedAction { get; set; }
 
-    public GameViewModel(DatabaseManager db, Action<string, string> logAction)
-    {
-        _db = db;
-        LoadData();
-        _actionManager = new ActionManager(_db, _rnd, logAction, _catalog, _gameConfig);
-        ActionGroups = _actionManager.GetGroups();
-    }
-
     public List<PlayerGameAction> GetActionsByGroup(int groupId) =>
         _actionManager.GetActionsByGroup(groupId);
 
@@ -107,7 +117,8 @@ public class GameViewModel : INotifyPropertyChanged
     public List<Resource> Resources => _resources;
     public List<Quest> AvailableQuests => _quests.Where(q => q.Status == QuestStatus.Available).ToList();
     public List<Quest> ActiveQuests => _quests.Where(q => q.Status == QuestStatus.Active).ToList();
-    public List<Location> Locations => _locations;
+    // Теперь вместо _locations используем _locationService
+    public List<Location> Locations => _locationService.GetAllLocations();
     public IEnumerable<Technique> UnlockedTechniques => _player?.UnlockedTechniques ?? Enumerable.Empty<Technique>();
     public Technique[] AllTechniques => Player.AllTechniques;
 
@@ -117,6 +128,14 @@ public class GameViewModel : INotifyPropertyChanged
     public List<Quest> CompletedQuests => _quests.Where(q => q.Status == QuestStatus.Completed).ToList();
     public List<QuestHistoryEntry> QuestHistory => _db.GetQuestHistory(_db.CurrentSaveId);
 
+    public List<Location> GetChildren(int parentId)
+    {
+        return _locationService.GetChildren(parentId);
+    }
+    public int GetNpcCountAtLocation(int locationId)
+    {
+        return _locationService.GetNpcCountAtLocation(locationId);
+    }
     private void LoadData()
     {
         _player = _db.GetPlayer()!;
@@ -381,10 +400,34 @@ public class GameViewModel : INotifyPropertyChanged
     public void SaveAll()
     {
         _db.SavePlayer(_player);
-        foreach (var n in _npcs) _db.SaveNpc(n);
-        foreach (var r in _resources) _db.SaveResource(r);
-        foreach (var q in _quests.Where(q => q.Status != QuestStatus.Available)) _db.SaveQuest(q);
-        foreach (var l in _locations) _db.SaveLocation(l);
+
+        foreach (var n in _npcs)
+            _db.SaveNpc(n);
+
+        foreach (var r in _resources)
+            _db.SaveResource(r);
+
+        foreach (var q in _quests.Where(q => q.Status != QuestStatus.Available))
+            _db.SaveQuest(q);
+
+        // Сохраняем только измененные локации
+        var dirtyLocations = _locations.Where(l => l.IsDirty).ToList();
+        if (dirtyLocations.Any())
+        {
+            _db.SaveLocationsBatch(dirtyLocations);
+
+            // Сбрасываем флаг для сохраненных локаций
+            foreach (var loc in dirtyLocations)
+                loc.ClearDirty();
+
+            System.Diagnostics.Debug.WriteLine($"Saved {dirtyLocations.Count} dirty locations out of {_locations.Count}");
+        }
+    }
+
+    public void SaveLocation(Location loc)
+    {
+        _db.SaveLocation(loc);
+        loc.ClearDirty();
     }
 
     public void SavePlayer()
