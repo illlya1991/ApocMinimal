@@ -111,7 +111,7 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Techniques
-              (Name,Description,AltarLevel,TechLevel,TechType,FaithCost,ChakraCost,StaminaCost,RequiredStats)
+              (Name,Description,AltarLevel,TechLevel,TechType,FaithCost,EnergyCost,StaminaCost,RequiredStats)
             VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs)", _conn);
         cmd.Parameters.AddWithValue("@nm", t.Name);
         cmd.Parameters.AddWithValue("@ds", t.Description);
@@ -119,7 +119,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@tl", t.TechLevel.ToString());
         cmd.Parameters.AddWithValue("@tt", t.TechType.ToString());
         cmd.Parameters.AddWithValue("@fc", t.FaithCost);
-        cmd.Parameters.AddWithValue("@cc", t.ChakraCost);
+        cmd.Parameters.AddWithValue("@cc", t.EnergyCost);
         cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
         cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
         cmd.ExecuteNonQuery();
@@ -130,14 +130,14 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand(
             "UPDATE Techniques SET Name=@nm,Description=@ds,AltarLevel=@al,TechLevel=@tl," +
-            "TechType=@tt,FaithCost=@fc,ChakraCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", _conn);
+            "TechType=@tt,FaithCost=@fc,EnergyCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@nm", t.Name);
         cmd.Parameters.AddWithValue("@ds", t.Description);
         cmd.Parameters.AddWithValue("@al", t.AltarLevel);
         cmd.Parameters.AddWithValue("@tl", t.TechLevel.ToString());
         cmd.Parameters.AddWithValue("@tt", t.TechType.ToString());
         cmd.Parameters.AddWithValue("@fc", t.FaithCost);
-        cmd.Parameters.AddWithValue("@cc", t.ChakraCost);
+        cmd.Parameters.AddWithValue("@cc", t.EnergyCost);
         cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
         cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
         cmd.Parameters.AddWithValue("@id", t.Id);
@@ -597,7 +597,7 @@ public class DatabaseManager
         var traitStrings = n.CharTraits.Select(t => t.ToString()).ToList();
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Npcs (Name, Age, Gender, Profession, Description,
-                Health, Faith, Stamina, Chakra, Fear, Trust, Initiative, CombatInitiative,
+                Health, Faith, Stamina, Energy, Fear, Trust, Initiative, CombatInitiative,
                 Trait, FollowerLevel, Goal, Dream, Desire, ActiveTask, TaskDaysLeft, TaskRewardResId, TaskRewardAmt,
                 Statistics, CharTraits, Specializations, Emotions, Needs, Memory)
             VALUES (@nm,@ag,@gn,@pr,@ds,
@@ -612,7 +612,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@hp", n.Health);
         cmd.Parameters.AddWithValue("@fa", n.Faith);
         cmd.Parameters.AddWithValue("@st", n.Stamina);
-        cmd.Parameters.AddWithValue("@ck", n.Chakra);
+        cmd.Parameters.AddWithValue("@ck", n.Energy);
         cmd.Parameters.AddWithValue("@fr", n.Fear);
         cmd.Parameters.AddWithValue("@tr", n.Trust);
         cmd.Parameters.AddWithValue("@in", n.Initiative);
@@ -642,7 +642,7 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand(@"
         UPDATE Npcs SET
-            Health=@hp, Faith=@fa, Stamina=@st, Chakra=@ck,
+            Health=@hp, Faith=@fa, Stamina=@st, Energy=@ck,
             Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
             CharTraits=@ct, Specializations=@sp, Emotions=@em,
             Goal=@gl, Dream=@dr, Desire=@de,
@@ -653,7 +653,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@hp", n.Health);
         cmd.Parameters.AddWithValue("@fa", n.Faith);
         cmd.Parameters.AddWithValue("@st", n.Stamina);
-        cmd.Parameters.AddWithValue("@ck", n.Chakra);
+        cmd.Parameters.AddWithValue("@ck", n.Energy);
         cmd.Parameters.AddWithValue("@fr", n.Fear);
         cmd.Parameters.AddWithValue("@tr", n.Trust);
         cmd.Parameters.AddWithValue("@in", n.Initiative);
@@ -808,18 +808,18 @@ public class DatabaseManager
         t.Description = GetStringOrDefault(rdr, "Description");
         t.AltarLevel = rdr.GetInt32(rdr.GetOrdinal("AltarLevel"));
 
-        string techLevelStr = GetStringOrDefault(rdr, "TechLevel", "Genin");
-        if (techLevelStr == "Genin") t.TechLevel = TechniqueLevel.Genin;
-        else if (techLevelStr == "EliteGenin") t.TechLevel = TechniqueLevel.EliteGenin;
-        else if (techLevelStr == "Chunin") t.TechLevel = TechniqueLevel.Chunin;
-        else if (techLevelStr == "EliteChunin") t.TechLevel = TechniqueLevel.EliteChunin;
-        else if (techLevelStr == "Jonin") t.TechLevel = TechniqueLevel.Jonin;
-        else if (techLevelStr == "EliteJonin") t.TechLevel = TechniqueLevel.EliteJonin;
-        else if (techLevelStr == "Anbu") t.TechLevel = TechniqueLevel.Anbu;
-        else if (techLevelStr == "Sannin") t.TechLevel = TechniqueLevel.Sannin;
-        else if (techLevelStr == "Jinchuriki") t.TechLevel = TechniqueLevel.Jinchuriki;
-        else if (techLevelStr == "Kage") t.TechLevel = TechniqueLevel.Kage;
-        else t.TechLevel = TechniqueLevel.Genin;
+        string techLevelStr = GetStringOrDefault(rdr, "TechLevel", "Initiate");
+        if (techLevelStr == "Initiate") t.TechLevel = TechniqueLevel.Initiate;
+        else if (techLevelStr == "Adept") t.TechLevel = TechniqueLevel.Adept;
+        else if (techLevelStr == "Warrior") t.TechLevel = TechniqueLevel.Warrior;
+        else if (techLevelStr == "Veteran") t.TechLevel = TechniqueLevel.Veteran;
+        else if (techLevelStr == "Master") t.TechLevel = TechniqueLevel.Master;
+        else if (techLevelStr == "GrandMaster") t.TechLevel = TechniqueLevel.GrandMaster;
+        else if (techLevelStr == "Phantom") t.TechLevel = TechniqueLevel.Phantom;
+        else if (techLevelStr == "Legend") t.TechLevel = TechniqueLevel.Legend;
+        else if (techLevelStr == "Vessel") t.TechLevel = TechniqueLevel.Vessel;
+        else if (techLevelStr == "Apex") t.TechLevel = TechniqueLevel.Apex;
+        else t.TechLevel = TechniqueLevel.Initiate;
 
         string techTypeStr = GetStringOrDefault(rdr, "TechType", "Energy");
         if (techTypeStr == "Physical") t.TechType = TechniqueType.Physical;
@@ -827,7 +827,7 @@ public class DatabaseManager
         else t.TechType = TechniqueType.Energy;
 
         t.FaithCost = GetDoubleOrDefault(rdr, "FaithCost");
-        t.ChakraCost = GetDoubleOrDefault(rdr, "ChakraCost");
+        t.EnergyCost = GetDoubleOrDefault(rdr, "EnergyCost");
         t.StaminaCost = GetDoubleOrDefault(rdr, "StaminaCost");
         t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new Dictionary<int, double>();
 
@@ -867,7 +867,7 @@ public class DatabaseManager
         npc.Health = rdr.GetDouble(rdr.GetOrdinal("Health"));
         npc.Faith = rdr.GetDouble(rdr.GetOrdinal("Faith"));
         npc.Stamina = GetDoubleOrDefault(rdr, "Stamina", 100);
-        npc.Chakra = GetDoubleOrDefault(rdr, "Chakra", 50);
+        npc.Energy = GetDoubleOrDefault(rdr, "Energy", 50);
         npc.Fear = GetDoubleOrDefault(rdr, "Fear", 10);
         npc.Trust = GetDoubleOrDefault(rdr, "Trust", 50);
         npc.Initiative = GetDoubleOrDefault(rdr, "Initiative", 50);

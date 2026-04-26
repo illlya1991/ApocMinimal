@@ -8,7 +8,7 @@ public enum SpecialMoveType
     CriticalHit,    // ×2 damage
     Dodge,          // defender takes no damage
     StaminaBlow,    // drains defender stamina
-    ChakraBurst,    // chakra-powered attack ×1.5 + chakra drain
+    EnergyBurst,    // energy-powered attack ×1.5 + energy drain
     Disarm,         // attacker loses 20% damage next round
     Taunt,          // +5 damage both sides next round
 }

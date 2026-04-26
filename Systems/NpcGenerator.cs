@@ -108,7 +108,7 @@ public static class NpcGenerator
         };
 
         npc.Stamina = Math.Clamp(npc.MaxStamina * (0.5 + rnd.NextDouble() * 0.5), 0, npc.MaxStamina);
-        npc.Chakra  = Math.Clamp(npc.MaxChakra  * (0.3 + rnd.NextDouble() * 0.5), 0, npc.MaxChakra);
+        npc.Energy  = Math.Clamp(npc.MaxEnergy  * (0.3 + rnd.NextDouble() * 0.5), 0, npc.MaxEnergy);
 
         npc.Needs = NeedSystem.InitialiseNeeds(npc, rnd);
 
@@ -140,7 +140,7 @@ public static class NpcGenerator
         }
         npc.Stats   = stats;
         npc.Stamina = Math.Clamp(npc.MaxStamina * (0.5 + rnd.NextDouble() * 0.5), 0, npc.MaxStamina);
-        npc.Chakra  = Math.Clamp(npc.MaxChakra  * (0.3 + rnd.NextDouble() * 0.5), 0, npc.MaxChakra);
+        npc.Energy  = Math.Clamp(npc.MaxEnergy  * (0.3 + rnd.NextDouble() * 0.5), 0, npc.MaxEnergy);
         npc.Needs   = NeedSystem.InitialiseNeeds(npc, rnd);
     }
 

@@ -70,7 +70,7 @@ public static class TechAbilityCatalog
             StatBonus=new(){ [16]=8, [21]=4 } },
 
         new() { Id="tdef_ce2",    Name="Накопление энергии",
-            Description="Расширяет запас чакры и улучшает контроль.",
+            Description="Расширяет запас энергии и улучшает контроль.",
             Kind=TechKind.Passive, AltarLevel=2, BuyCost=100,
             StatBonus=new(){ [23]=8, [26]=4 } },
 
@@ -80,7 +80,7 @@ public static class TechAbilityCatalog
             StatBonus=new(){ [12]=8, [19]=4 } },
 
         // altar 2 — active
-        new() { Id="tdef_heal",   Name="Исцеление чакрой",
+        new() { Id="tdef_heal",   Name="Исцеление энергией",
             Description="Целительная техника. Применима в бою и в жизни.",
             Kind=TechKind.Active, AltarLevel=2, BuyCost=140,
             CombatEffect="Восстанавливает 20 HP союзнику в текущем ходу.",
@@ -110,15 +110,15 @@ public static class TechAbilityCatalog
             StatBonus=new(){ [26]=8, [28]=5 } },
 
         // altar 3 — active
-        new() { Id="tdef_shield", Name="Щит чакры",
-            Description="Создаёт защитный барьер из чакры.",
+        new() { Id="tdef_shield", Name="Щит энергии",
+            Description="Создаёт защитный барьер из энергии.",
             Kind=TechKind.Active, AltarLevel=3, BuyCost=220,
             CombatEffect="Блокирует весь урон в текущем ходу.",
             LifeEffect="Защищает от угроз окружающей среды и стихийных воздействий." },
 
         // altar 4 — active
-        new() { Id="tdef_blast",  Name="Взрыв чакры",
-            Description="Мощный выброс накопленной чакры.",
+        new() { Id="tdef_blast",  Name="Взрыв энергии",
+            Description="Мощный выброс накопленной энергии.",
             Kind=TechKind.Active, AltarLevel=4, BuyCost=300,
             CombatEffect="Мощная AoE-атака — наносит урон всем врагам в зоне.",
             LifeEffect="Расчищает крупные завалы и укреплённые преграды." },

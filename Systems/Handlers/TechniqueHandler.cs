@@ -95,8 +95,8 @@ public class TechniqueHandler : BaseActionHandler
                 return false;
         }
 
-        // Проверка чакры и выносливости
-        if (target.Chakra < technique.ChakraCost)
+        // Проверка энергии и выносливости
+        if (target.Energy < technique.EnergyCost)
             return false;
         if (target.Stamina < technique.StaminaCost)
             return false;

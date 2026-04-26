@@ -22,8 +22,8 @@ public static class TechniqueSystem
     /// </summary>
     public static bool Apply(Technique tech, Npc npc, out string log)
     {
-        if (npc.Chakra < tech.ChakraCost)
-        { log = $"Недостаточно чакры: {npc.Chakra:F0}/{tech.ChakraCost:F0}"; return false; }
+        if (npc.Energy < tech.EnergyCost)
+        { log = $"Недостаточно энергии: {npc.Energy:F0}/{tech.EnergyCost:F0}"; return false; }
 
         if (npc.Stamina < tech.StaminaCost)
         { log = $"Недостаточно выносливости: {npc.Stamina:F0}/{tech.StaminaCost:F0}"; return false; }
@@ -39,7 +39,7 @@ public static class TechniqueSystem
             }
         }
 
-        npc.Chakra  = Math.Max(0, npc.Chakra  - tech.ChakraCost);
+        npc.Energy  = Math.Max(0, npc.Energy  - tech.EnergyCost);
         npc.Stamina = Math.Max(0, npc.Stamina - tech.StaminaCost);
 
         if (tech.HealAmount > 0)

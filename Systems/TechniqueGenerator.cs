@@ -53,7 +53,7 @@ public static class TechniqueGenerator
         var (formName, costMult, healMult, formSuffix) = _forms[formIdx];
 
         double multiplier = level.GetMultiplier();
-        double chakraCost  = Math.Round(10 + multiplier * 5 * costMult);
+        double energyCost  = Math.Round(10 + multiplier * 5 * costMult);
         double staminaCost = Math.Round(5  + multiplier * 2 * costMult);
         double faithCost   = Math.Round(multiplier * 10 * costMult);
 
@@ -87,7 +87,7 @@ public static class TechniqueGenerator
             FaithCost     = faithCost,
             TechLevel     = level,
             TechType      = techType,
-            ChakraCost    = chakraCost,
+            EnergyCost    = energyCost,
             StaminaCost   = staminaCost,
             HealAmount    = healAmount,
             RequiredStats = requiredStats,
@@ -150,7 +150,7 @@ public static class TechniqueGenerator
             FaithCost     = Math.Round(multiplier * 10 * costMult),
             TechLevel     = level,
             TechType      = techType,
-            ChakraCost    = Math.Round(10 + multiplier * 5 * costMult),
+            EnergyCost    = Math.Round(10 + multiplier * 5 * costMult),
             StaminaCost   = Math.Round(5  + multiplier * 2 * costMult),
             HealAmount    = healAmount,
             RequiredStats = requiredStats,

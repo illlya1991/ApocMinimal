@@ -2,16 +2,16 @@ namespace ApocMinimal.Models.TechniqueData;
 
 public enum TechniqueLevel
 {
-    Genin,        // Генин        ×1.5
-    EliteGenin,   // Элит-генин   ×2
-    Chunin,       // Чонин        ×3
-    EliteChunin,  // Элит-чонин   ×5
-    Jonin,        // Джонин       ×8
-    EliteJonin,   // Элит-джонин  ×10
-    Anbu,         // АНБУ         ×12
-    Sannin,       // Санин        ×15
-    Jinchuriki,   // Джинчурики   ×20
-    Kage,         // Каге         ×30
+    Initiate,      // Новик          ×1.5
+    Adept,         // Адепт          ×2
+    Warrior,       // Воин           ×3
+    Veteran,       // Ветеран        ×5
+    Master,        // Мастер         ×8
+    GrandMaster,   // Гранд-мастер   ×10
+    Phantom,       // Призрак        ×12
+    Legend,        // Легенда        ×15
+    Vessel,        // Носитель       ×20
+    Apex,          // Вершина        ×30
 }
 
 public enum TechniqueType
@@ -25,31 +25,31 @@ public static class TechniqueLevelExtensions
 {
     public static double GetMultiplier(this TechniqueLevel level) => level switch
     {
-        TechniqueLevel.Genin => 1.5,
-        TechniqueLevel.EliteGenin => 2.0,
-        TechniqueLevel.Chunin => 3.0,
-        TechniqueLevel.EliteChunin => 5.0,
-        TechniqueLevel.Jonin => 8.0,
-        TechniqueLevel.EliteJonin => 10.0,
-        TechniqueLevel.Anbu => 12.0,
-        TechniqueLevel.Sannin => 15.0,
-        TechniqueLevel.Jinchuriki => 20.0,
-        TechniqueLevel.Kage => 30.0,
+        TechniqueLevel.Initiate    => 1.5,
+        TechniqueLevel.Adept       => 2.0,
+        TechniqueLevel.Warrior     => 3.0,
+        TechniqueLevel.Veteran     => 5.0,
+        TechniqueLevel.Master      => 8.0,
+        TechniqueLevel.GrandMaster => 10.0,
+        TechniqueLevel.Phantom     => 12.0,
+        TechniqueLevel.Legend      => 15.0,
+        TechniqueLevel.Vessel      => 20.0,
+        TechniqueLevel.Apex        => 30.0,
         _ => 1.0,
     };
 
     public static string ToLabel(this TechniqueLevel level) => level switch
     {
-        TechniqueLevel.Genin => "Генин",
-        TechniqueLevel.EliteGenin => "Элит-генин",
-        TechniqueLevel.Chunin => "Чонин",
-        TechniqueLevel.EliteChunin => "Элит-чонин",
-        TechniqueLevel.Jonin => "Джонин",
-        TechniqueLevel.EliteJonin => "Элит-джонин",
-        TechniqueLevel.Anbu => "АНБУ",
-        TechniqueLevel.Sannin => "Санин",
-        TechniqueLevel.Jinchuriki => "Джинчурики",
-        TechniqueLevel.Kage => "Каге",
+        TechniqueLevel.Initiate    => "Новик",
+        TechniqueLevel.Adept       => "Адепт",
+        TechniqueLevel.Warrior     => "Воин",
+        TechniqueLevel.Veteran     => "Ветеран",
+        TechniqueLevel.Master      => "Мастер",
+        TechniqueLevel.GrandMaster => "Гранд-мастер",
+        TechniqueLevel.Phantom     => "Призрак",
+        TechniqueLevel.Legend      => "Легенда",
+        TechniqueLevel.Vessel      => "Носитель",
+        TechniqueLevel.Apex        => "Вершина",
         _ => level.ToString(),
     };
 

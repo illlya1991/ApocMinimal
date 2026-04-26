@@ -11,10 +11,10 @@ public class Technique
     public int AltarLevel { get; set; }   // min altar level to grant/use
     public double FaithCost { get; set; }
 
-    // ── Ninja system ──────────────────────────────────────────────────
-    public TechniqueLevel TechLevel { get; set; } = TechniqueLevel.Genin;
+    // ── Technique system ──────────────────────────────────────────────
+    public TechniqueLevel TechLevel { get; set; } = TechniqueLevel.Initiate;
     public TechniqueType TechType { get; set; } = TechniqueType.Energy;
-    public double ChakraCost { get; set; }
+    public double EnergyCost { get; set; }
     public double StaminaCost { get; set; }
     /// <summary>Required minimum stat values (StatId → minValue).</summary>
     public Dictionary<int, double> RequiredStats { get; set; } = new();
@@ -111,28 +111,28 @@ public class Player
     public static readonly Technique[] AllTechniques =
     {
         new() { Name="Ученик базовый",        AltarLevel=1,  FaithCost=5,
-                TechLevel=TechniqueLevel.Genin,       TechType=TechniqueType.Energy,
-                ChakraCost=5,   StaminaCost=2,  HealAmount=10,
+                TechLevel=TechniqueLevel.Initiate,    TechType=TechniqueType.Energy,
+                EnergyCost=5,   StaminaCost=2,  HealAmount=10,
                 Description="Базовая техника ученика. Даёт +10 здоровья одному НПС." },
         new() { Name="Благословение",        AltarLevel=2,  FaithCost=10,
-                TechLevel=TechniqueLevel.Genin,       TechType=TechniqueType.Energy,
-                ChakraCost=10,  StaminaCost=5,  HealAmount=20,
+                TechLevel=TechniqueLevel.Initiate,    TechType=TechniqueType.Energy,
+                EnergyCost=10,  StaminaCost=5,  HealAmount=20,
                 Description="Даёт +20 здоровья одному НПС." },
         new() { Name="Исцеление",            AltarLevel=4,  FaithCost=20,
-                TechLevel=TechniqueLevel.EliteGenin,  TechType=TechniqueType.Energy,
-                ChakraCost=20,  StaminaCost=10, HealAmount=100,
+                TechLevel=TechniqueLevel.Adept,       TechType=TechniqueType.Energy,
+                EnergyCost=20,  StaminaCost=10, HealAmount=100,
                 Description="Полностью восстанавливает здоровье одного НПС." },
         new() { Name="Щит веры",             AltarLevel=6,  FaithCost=30,
-                TechLevel=TechniqueLevel.Chunin,      TechType=TechniqueType.Energy,
-                ChakraCost=30,  StaminaCost=15,
+                TechLevel=TechniqueLevel.Warrior,     TechType=TechniqueType.Energy,
+                EnergyCost=30,  StaminaCost=15,
                 Description="Создаёт барьер вокруг алтаря на 3 дня." },
         new() { Name="Откровение",           AltarLevel=8,  FaithCost=40,
-                TechLevel=TechniqueLevel.Jonin,       TechType=TechniqueType.Mental,
-                ChakraCost=40,  StaminaCost=20,
+                TechLevel=TechniqueLevel.Master,      TechType=TechniqueType.Mental,
+                EnergyCost=40,  StaminaCost=20,
                 Description="Вскрывает все соседние локации на карте." },
         new() { Name="Апокалиптический удар",AltarLevel=10, FaithCost=100,
-                TechLevel=TechniqueLevel.Kage,        TechType=TechniqueType.Physical,
-                ChakraCost=80,  StaminaCost=50,
+                TechLevel=TechniqueLevel.Apex,        TechType=TechniqueType.Physical,
+                EnergyCost=80,  StaminaCost=50,
                 Description="Мгновенно уничтожает одну враждебную группу." },
     };
 

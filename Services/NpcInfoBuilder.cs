@@ -156,7 +156,7 @@ public static class NpcInfoBuilder
         panel.Children.Add(CreateSectionHeader("ОСНОВНЫЕ ХАРАКТЕРИСТИКИ"));
         panel.Children.Add(CreateInfoRow("HP:", NumValue(npc.Health, other.Health), npc.Health < 30 ? "#f87171" : "#4ade80", 0, N(npc.Health, other.Health)));
         panel.Children.Add(CreateInfoRow("Выносливость:", NumValue(npc.Stamina, other.Stamina), npc.Stamina < 30 ? "#f87171" : "#60a5fa", 0, N(npc.Stamina, other.Stamina)));
-        panel.Children.Add(CreateInfoRow("Чакра:", NumValue(npc.Chakra, other.Chakra), "#e879f9", 0, N(npc.Chakra, other.Chakra)));
+        panel.Children.Add(CreateInfoRow("Энергия:", NumValue(npc.Energy, other.Energy), "#e879f9", 0, N(npc.Energy, other.Energy)));
         panel.Children.Add(CreateInfoRow("Вера:", NumValue(npc.Faith, other.Faith), "#facc15", 0, N(npc.Faith, other.Faith)));
         panel.Children.Add(CreateInfoRow("Страх:", NumValue(npc.Fear, other.Fear), npc.Fear > 70 ? "#f87171" : "#c9d1d9", 0, N(npc.Fear, other.Fear)));
         panel.Children.Add(CreateInfoRow("Доверие:", NumValue(npc.Trust, other.Trust), npc.Trust > 70 ? "#4ade80" : "#c9d1d9", 0, N(npc.Trust, other.Trust)));
@@ -539,7 +539,7 @@ public static class NpcInfoBuilder
         panel.Children.Add(CreateSectionHeader("ОСНОВНЫЕ ХАРАКТЕРИСТИКИ"));
         panel.Children.Add(CreateInfoRow("HP:", $"{npc.Health:F0}", npc.Health < 30 ? "#f87171" : "#4ade80"));
         panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stamina:F0}", npc.Stamina < 30 ? "#f87171" : "#60a5fa"));
-        panel.Children.Add(CreateInfoRow("Чакра:", $"{npc.Chakra:F0}", "#e879f9"));
+        panel.Children.Add(CreateInfoRow("Энергия:", $"{npc.Energy:F0}", "#e879f9"));
         panel.Children.Add(CreateInfoRow("Вера:", $"{npc.Faith:F0}", "#facc15"));
         panel.Children.Add(CreateInfoRow("Страх:", $"{npc.Fear:F0}", npc.Fear > 70 ? "#f87171" : "#c9d1d9"));
         panel.Children.Add(CreateInfoRow("Доверие:", $"{npc.Trust:F0}", npc.Trust > 70 ? "#4ade80" : "#c9d1d9"));

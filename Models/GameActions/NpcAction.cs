@@ -181,7 +181,7 @@ public static class NpcActionCatalog
                 Description="Устраивает досуг для группы.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Гедонист"] = 25, ["Общение"] = 15 } },
         new NpcAction { Id=104, Name="Медитировать",          Category=ActionCategory.Special, StaminaCost=0, ActionType=NpcActionType.Rest,
-                Description="Глубокое расслабление, восстанавливает чакру.",
+                Description="Глубокое расслабление, восстанавливает энергию.",
                 SatisfiedNeeds=new Dictionary<string, double> { ["Медитация"] = 50 },
                 RequiredStats=new Dictionary<int, double> { [21] = 35 },
                 StatGrowthIds=new Dictionary<int, double> { [26]=0.6, [25]=0.5, [23]=0.4 } },      // Концентрация, Контроль, Запас энергии

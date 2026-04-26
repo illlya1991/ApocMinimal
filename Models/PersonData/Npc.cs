@@ -31,7 +31,7 @@ public class Npc
     public double Health { get; set; } = 100;
     public double Faith { get; set; }
     public double Stamina { get; set; } = 100;
-    public double Chakra { get; set; } = 50;
+    public double Energy { get; set; } = 50;
     public double Fear { get; set; } = 10;
     public double Trust { get; set; } = 50;
     public double Initiative { get; set; } = 50;
@@ -83,8 +83,8 @@ public class Npc
     public bool IsAlive => Health > 0;
     public bool HasTask => !string.IsNullOrEmpty(ActiveTask);
 
-    /// <summary>MaxChakra = (EnergyReserve×6 + Concentration×3 + Control×2) / 11. Base 100 stats → 100.</summary>
-    public double MaxChakra => (Stats.EnergyReserve * 6 + Stats.Concentration * 3 + Stats.Control * 2) / 11.0;
+    /// <summary>MaxEnergy = (EnergyReserve×6 + Concentration×3 + Control×2) / 11. Base 100 stats → 100.</summary>
+    public double MaxEnergy => (Stats.EnergyReserve * 6 + Stats.Concentration * 3 + Stats.Control * 2) / 11.0;
 
     /// <summary>MaxStamina = (Endurance×5 + Toughness×3 + Strength×2) / 10. Stats=100 → 100.</summary>
     public double MaxStamina => (Stats.Endurance * 5 + Stats.Toughness * 3 + Stats.Strength * 2) / 10.0;

@@ -14,7 +14,7 @@ public static class CombatSystem
 
     /// <summary>
     /// Resolve a 1v1 combat between two NPCs. Up to 50 rounds.
-    /// Includes special moves: critical hits, dodges, stamina blows, chakra bursts.
+    /// Includes special moves: critical hits, dodges, stamina blows, energy bursts.
     /// </summary>
     public static CombatEvent Resolve1v1(Npc attacker, Npc defender, Random rnd, int day)
     {
@@ -144,12 +144,12 @@ public static class CombatSystem
             special = SpecialMoveType.Dodge;
             desc     = "промахивается —";
         }
-        // Chakra burst: 5% if has chakra
-        else if (roll < critChance + 0.13 && attacker.Chakra > 20)
+        // Energy burst: 5% if has energy
+        else if (roll < critChance + 0.13 && attacker.Energy > 20)
         {
             damage  *= 1.5;
-            special  = SpecialMoveType.ChakraBurst;
-            desc     = "выбрасывает чакру на";
+            special  = SpecialMoveType.EnergyBurst;
+            desc     = "выбрасывает энергию на";
         }
         // Stamina blow: 5%
         else if (roll < critChance + 0.18)
@@ -167,8 +167,8 @@ public static class CombatSystem
     {
         switch (special)
         {
-            case SpecialMoveType.ChakraBurst:
-                attacker.Chakra = Math.Max(0, attacker.Chakra - 15);
+            case SpecialMoveType.EnergyBurst:
+                attacker.Energy = Math.Max(0, attacker.Energy - 15);
                 break;
             case SpecialMoveType.StaminaBlow:
                 defender.Stamina = Math.Max(0, defender.Stamina - 20);
