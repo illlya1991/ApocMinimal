@@ -77,6 +77,12 @@
                 <StackPanel Margin="14" x:Name="ShopPanel"/>
             </ScrollViewer>
         </TabItem>
+        <!-- СПОСОБНОСТИ ТЕРМИНАЛА -->
+        <TabItem Header="Способности" Style="{StaticResource TabStyle}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="14" x:Name="TerminalAbilPanel"/>
+            </ScrollViewer>
+        </TabItem>
         <!-- ТЕХНИКИ -->
         <TabItem Header="Техники" Style="{StaticResource TabStyle}">
             <ScrollViewer VerticalScrollBarVisibility="Auto">

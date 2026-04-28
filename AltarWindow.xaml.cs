@@ -7,6 +7,7 @@ using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Models.UIData;
 using ApocMinimal.Systems;
 using ApocMinimal.ViewModels;
+using System.Windows.Media;
 
 namespace ApocMinimal;
 
@@ -27,6 +28,7 @@ public partial class AltarWindow : Window
         RefreshBarrierTab();
         RefreshExchangesTab();
         RefreshShopTab();
+        RefreshTerminalAbilTab();
         RefreshTechTab();
     }
 
@@ -214,6 +216,86 @@ public partial class AltarWindow : Window
         _vm.SavePlayer();
         _vm.Refresh();
         RefreshBarrierTab();
+    }
+
+    // =========================================================
+    // Способности Терминала
+    // =========================================================
+
+    private void RefreshTerminalAbilTab()
+    {
+        TerminalAbilPanel.Children.Clear();
+
+        TerminalAbilPanel.Children.Add(new TextBlock
+        {
+            Text = $"Уровень Терминала: {_vm.TerminalLevel} / 10",
+            Foreground = MakeBrush("#58a6ff"),
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+        });
+
+        int[] levels = { 2, 4, 6, 8, 10 };
+        foreach (int lvl in levels)
+        {
+            bool unlocked = _vm.TerminalLevel >= lvl;
+            string headerColor = unlocked ? "#f59e0b" : "#4b5563";
+
+            TerminalAbilPanel.Children.Add(new TextBlock
+            {
+                Text = $"── УРОВЕНЬ {lvl} ──────────────────",
+                Foreground = MakeBrush(headerColor),
+                FontSize = 10,
+                Margin = new Thickness(0, 8, 0, 4),
+            });
+
+            foreach (var abil in TerminalAbilityCatalog.GetForLevel(lvl))
+            {
+                string nameColor = unlocked
+                    ? abil.AbilityType switch
+                    {
+                        TerminalAbilityType.Base   => "#79c0ff",
+                        TerminalAbilityType.Earth  => "#f59e0b",
+                        TerminalAbilityType.Unique => "#f87171",
+                        _ => "#c9d1d9"
+                    }
+                    : "#4b5563";
+
+                var row = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+
+                row.Children.Add(new TextBlock
+                {
+                    Text = $"{abil.TypeIcon} [{abil.TypeLabel}] {abil.Name}" +
+                           (abil.OPCostPerUse > 0 ? $"  ({abil.OPCostPerUse:F0} ОР)" : "  [Пассив]"),
+                    Foreground = MakeBrush(nameColor),
+                    FontSize = 11,
+                    FontWeight = unlocked ? FontWeights.SemiBold : FontWeights.Normal,
+                    Opacity = unlocked ? 1.0 : 0.4,
+                });
+
+                row.Children.Add(new TextBlock
+                {
+                    Text = "   " + abil.Description,
+                    Foreground = MakeBrush(unlocked ? "#8b949e" : "#4b5563"),
+                    FontSize = 10,
+                    TextWrapping = TextWrapping.Wrap,
+                    Opacity = unlocked ? 1.0 : 0.35,
+                    Margin = new Thickness(0, 1, 0, 4),
+                });
+            }
+
+            if (!unlocked)
+            {
+                TerminalAbilPanel.Children.Add(new TextBlock
+                {
+                    Text = $"   [Заблокировано до уровня Терминала {lvl}]",
+                    Foreground = MakeBrush("#4b5563"),
+                    FontSize = 10,
+                    FontStyle = FontStyles.Italic,
+                    Margin = new Thickness(0, 0, 0, 4),
+                });
+            }
+        }
     }
 
     // =========================================================
