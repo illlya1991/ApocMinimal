@@ -9,21 +9,14 @@ using ApocMinimal.Models;
 
 namespace ApocMinimal.Controls;
 
-/// <summary>
-/// Log control with 3 explicit sections per day:
-///   1. Действия НПС  — NPC sub-sections (collapsed by default)
-///   2. Система       — state summary at 23:00 (collapsed by default)
-///   3. Действия игрока — player actions (expanded)
-/// Supports time hierarchy grouping by week/month/season/year.
-/// </summary>
 public partial class LogControl : UserControl
 {
-    // Time grouping levels
-    public enum TimeLevel { Day, Week, Month, Season, Year }
+    public enum TimeLevel { Day, Week, Month, Quarter, Year }
 
     private ScrollViewer? _scrollViewer;
     private bool _autoScroll = true;
     private TimeLevel _currentGroupLevel = TimeLevel.Day;
+    private bool _settingLevel;
 
     private readonly List<LogDayItem> _days = new();
     private LogDayItem? _currentDay;
@@ -33,9 +26,14 @@ public partial class LogControl : UserControl
     private SectionItem? _playerSection;
     private int _npcGroupCount;
     private int _currentNpcActionCount;
+    private string _currentNpcSectionName = "";
 
-    // Time grouping structures
-    private readonly Dictionary<string, LogTimeGroup> _timeGroups = new();
+    // ── Raw data (for persistence) ──────────────────────────────────────────
+    private readonly List<LogDayData> _rawData = new();
+    private LogDayData? _currentRaw;
+
+    public List<LogDayData> GetAllRawData() => _rawData;
+    public LogDayData? GetDayRaw(int dayNumber) => _rawData.FirstOrDefault(d => d.DayNumber == dayNumber);
 
     public LogControl()
     {
@@ -51,16 +49,32 @@ public partial class LogControl : UserControl
             };
         }
 
-        // Initialize time hierarchy toggles
-        if (WeekToggle != null) WeekToggle.Checked += (s, e) => SetTimeLevel(TimeLevel.Week);
-        if (MonthToggle != null) MonthToggle.Checked += (s, e) => SetTimeLevel(TimeLevel.Month);
-        if (SeasonToggle != null) SeasonToggle.Checked += (s, e) => SetTimeLevel(TimeLevel.Season);
-        if (YearToggle != null) YearToggle.Checked += (s, e) => SetTimeLevel(TimeLevel.Year);
+        // Radio-style toggles — use Click to handle mutual exclusion
+        if (WeekToggle != null)   WeekToggle.Click   += (s, e) => ToggleClicked(TimeLevel.Week,    WeekToggle.IsChecked   == true);
+        if (MonthToggle != null)  MonthToggle.Click  += (s, e) => ToggleClicked(TimeLevel.Month,   MonthToggle.IsChecked  == true);
+        if (QuarterToggle != null) QuarterToggle.Click += (s, e) => ToggleClicked(TimeLevel.Quarter, QuarterToggle.IsChecked == true);
+        if (YearToggle != null)   YearToggle.Click   += (s, e) => ToggleClicked(TimeLevel.Year,    YearToggle.IsChecked   == true);
+    }
 
-        if (WeekToggle != null) WeekToggle.Unchecked += (s, e) => { if (!IsAnyTimeLevelChecked()) SetTimeLevel(TimeLevel.Day); };
-        if (MonthToggle != null) MonthToggle.Unchecked += (s, e) => { if (!IsAnyTimeLevelChecked()) SetTimeLevel(TimeLevel.Day); };
-        if (SeasonToggle != null) SeasonToggle.Unchecked += (s, e) => { if (!IsAnyTimeLevelChecked()) SetTimeLevel(TimeLevel.Day); };
-        if (YearToggle != null) YearToggle.Unchecked += (s, e) => { if (!IsAnyTimeLevelChecked()) SetTimeLevel(TimeLevel.Day); };
+    private void ToggleClicked(TimeLevel level, bool isNowChecked)
+    {
+        if (isNowChecked)
+            SetTimeLevel(level);
+        else
+            SetTimeLevel(TimeLevel.Day);
+    }
+
+    private void SetTimeLevel(TimeLevel level)
+    {
+        if (_settingLevel) return;
+        _settingLevel = true;
+        _currentGroupLevel = level;
+        if (WeekToggle    != null) WeekToggle.IsChecked    = level == TimeLevel.Week;
+        if (MonthToggle   != null) MonthToggle.IsChecked   = level == TimeLevel.Month;
+        if (QuarterToggle != null) QuarterToggle.IsChecked = level == TimeLevel.Quarter;
+        if (YearToggle    != null) YearToggle.IsChecked    = level == TimeLevel.Year;
+        _settingLevel = false;
+        RebuildTimeHierarchy();
     }
 
     private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
@@ -76,320 +90,199 @@ public partial class LogControl : UserControl
                 System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    private bool IsAnyTimeLevelChecked()
-    {
-        return (WeekToggle != null && WeekToggle.IsChecked == true) ||
-               (MonthToggle != null && MonthToggle.IsChecked == true) ||
-               (SeasonToggle != null && SeasonToggle.IsChecked == true) ||
-               (YearToggle != null && YearToggle.IsChecked == true);
-    }
-
-    private void SetTimeLevel(TimeLevel level)
-    {
-        if (_currentGroupLevel == level) return;
-        _currentGroupLevel = level;
-        RebuildTimeHierarchy();
-    }
-
-    private void ExpandAllTimeBtn_Click(object sender, RoutedEventArgs e)
-    {
-        foreach (var group in _timeGroups.Values)
-        {
-            if (group.ContentPanel != null && group.HeaderButton != null)
-            {
-                group.ContentPanel.Visibility = Visibility.Visible;
-                UpdateArrow(group.HeaderButton, true);
-            }
-        }
-    }
-
-    private void CollapseAllTimeBtn_Click(object sender, RoutedEventArgs e)
-    {
-        foreach (var group in _timeGroups.Values)
-        {
-            if (group.ContentPanel != null && group.HeaderButton != null)
-            {
-                group.ContentPanel.Visibility = Visibility.Collapsed;
-                UpdateArrow(group.HeaderButton, false);
-            }
-        }
-    }
+    // ── Hierarchy rebuild ────────────────────────────────────────────────────
 
     private void RebuildTimeHierarchy()
     {
-        // Save current day states
-        var dayStates = new Dictionary<int, bool>();
+        // Detach all day containers from their current parents
         foreach (var day in _days)
         {
-            if (day.ContentPanel != null)
-                dayStates[day.DayNumber] = day.ContentPanel.Visibility == Visibility.Visible;
+            if (day.Container?.Parent is Panel p)
+                p.Children.Remove(day.Container);
         }
 
         LogStackPanel.Children.Clear();
-        _timeGroups.Clear();
 
-        // Group days by selected time level
-        var groupedDays = _days
-            .Where(d => d.Container?.Visibility == Visibility.Visible)
-            .GroupBy(d => GetGroupKey(d.DayNumber))
-            .OrderBy(g => GetGroupSortOrder(g.Key))
-            .ToList();
+        var orderedDays = _days.OrderBy(d => d.DayNumber).ToList();
 
-        foreach (var group in groupedDays)
+        if (_currentGroupLevel == TimeLevel.Day)
         {
-            var timeGroup = CreateTimeGroup(group.Key, group.First().DayNumber);
-            _timeGroups[group.Key] = timeGroup;
-            LogStackPanel.Children.Add(timeGroup.Container);
-
-            // Add days to this group
-            foreach (var day in group.OrderBy(d => d.DayNumber))
-            {
-                if (day.Container != null && day.ContentPanel != null)
-                {
-                    // Remove from original parent and add to group
-                    if (day.Container.Parent is Panel oldParent)
-                        oldParent.Children.Remove(day.Container);
-
-                    if (timeGroup.ContentPanel != null)
-                        timeGroup.ContentPanel.Children.Add(day.Container);
-
-                    // Restore expanded state if needed
-                    if (dayStates.TryGetValue(day.DayNumber, out bool wasExpanded) && wasExpanded && day.HeaderButton != null)
-                    {
-                        day.ContentPanel.Visibility = Visibility.Visible;
-                        UpdateArrow(day.HeaderButton, true);
-                    }
-
-                    timeGroup.Days.Add(day);
-                }
-            }
+            foreach (var day in orderedDays)
+                if (day.Container != null)
+                    LogStackPanel.Children.Add(day.Container);
+        }
+        else
+        {
+            BuildNestedLevel(LogStackPanel, orderedDays, _currentGroupLevel);
         }
 
         ScrollToBottom();
     }
 
-    private string GetGroupKey(int day)
+    private void BuildNestedLevel(Panel parent, List<LogDayItem> days, TimeLevel level)
     {
-        var date = GameCalendar.GetDate(day);
-        return _currentGroupLevel switch
-        {
-            TimeLevel.Week => $"W{GameCalendar.GetWeek(day)}_{date.Year}",
-            TimeLevel.Month => $"M{date.Month}_{date.Year}",
-            TimeLevel.Season => $"S{GetSeasonNumber(day)}_{date.Year}",
-            TimeLevel.Year => $"Y{date.Year}",
-            _ => $"D{day}"
-        };
-    }
+        var groups = days
+            .GroupBy(d => GetGroupKey(d.DayNumber, level))
+            .OrderBy(g => GetGroupSortKey(g.Key));
 
-    private int GetSeasonNumber(int day)
-    {
-        string season = GameCalendar.GetSeason(day);
-        return season switch
+        foreach (var group in groups)
         {
-            "Зима" => 0,
-            "Весна" => 1,
-            "Лето" => 2,
-            "Осень" => 3,
-            _ => 0
-        };
-    }
+            var groupContainer = CreateGroupContainer(group.Key, group.First().DayNumber, level);
+            parent.Children.Add(groupContainer.Container!);
 
-    private int GetGroupSortOrder(string groupKey)
-    {
-        if (groupKey.StartsWith("Y"))
-            return int.Parse(groupKey.Substring(1)) * 10000;
-        if (groupKey.StartsWith("S"))
-        {
-            var parts = groupKey.Substring(1).Split('_');
-            return int.Parse(parts[1]) * 100 + int.Parse(parts[0]) * 10;
+            var childLevel = GetChildLevel(level);
+            if (childLevel == TimeLevel.Day)
+            {
+                foreach (var day in group.OrderBy(d => d.DayNumber))
+                    if (day.Container != null)
+                        groupContainer.ContentPanel!.Children.Add(day.Container);
+            }
+            else
+            {
+                BuildNestedLevel(groupContainer.ContentPanel!, group.OrderBy(d => d.DayNumber).ToList(), childLevel);
+            }
         }
-        if (groupKey.StartsWith("M"))
-        {
-            var parts = groupKey.Substring(1).Split('_');
-            return int.Parse(parts[1]) * 100 + int.Parse(parts[0]);
-        }
-        if (groupKey.StartsWith("W"))
-        {
-            var parts = groupKey.Substring(1).Split('_');
-            return int.Parse(parts[1]) * 100 + int.Parse(parts[0]);
-        }
-        return int.Parse(groupKey.Substring(1));
     }
 
-    private string FormatGroupHeader(string groupKey, int sampleDay)
+    private static TimeLevel GetChildLevel(TimeLevel level) => level switch
     {
-        return _currentGroupLevel switch
-        {
-            TimeLevel.Week => $"📅 Неделя {GameCalendar.GetWeek(sampleDay)} ({GameCalendar.GetMonthName(sampleDay)} {GameCalendar.GetYear(sampleDay)})",
-            TimeLevel.Month => $"📆 {GameCalendar.GetMonthName(sampleDay)} {GameCalendar.GetYear(sampleDay)}",
-            TimeLevel.Season => $"🌤 {GameCalendar.GetSeason(sampleDay)} {GameCalendar.GetYear(sampleDay)}",
-            TimeLevel.Year => $"📂 {GameCalendar.GetYear(sampleDay)} год",
-            _ => ""
-        };
+        TimeLevel.Year    => TimeLevel.Quarter,
+        TimeLevel.Quarter => TimeLevel.Month,
+        TimeLevel.Month   => TimeLevel.Week,
+        TimeLevel.Week    => TimeLevel.Day,
+        _                 => TimeLevel.Day,
+    };
+
+    private string GetGroupKey(int day, TimeLevel level) => level switch
+    {
+        TimeLevel.Week    => $"W{GameCalendar.GetWeek(day):D3}_{GameCalendar.GetYear(day)}",
+        TimeLevel.Month   => $"M{GameCalendar.GetMonth(day):D2}_{GameCalendar.GetYear(day)}",
+        TimeLevel.Quarter => $"Q{GameCalendar.GetQuarter(day)}_{GameCalendar.GetYear(day)}",
+        TimeLevel.Year    => $"Y{GameCalendar.GetYear(day)}",
+        _                 => $"D{day:D6}",
+    };
+
+    private static int GetGroupSortKey(string key)
+    {
+        if (key.StartsWith("Y"))  return int.Parse(key[1..]) * 1_000_000;
+        if (key.StartsWith("Q")) { var p = key[1..].Split('_'); return int.Parse(p[1]) * 1_000_000 + int.Parse(p[0]) * 100_000; }
+        if (key.StartsWith("M")) { var p = key[1..].Split('_'); return int.Parse(p[1]) * 1_000_000 + int.Parse(p[0]) * 1_000; }
+        if (key.StartsWith("W")) { var p = key[1..].Split('_'); return int.Parse(p[1]) * 1_000_000 + int.Parse(p[0]) * 10; }
+        if (key.StartsWith("D")) return int.TryParse(key[1..], out int v) ? v : 0;
+        return 0;
     }
 
-    private LogTimeGroup CreateTimeGroup(string groupKey, int sampleDay)
+    private string FormatGroupHeader(string key, int sampleDay) => _currentGroupLevel switch
     {
-        string header = FormatGroupHeader(groupKey, sampleDay);
-        bool expanded = _currentGroupLevel == TimeLevel.Day;
+        TimeLevel.Week    => $"📅 Неделя {GameCalendar.GetWeek(sampleDay)}  ({GameCalendar.GetMonthName(sampleDay)} {GameCalendar.GetYear(sampleDay)})",
+        TimeLevel.Month   => $"📆 {GameCalendar.GetMonthName(sampleDay).ToUpperInvariant()}  {GameCalendar.GetYear(sampleDay)}",
+        TimeLevel.Quarter => $"🗓 Квартал {GameCalendar.GetQuarter(sampleDay)}  ({GameCalendar.GetYear(sampleDay)})",
+        TimeLevel.Year    => $"📂 {GameCalendar.GetYear(sampleDay)} год",
+        _                 => ""
+    };
+
+    // For nested sub-groups the level passed may differ from _currentGroupLevel
+    private string FormatSubGroupHeader(string key, int sampleDay, TimeLevel level) => level switch
+    {
+        TimeLevel.Week    => $"📅 Неделя {GameCalendar.GetWeek(sampleDay)}",
+        TimeLevel.Month   => $"📆 {GameCalendar.GetMonthName(sampleDay)}",
+        TimeLevel.Quarter => $"🗓 Квартал {GameCalendar.GetQuarter(sampleDay)}",
+        TimeLevel.Year    => $"📂 {GameCalendar.GetYear(sampleDay)} год",
+        _                 => ""
+    };
+
+    private GroupItem CreateGroupContainer(string key, int sampleDay, TimeLevel level)
+    {
+        bool isTopLevel = level == _currentGroupLevel;
+        string header = isTopLevel ? FormatGroupHeader(key, sampleDay) : FormatSubGroupHeader(key, sampleDay, level);
 
         var container = new Border
         {
-            Background = GetBrush("#0d1117"),
+            Background  = GetBrush(isTopLevel ? "#0a0f18" : "#0d1117"),
             CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(0, 0, 0, 8),
+            Margin      = new Thickness(0, 0, 0, isTopLevel ? 8 : 4),
+            BorderBrush = GetBrush(isTopLevel ? "#1f2d3d" : "#1a2030"),
+            BorderThickness = new Thickness(isTopLevel ? 1 : 0),
         };
+        var outer   = new StackPanel();
+        var btn     = new Button { Content = header, Style = (Style)FindResource("TimeGroupButtonStyle") };
+        var content = new StackPanel { Margin = new Thickness(isTopLevel ? 10 : 6, 4, 0, 6) };
 
-        var outer = new StackPanel();
-        var headerBtn = new Button
-        {
-            Content = header,
-            Style = (Style)FindResource("TimeGroupButtonStyle"),
-        };
-        var content = new StackPanel { Margin = new Thickness(10, 4, 0, 6) };
-
-        headerBtn.Click += (s, e) =>
+        btn.Click += (s, e) =>
         {
             content.Visibility = content.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-            UpdateArrow(headerBtn, content.Visibility == Visibility.Visible);
+            UpdateArrow(btn, content.Visibility == Visibility.Visible);
         };
-        UpdateArrow(headerBtn, expanded);
-        content.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+        UpdateArrow(btn, true);
+        content.Visibility = Visibility.Visible;
 
-        outer.Children.Add(headerBtn);
+        outer.Children.Add(btn);
         outer.Children.Add(content);
         container.Child = outer;
 
-        return new LogTimeGroup
-        {
-            Container = container,
-            HeaderButton = headerBtn,
-            ContentPanel = content,
-            GroupKey = groupKey
-        };
+        return new GroupItem { Container = container, HeaderButton = btn, ContentPanel = content };
     }
 
-    /// <summary>Start a new day — creates 3 ordered sections with date information.</summary>
+    // ── Day creation ─────────────────────────────────────────────────────────
+
     public void NewDay(string header, int day)
     {
         CollapseCurrentDay();
 
-        var dateInfo = GameCalendar.GetDateString(day);
-        var weekdayFull = GameCalendar.GetWeekday(day);
+        var dateStr    = GameCalendar.GetDateString(day);
+        var weekday    = GameCalendar.GetWeekday(day);
+        var weekdayShort = GameCalendar.GetWeekdayShort(day);
+        var monthName  = GameCalendar.GetMonthName(day);
         var (week, month, season, year) = GameCalendar.GetTimeHierarchy(day);
-        var monthName = GameCalendar.GetMonthName(day);
 
         var dayContainer = new Border
         {
-            Background = GetBrush("#0d1117"),
-            CornerRadius = new CornerRadius(4),
-            Margin = new Thickness(0, 0, 0, 8),
+            Background      = GetBrush("#0d1117"),
+            CornerRadius    = new CornerRadius(4),
+            Margin          = new Thickness(0, 0, 0, 8),
         };
         var dayOuter = new StackPanel();
 
-        var headerPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 2) };
-
-        var mainHeaderText = new TextBlock
+        // ── Button content ───────────────────────────────────────────────────
+        // Row 1: "ДЕНЬ N — 1 марта 2026, понедельник"
+        var headerLine = new TextBlock
         {
-            Text = header,
+            Text       = $"ДЕНЬ {day}  —  {dateStr},  {weekday}",
             Foreground = GetBrush("#60a5fa"),
-            FontSize = 13,
+            FontSize   = 12,
             FontWeight = FontWeights.SemiBold,
         };
-        headerPanel.Children.Add(mainHeaderText);
 
-        var subHeaderPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 0) };
+        // Row 2: small badges W/M/Q/Y
+        var badgesRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
 
-        var dateText = new TextBlock
+        void AddBadge(string text, string bg, string fg, string tip)
         {
-            Text = $"{dateInfo}",
-            Foreground = GetBrush("#8b949e"),
-            FontSize = 10,
-        };
-        subHeaderPanel.Children.Add(dateText);
-
-        var weekdayText = new TextBlock
-        {
-            Text = $" • {weekdayFull}",
-            Foreground = GetBrush("#6b7280"),
-            FontSize = 10,
-        };
-        subHeaderPanel.Children.Add(weekdayText);
-
-        var hierarchyPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0) };
-
-        var weekBadge = new Border
-        {
-            Background = GetBrush("#1a2a3a"),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 1, 6, 1),
-            Margin = new Thickness(0, 0, 4, 0),
-            Child = new TextBlock
+            badgesRow.Children.Add(new Border
             {
-                Text = $"W{week}",
-                Foreground = GetBrush("#79c0ff"),
-                FontSize = 9,
-                ToolTip = $"Неделя {week}"
-            }
-        };
-        hierarchyPanel.Children.Add(weekBadge);
+                Background   = GetBrush(bg),
+                CornerRadius = new CornerRadius(3),
+                Padding      = new Thickness(5, 1, 5, 1),
+                Margin       = new Thickness(0, 0, 4, 0),
+                ToolTip      = tip,
+                Child        = new TextBlock { Text = text, Foreground = GetBrush(fg), FontSize = 9 }
+            });
+        }
+        AddBadge($"W{week}",  "#1a2a3a", "#79c0ff", $"Неделя {week}");
+        AddBadge(monthName[..Math.Min(3, monthName.Length)], "#2a1a3a", "#c084fc", monthName);
+        AddBadge($"Q{GameCalendar.GetQuarter(day)}", "#1a3a2a", "#7ee787", $"Квартал {GameCalendar.GetQuarter(day)}");
+        AddBadge(year.ToString(), "#3a2a1a", "#d29922", $"{year} год");
 
-        var monthBadge = new Border
-        {
-            Background = GetBrush("#2a1a3a"),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 1, 6, 1),
-            Margin = new Thickness(0, 0, 4, 0),
-            Child = new TextBlock
-            {
-                Text = monthName.Substring(0, Math.Min(3, monthName.Length)),
-                Foreground = GetBrush("#c084fc"),
-                FontSize = 9,
-                ToolTip = monthName
-            }
-        };
-        hierarchyPanel.Children.Add(monthBadge);
-
-        var seasonBadge = new Border
-        {
-            Background = GetBrush("#1a3a2a"),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 1, 6, 1),
-            Margin = new Thickness(0, 0, 4, 0),
-            Child = new TextBlock
-            {
-                Text = GetSeasonIcon(season),
-                Foreground = GetBrush("#7ee787"),
-                FontSize = 9,
-                ToolTip = season
-            }
-        };
-        hierarchyPanel.Children.Add(seasonBadge);
-
-        var yearBadge = new Border
-        {
-            Background = GetBrush("#3a2a1a"),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 1, 6, 1),
-            Child = new TextBlock
-            {
-                Text = year.ToString(),
-                Foreground = GetBrush("#d29922"),
-                FontSize = 9,
-                ToolTip = $"{year} год"
-            }
-        };
-        hierarchyPanel.Children.Add(yearBadge);
-
-        subHeaderPanel.Children.Add(hierarchyPanel);
-        headerPanel.Children.Add(subHeaderPanel);
+        var headerPanel = new StackPanel();
+        headerPanel.Children.Add(headerLine);
+        headerPanel.Children.Add(badgesRow);
 
         var dayHeaderBtn = new Button
         {
-            Content = headerPanel,
-            Style = (Style)FindResource("DayButtonStyle"),
-            Padding = new Thickness(10, 8, 10, 8),
-            Tag = day
+            Content  = headerPanel,
+            Style    = (Style)FindResource("DayButtonStyle"),
+            Padding  = new Thickness(10, 8, 10, 8),
+            Tag      = day,
         };
 
         var dayContent = new StackPanel { Margin = new Thickness(10, 4, 0, 6) };
@@ -407,69 +300,52 @@ public partial class LogControl : UserControl
 
         _currentDay = new LogDayItem
         {
-            Container = dayContainer,
+            Container    = dayContainer,
             HeaderButton = dayHeaderBtn,
             ContentPanel = dayContent,
-            DayNumber = day,
-            DateInfo = dateInfo,
-            Weekday = weekdayFull
+            DayNumber    = day,
         };
         _days.Add(_currentDay);
 
-        // Create sections
-        _npcGroup = CreateSection(dayContent, "🗡 Действия НПС", "#f97316", true);
-        _systemSection = CreateSection(dayContent, "⚙ Система", "#60a5fa", true);
+        // Raw data
+        _currentRaw = new LogDayData { DayNumber = day };
+        _rawData.Add(_currentRaw);
+
+        _npcGroup      = CreateSection(dayContent, "🗡 Действия НПС",   "#f97316", true);
+        _systemSection = CreateSection(dayContent, "⚙ Система",          "#60a5fa", true);
         _playerSection = CreateSection(dayContent, "🎮 Действия игрока", "#4ade80", false);
 
-        _currentNpcItem = null;
-        _npcGroupCount = 0;
+        _currentNpcItem       = null;
+        _npcGroupCount        = 0;
         _currentNpcActionCount = 0;
+        _currentNpcSectionName = "";
 
-        // If we're grouping, rebuild the hierarchy
         if (_currentGroupLevel != TimeLevel.Day)
-        {
             RebuildTimeHierarchy();
-        }
         else
-        {
             LogStackPanel.Children.Add(dayContainer);
-        }
 
         ScrollToBottom();
     }
 
-    private static string GetSeasonIcon(string season) => season switch
-    {
-        "Зима" => "❄️",
-        "Весна" => "🌸",
-        "Лето" => "☀️",
-        "Осень" => "🍂",
-        _ => "📅"
-    };
-
     public void NewDay(string header)
     {
         int day = 1;
-        var match = Regex.Match(header, @"ДЕНЬ\s+(\d+)");
-        if (match.Success && int.TryParse(match.Groups[1].Value, out int parsedDay))
-        {
-            day = parsedDay;
-        }
+        var m = Regex.Match(header, @"ДЕНЬ\s+(\d+)");
+        if (m.Success && int.TryParse(m.Groups[1].Value, out int p)) day = p;
         NewDay(header, day);
     }
 
+    // ── Section add methods ──────────────────────────────────────────────────
+
     public void BeginNpcSection(string npcName)
     {
-        if (_npcGroup == null || _npcGroup.ContentPanel == null) return;
-
+        if (_npcGroup?.ContentPanel == null) return;
         _currentNpcActionCount = 0;
+        _currentNpcSectionName = npcName;
         _npcGroupCount++;
 
-        var subBtn = new Button
-        {
-            Content = $"🧑 {npcName}",
-            Style = (Style)FindResource("SectionButtonStyle"),
-        };
+        var subBtn   = new Button { Content = $"🧑 {npcName}", Style = (Style)FindResource("SectionButtonStyle") };
         var subPanel = new StackPanel { Margin = new Thickness(15, 2, 0, 4), Visibility = Visibility.Collapsed };
         UpdateArrow(subBtn, false);
 
@@ -481,14 +357,10 @@ public partial class LogControl : UserControl
 
         _npcGroup.ContentPanel.Children.Add(subBtn);
         _npcGroup.ContentPanel.Children.Add(subPanel);
-
         _currentNpcItem = new NpcSubItem { Name = npcName, Button = subBtn, ContentPanel = subPanel };
 
         if (_npcGroup.HeaderButton != null)
-        {
             _npcGroup.HeaderButton.Content = $"🗡 Действия НПС [{_npcGroupCount}]";
-            UpdateArrow(_npcGroup.HeaderButton, _npcGroup.ContentPanel.Visibility == Visibility.Visible);
-        }
 
         ScrollToBottom();
     }
@@ -504,6 +376,14 @@ public partial class LogControl : UserControl
             _currentNpcItem.Button.Content = $"🧑 {_currentNpcItem.Name} [{_currentNpcActionCount}]";
         }
 
+        _currentRaw?.Entries.Add(new LogEntryData
+        {
+            Section  = $"npc:{_currentNpcSectionName}",
+            Text     = text,
+            Color    = color,
+            IsAction = isAction,
+        });
+
         ScrollToBottom();
     }
 
@@ -516,6 +396,7 @@ public partial class LogControl : UserControl
             UpdateArrow(_systemSection.HeaderButton, true);
         }
         AddText(_systemSection.ContentPanel, text, color);
+        _currentRaw?.Entries.Add(new LogEntryData { Section = "system", Text = text, Color = color });
         ScrollToBottom();
     }
 
@@ -528,8 +409,58 @@ public partial class LogControl : UserControl
         }
         if (_playerSection?.ContentPanel == null) return;
         AddText(_playerSection.ContentPanel, text, color);
+        _currentRaw?.Entries.Add(new LogEntryData { Section = "player", Text = text, Color = color });
         ScrollToBottom();
     }
+
+    // ── Rebuild from raw data (used when loading saved game) ─────────────────
+
+    public void RebuildFromRaw(List<LogDayData> rawDays)
+    {
+        Clear();
+        foreach (var dayRaw in rawDays.OrderBy(d => d.DayNumber))
+        {
+            NewDay($"ДЕНЬ {dayRaw.DayNumber}", dayRaw.DayNumber);
+
+            string currentNpc = "";
+            foreach (var entry in dayRaw.Entries)
+            {
+                if (entry.Section == "system")
+                {
+                    AddSystemEntry(entry.Text, entry.Color);
+                }
+                else if (entry.Section == "player")
+                {
+                    if (_playerSection?.ContentPanel != null)
+                    {
+                        AddText(_playerSection.ContentPanel, entry.Text, entry.Color);
+                        // Don't re-add to _rawData (already rebuilt)
+                        _currentRaw?.Entries.Add(new LogEntryData { Section = "player", Text = entry.Text, Color = entry.Color });
+                    }
+                }
+                else if (entry.Section.StartsWith("npc:"))
+                {
+                    string npcName = entry.Section[4..];
+                    if (npcName != currentNpc)
+                    {
+                        BeginNpcSection(npcName);
+                        currentNpc = npcName;
+                    }
+                    AddNpcEntry(entry.Text, entry.Color, entry.IsAction);
+                }
+            }
+
+            CollapseCurrentDay();
+        }
+        // Expand last day
+        if (_currentDay?.ContentPanel != null && _currentDay.HeaderButton != null)
+        {
+            _currentDay.ContentPanel.Visibility = Visibility.Visible;
+            UpdateArrow(_currentDay.HeaderButton, true);
+        }
+    }
+
+    // ── Collapse/Expand helpers ──────────────────────────────────────────────
 
     public void CollapseCurrentDay()
     {
@@ -540,104 +471,75 @@ public partial class LogControl : UserControl
 
     public void CollapseAll()
     {
-        if (_currentGroupLevel != TimeLevel.Day)
+        foreach (var day in _days)
         {
-            foreach (var group in _timeGroups.Values)
+            if (day.ContentPanel != null && day.HeaderButton != null)
             {
-                if (group.ContentPanel != null && group.HeaderButton != null)
-                {
-                    group.ContentPanel.Visibility = Visibility.Collapsed;
-                    UpdateArrow(group.HeaderButton, false);
-                }
+                day.ContentPanel.Visibility = Visibility.Collapsed;
+                UpdateArrow(day.HeaderButton, false);
             }
         }
-        else
+        CollapseAllGroups(LogStackPanel);
+    }
+
+    private void CollapseAllGroups(Panel panel)
+    {
+        foreach (UIElement child in panel.Children)
         {
-            foreach (var day in _days)
+            if (child is Border b && b.Child is StackPanel sp && sp.Children.Count >= 2
+                && sp.Children[0] is Button btn && sp.Children[1] is StackPanel content)
             {
-                if (day.ContentPanel != null && day.HeaderButton != null)
-                {
-                    day.ContentPanel.Visibility = Visibility.Collapsed;
-                    UpdateArrow(day.HeaderButton, false);
-                }
+                content.Visibility = Visibility.Collapsed;
+                UpdateArrow(btn, false);
+                CollapseAllGroups(content);
             }
         }
     }
 
     public void ExpandAll()
     {
-        if (_currentGroupLevel != TimeLevel.Day)
+        foreach (var day in _days)
         {
-            foreach (var group in _timeGroups.Values)
+            if (day.ContentPanel != null && day.HeaderButton != null)
             {
-                if (group.ContentPanel != null && group.HeaderButton != null)
-                {
-                    group.ContentPanel.Visibility = Visibility.Visible;
-                    UpdateArrow(group.HeaderButton, true);
-                }
+                day.ContentPanel.Visibility = Visibility.Visible;
+                UpdateArrow(day.HeaderButton, true);
             }
         }
-        else
-        {
-            foreach (var day in _days)
-            {
-                if (day.ContentPanel != null && day.HeaderButton != null)
-                {
-                    day.ContentPanel.Visibility = Visibility.Visible;
-                    UpdateArrow(day.HeaderButton, true);
-                }
-            }
-        }
+        ExpandAllGroups(LogStackPanel);
         ScrollToBottom();
     }
 
-    public void ShowLastDays(int daysCount)
+    private void ExpandAllGroups(Panel panel)
     {
-        int daysToShow = Math.Min(daysCount, _days.Count);
-        var daysToHide = _days.Take(_days.Count - daysToShow).ToList();
-
-        if (_currentGroupLevel != TimeLevel.Day)
+        foreach (UIElement child in panel.Children)
         {
-            foreach (var group in _timeGroups.Values)
+            if (child is Border b && b.Child is StackPanel sp && sp.Children.Count >= 2
+                && sp.Children[0] is Button btn && sp.Children[1] is StackPanel content)
             {
-                bool hasVisible = false;
-                foreach (var day in group.Days)
-                {
-                    bool shouldShow = daysToShow >= _days.Count - _days.IndexOf(day);
-                    if (day.Container != null)
-                        day.Container.Visibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
-                    if (shouldShow) hasVisible = true;
-                }
-                if (group.Container != null)
-                    group.Container.Visibility = hasVisible ? Visibility.Visible : Visibility.Collapsed;
+                content.Visibility = Visibility.Visible;
+                UpdateArrow(btn, true);
+                ExpandAllGroups(content);
             }
         }
-        else
-        {
-            foreach (var day in daysToHide)
-                if (day.Container != null) day.Container.Visibility = Visibility.Collapsed;
-            foreach (var day in _days.Skip(_days.Count - daysToShow))
-                if (day.Container != null) day.Container.Visibility = Visibility.Visible;
-        }
+    }
+
+    private void ExpandAllTimeBtn_Click(object sender, RoutedEventArgs e) => ExpandAll();
+    private void CollapseAllTimeBtn_Click(object sender, RoutedEventArgs e) => CollapseAll();
+
+    public void ShowLastDays(int daysCount)
+    {
+        int skip = Math.Max(0, _days.Count - daysCount);
+        for (int i = 0; i < _days.Count; i++)
+            if (_days[i].Container != null)
+                _days[i].Container!.Visibility = i < skip ? Visibility.Collapsed : Visibility.Visible;
         ScrollToBottom();
     }
 
     public void ShowAllDays()
     {
-        if (_currentGroupLevel != TimeLevel.Day)
-        {
-            foreach (var group in _timeGroups.Values)
-            {
-                foreach (var day in group.Days)
-                    if (day.Container != null) day.Container.Visibility = Visibility.Visible;
-                if (group.Container != null) group.Container.Visibility = Visibility.Visible;
-            }
-        }
-        else
-        {
-            foreach (var day in _days)
-                if (day.Container != null) day.Container.Visibility = Visibility.Visible;
-        }
+        foreach (var day in _days)
+            if (day.Container != null) day.Container.Visibility = Visibility.Visible;
         ScrollToBottom();
     }
 
@@ -645,41 +547,42 @@ public partial class LogControl : UserControl
     {
         LogStackPanel.Children.Clear();
         _days.Clear();
-        _timeGroups.Clear();
-        _currentDay = null;
-        _npcGroup = null;
+        _rawData.Clear();
+        _currentDay    = null;
+        _currentRaw    = null;
+        _npcGroup      = null;
         _currentNpcItem = null;
         _systemSection = null;
         _playerSection = null;
         _npcGroupCount = 0;
         _currentNpcActionCount = 0;
-        _autoScroll = true;
+        _currentNpcSectionName = "";
+        _autoScroll    = true;
     }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private SectionItem CreateSection(StackPanel parent, string title, string foregroundHex, bool collapsed)
     {
         var btn = new Button
         {
-            Content = title,
-            Style = (Style)FindResource("SectionButtonStyle"),
+            Content  = title,
+            Style    = (Style)FindResource("SectionButtonStyle"),
             Foreground = GetBrush(foregroundHex),
         };
         var panel = new StackPanel
         {
-            Margin = new Thickness(15, 2, 0, 4),
+            Margin     = new Thickness(15, 2, 0, 4),
             Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible,
         };
         UpdateArrow(btn, !collapsed);
-
         btn.Click += (s, e) =>
         {
             panel.Visibility = panel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
             UpdateArrow(btn, panel.Visibility == Visibility.Visible);
         };
-
         parent.Children.Add(btn);
         parent.Children.Add(panel);
-
         return new SectionItem { HeaderButton = btn, ContentPanel = panel };
     }
 
@@ -687,11 +590,11 @@ public partial class LogControl : UserControl
     {
         panel.Children.Add(new TextBlock
         {
-            Text = text,
-            Foreground = GetBrush(color),
-            FontFamily = new FontFamily("Consolas"),
-            FontSize = 12,
-            Margin = new Thickness(0, 1, 0, 1),
+            Text        = text,
+            Foreground  = GetBrush(color),
+            FontFamily  = new FontFamily("Consolas"),
+            FontSize    = 12,
+            Margin      = new Thickness(0, 1, 0, 1),
             TextWrapping = TextWrapping.Wrap,
         });
     }
@@ -705,41 +608,39 @@ public partial class LogControl : UserControl
     private static SolidColorBrush GetBrush(string hex) =>
         (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
 
-    private void Clear_Click(object sender, RoutedEventArgs e) => Clear();
+    private void Clear_Click(object sender, RoutedEventArgs e)      => Clear();
     private void CollapseAll_Click(object sender, RoutedEventArgs e) => CollapseAll();
-    private void ExpandAll_Click(object sender, RoutedEventArgs e) => ExpandAll();
+    private void ExpandAll_Click(object sender, RoutedEventArgs e)   => ExpandAll();
     private void Filter7Days_Click(object sender, RoutedEventArgs e) => ShowLastDays(7);
-    private void ShowAll_Click(object sender, RoutedEventArgs e) => ShowAllDays();
+    private void ShowAll_Click(object sender, RoutedEventArgs e)     => ShowAllDays();
+
+    // ── Internal classes ─────────────────────────────────────────────────────
 
     private class LogDayItem
     {
-        public Border? Container { get; set; }
-        public Button? HeaderButton { get; set; }
+        public Border?     Container    { get; set; }
+        public Button?     HeaderButton { get; set; }
         public StackPanel? ContentPanel { get; set; }
-        public int DayNumber { get; set; }
-        public string DateInfo { get; set; } = "";
-        public string Weekday { get; set; } = "";
+        public int         DayNumber    { get; set; }
     }
 
     private class SectionItem
     {
-        public Button? HeaderButton { get; set; }
+        public Button?     HeaderButton { get; set; }
         public StackPanel? ContentPanel { get; set; }
     }
 
     private class NpcSubItem
     {
-        public string Name { get; set; } = "";
-        public Button? Button { get; set; }
+        public string      Name         { get; set; } = "";
+        public Button?     Button       { get; set; }
         public StackPanel? ContentPanel { get; set; }
     }
 
-    private class LogTimeGroup
+    private class GroupItem
     {
-        public Border? Container { get; set; }
-        public Button? HeaderButton { get; set; }
+        public Border?     Container    { get; set; }
+        public Button?     HeaderButton { get; set; }
         public StackPanel? ContentPanel { get; set; }
-        public string GroupKey { get; set; } = "";
-        public List<LogDayItem> Days { get; set; } = new();
     }
 }

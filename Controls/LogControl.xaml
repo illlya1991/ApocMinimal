@@ -151,9 +151,9 @@
                                       Style="{StaticResource TimeLevelToggle}"
                                       ToolTip="По месяцам"
                                       Margin="2,0"/>
-                        <ToggleButton x:Name="SeasonToggle" Content="С"
+                        <ToggleButton x:Name="QuarterToggle" Content="К"
                                       Style="{StaticResource TimeLevelToggle}"
-                                      ToolTip="По сезонам"
+                                      ToolTip="По кварталам"
                                       Margin="2,0"/>
                         <ToggleButton x:Name="YearToggle" Content="Г"
                                       Style="{StaticResource TimeLevelToggle}"

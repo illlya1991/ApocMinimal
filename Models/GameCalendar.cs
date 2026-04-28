@@ -57,6 +57,10 @@ public static class GameCalendar
 
     public static int GetYear(int day) => GetDate(day).Year;
 
+    public static int GetQuarter(int day) => (GetMonth(day) - 1) / 3 + 1;
+
+    public static string GetQuarterName(int day) => $"Q{GetQuarter(day)}";
+
     public static (int Week, int Month, string Season, int Year) GetTimeHierarchy(int day) =>
         (GetWeek(day), GetMonth(day), GetSeason(day), GetYear(day));
 }

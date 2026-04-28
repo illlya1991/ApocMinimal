@@ -348,6 +348,55 @@ public class DatabaseManager
             )");
     }
 
+    // ── Game log persistence ─────────────────────────────────────────────────
+
+    public void EnsureGameLogTable()
+    {
+        ExecuteNQ(@"
+            CREATE TABLE IF NOT EXISTS GameLog (
+                Id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                SaveId    TEXT    NOT NULL,
+                DayNumber INTEGER NOT NULL,
+                Section   TEXT    NOT NULL,
+                Text      TEXT    NOT NULL,
+                Color     TEXT    NOT NULL DEFAULT '#c9d1d9',
+                IsAction  INTEGER NOT NULL DEFAULT 0
+            )");
+        try { ExecuteNQ("CREATE INDEX IF NOT EXISTS idx_gamelog_save_day ON GameLog(SaveId, DayNumber)"); } catch { }
+    }
+
+    public void SaveDayLog(string saveId, int dayNumber, IEnumerable<(string section, string text, string color, bool isAction)> entries)
+    {
+        ExecuteNQ($"DELETE FROM GameLog WHERE SaveId='{saveId}' AND DayNumber={dayNumber}");
+        using var tx = _conn.BeginTransaction();
+        using var cmd = new SQLiteCommand(
+            "INSERT INTO GameLog (SaveId,DayNumber,Section,Text,Color,IsAction) VALUES (@s,@d,@sec,@t,@c,@a)", _conn, tx);
+        foreach (var (section, text, color, isAction) in entries)
+        {
+            cmd.Parameters.Clear();
+            cmd.Parameters.AddWithValue("@s",   saveId);
+            cmd.Parameters.AddWithValue("@d",   dayNumber);
+            cmd.Parameters.AddWithValue("@sec", section);
+            cmd.Parameters.AddWithValue("@t",   text);
+            cmd.Parameters.AddWithValue("@c",   color);
+            cmd.Parameters.AddWithValue("@a",   isAction ? 1 : 0);
+            cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+    }
+
+    public List<(int DayNumber, string Section, string Text, string Color, bool IsAction)> GetAllLogs(string saveId)
+    {
+        var result = new List<(int, string, string, string, bool)>();
+        using var cmd = new SQLiteCommand(
+            "SELECT DayNumber,Section,Text,Color,IsAction FROM GameLog WHERE SaveId=@s ORDER BY DayNumber,Id", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read())
+            result.Add((rdr.GetInt32(0), rdr.GetString(1), rdr.GetString(2), rdr.GetString(3), rdr.GetInt32(4) == 1));
+        return result;
+    }
+
     // ── Player tech/ability inventory ────────────────────────────────────────
 
     public List<(int RowId, string ItemId, string ItemType)> GetTechInventory(string saveId)

@@ -5,6 +5,7 @@ using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
 using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Models.UIData;
+using ApocMinimal.Models.LocationData;
 using ApocMinimal.Systems;
 using ApocMinimal.ViewModels;
 using System.Windows.Media;
@@ -101,98 +102,201 @@ public partial class AltarWindow : Window
 
     private void RefreshBarrierTab()
     {
-        int units = _vm.BaseUnits;
-        int protectedCount = _vm.ControlledZoneIds.Count;
         BarrierInfoLabel.Text =
             $"Уровень барьера: {_vm.BarrierLevel}  |  ОР: {_vm.DevPoints:F0}\n" +
-            $"Базовые единицы: {units}  |  Защищено зон: {protectedCount}\n" +
+            $"Базовые единицы: {_vm.BaseUnits}  |  Защищено зон: {_vm.ControlledZoneIds.Count}\n" +
             $"Размер барьера: {_vm.BarrierSize:F0} м";
 
         BarrierUpgradeBtn.IsEnabled = _vm.DevPoints >= 20;
-
-        BarrierHintLabel.Text = "Квартира: 5 ОР  |  Этаж: 10 ОР  |  Здание: 20 ОР  |  Улица: 50 ОР";
+        BarrierHintLabel.Text = "Квартира: 5 ОР  |  Этаж: 10 ОР  |  Здание: 20 ОР  |  Улица: 50 ОР  (только зачищенные)";
 
         BarrierMapPanel.Children.Clear();
 
-        var exploredLocs = _vm.Locations
-            .Where(l => l.IsExplored &&
-                        (l.Type == ApocMinimal.Models.LocationData.LocationType.Apartment ||
-                         l.Type == ApocMinimal.Models.LocationData.LocationType.Floor ||
-                         l.Type == ApocMinimal.Models.LocationData.LocationType.Building ||
-                         l.Type == ApocMinimal.Models.LocationData.LocationType.Street))
-            .OrderBy(l => (int)l.Type)
-            .ThenBy(l => l.Name)
+        var allLocs   = _vm.Locations;
+        var protected_ = _vm.ControlledZoneIds;
+
+        // Only explored + cleared locations are protectable candidates
+        bool IsCandidate(Location l) =>
+            l.IsExplored && l.Status == LocationStatus.Cleared &&
+            (l.Type == LocationType.Street || l.Type == LocationType.Building ||
+             l.Type == LocationType.Floor  || l.Type == LocationType.Apartment);
+
+        // Adjacency: free if first; otherwise parent or sibling is protected
+        bool IsAdjacent(Location loc)
+        {
+            if (protected_.Count == 0) return true;
+            if (protected_.Contains(loc.ParentId)) return true;
+            return allLocs.Any(l => l.ParentId == loc.ParentId && protected_.Contains(l.Id));
+        }
+
+        var streets = allLocs
+            .Where(l => l.Type == LocationType.Street && l.IsExplored)
+            .OrderBy(l => l.Name)
             .ToList();
 
-        if (exploredLocs.Count == 0)
+        if (streets.Count == 0 && !allLocs.Any(IsCandidate))
         {
             BarrierMapPanel.Children.Add(new TextBlock
             {
-                Text = "Нет исследованных локаций.",
-                Foreground = MakeBrush("#8b949e"),
-                FontSize = 10,
+                Text = "Нет зачищенных исследованных локаций.",
+                Foreground = MakeBrush("#8b949e"), FontSize = 10,
             });
             return;
         }
 
-        foreach (var loc in exploredLocs)
+        foreach (var street in streets)
         {
-            bool isProtected = _vm.ControlledZoneIds.Contains(loc.Id);
-            double cost = loc.Type switch
-            {
-                ApocMinimal.Models.LocationData.LocationType.Apartment => 5,
-                ApocMinimal.Models.LocationData.LocationType.Floor => 10,
-                ApocMinimal.Models.LocationData.LocationType.Building => 20,
-                ApocMinimal.Models.LocationData.LocationType.Street => 50,
-                _ => 100,
-            };
+            // Street header
+            bool streetProtected  = protected_.Contains(street.Id);
+            bool streetIsCandidate = IsCandidate(street);
+            bool streetAdjacent   = IsAdjacent(street);
 
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+            AddBarrierRow(BarrierMapPanel, street, 0, "🏙", "#e3b341",
+                streetProtected, streetIsCandidate, streetAdjacent);
 
-            string label = $"[{loc.TypeLabel}]  {loc.Name}";
-            row.Children.Add(new TextBlock
-            {
-                Text = label,
-                Foreground = isProtected ? MakeBrush("#56d364") : MakeBrush("#c9d1d9"),
-                FontSize = 10,
-                Width = 260,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
+            var buildings = allLocs
+                .Where(l => l.Type == LocationType.Building && l.ParentId == street.Id && l.IsExplored)
+                .OrderBy(l => l.Name)
+                .ToList();
 
-            if (isProtected)
+            foreach (var building in buildings)
             {
-                var unprotectBtn = new Button
+                bool bProtected   = protected_.Contains(building.Id);
+                bool bCandidate   = IsCandidate(building);
+                bool bAdjacent    = IsAdjacent(building);
+
+                AddBarrierRow(BarrierMapPanel, building, 12, "🏢", "#79c0ff",
+                    bProtected, bCandidate, bAdjacent);
+
+                var floors = allLocs
+                    .Where(l => l.Type == LocationType.Floor && l.ParentId == building.Id && l.IsExplored)
+                    .OrderBy(l => l.Name)
+                    .ToList();
+
+                foreach (var floor in floors)
                 {
-                    Content = "Снять",
-                    Style = (Style)FindResource("ABtn"),
-                    Background = MakeBrush("#1a2a1a"),
-                    Foreground = MakeBrush("#f87171"),
-                    Width = 60,
-                    Height = 22,
-                    FontSize = 10,
-                    Tag = loc.Id,
-                };
-                unprotectBtn.Click += UnprotectBtn_Click;
-                row.Children.Add(unprotectBtn);
-            }
-            else
-            {
-                var protectBtn = new Button
-                {
-                    Content = $"Защитить ({cost:F0} ОР)",
-                    Style = (Style)FindResource("ABtn"),
-                    IsEnabled = _vm.DevPoints >= cost,
-                    Width = 110,
-                    Height = 22,
-                    FontSize = 10,
-                    Tag = loc.Id,
-                };
-                protectBtn.Click += ProtectBtn_Click;
-                row.Children.Add(protectBtn);
-            }
+                    bool fProtected = protected_.Contains(floor.Id);
+                    bool fCandidate = IsCandidate(floor);
+                    bool fAdjacent  = IsAdjacent(floor);
 
-            BarrierMapPanel.Children.Add(row);
+                    AddBarrierRow(BarrierMapPanel, floor, 24, "📋", "#8b949e",
+                        fProtected, fCandidate, fAdjacent);
+
+                    var apts = allLocs
+                        .Where(l => l.Type == LocationType.Apartment && l.ParentId == floor.Id && l.IsExplored)
+                        .OrderBy(l => l.Name)
+                        .ToList();
+
+                    foreach (var apt in apts)
+                    {
+                        bool aProtected = protected_.Contains(apt.Id);
+                        bool aCandidate = IsCandidate(apt);
+                        bool aAdjacent  = IsAdjacent(apt);
+
+                        AddBarrierRow(BarrierMapPanel, apt, 36, "🚪", "#c9d1d9",
+                            aProtected, aCandidate, aAdjacent);
+                    }
+                }
+            }
         }
+
+        // Locations without a street parent (fallback)
+        var orphans = allLocs
+            .Where(l => IsCandidate(l) &&
+                        l.Type != LocationType.Street &&
+                        !streets.Any(s => allLocs.Any(b => b.Id == l.ParentId && b.ParentId == s.Id) ||
+                                          l.ParentId == s.Id))
+            .OrderBy(l => l.Name)
+            .ToList();
+        foreach (var loc in orphans)
+        {
+            bool isProtected = protected_.Contains(loc.Id);
+            AddBarrierRow(BarrierMapPanel, loc, 0, "📌", "#8b949e",
+                isProtected, true, IsAdjacent(loc));
+        }
+    }
+
+    private void AddBarrierRow(
+        Panel panel, Location loc,
+        double indent, string icon, string iconColor,
+        bool isProtected, bool isCandidate, bool isAdjacent)
+    {
+        double cost = loc.Type switch
+        {
+            LocationType.Apartment => 5,
+            LocationType.Floor     => 10,
+            LocationType.Building  => 20,
+            LocationType.Street    => 50,
+            _                      => 100,
+        };
+
+        bool canAfford   = _vm.DevPoints >= cost;
+        bool canProtect  = isCandidate && isAdjacent && !isProtected && canAfford;
+        bool showProtect = isCandidate && !isProtected;
+
+        string nameColor = isProtected ? "#56d364"
+            : (!isCandidate  ? "#3a3a3a"
+            : (!isAdjacent   ? "#4b5563"
+            : "#c9d1d9"));
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(indent, 1, 0, 1) };
+
+        // Icon
+        row.Children.Add(new TextBlock
+        {
+            Text      = icon,
+            FontSize  = 10,
+            Margin    = new Thickness(0, 0, 4, 0),
+            Foreground = MakeBrush(iconColor),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        // Name
+        string lockHint = !isCandidate  ? " [опасно]"
+                        : !isAdjacent   ? " [не рядом]"
+                        : "";
+        row.Children.Add(new TextBlock
+        {
+            Text      = $"{loc.Name}{lockHint}",
+            Foreground = MakeBrush(nameColor),
+            FontSize  = 10,
+            Width     = Math.Max(180 - indent, 80),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = System.Windows.TextTrimming.CharacterEllipsis,
+        });
+
+        if (isProtected)
+        {
+            var btn = new Button
+            {
+                Content    = "Снять",
+                Style      = (Style)FindResource("ABtn"),
+                Background = MakeBrush("#1a2a1a"),
+                Foreground = MakeBrush("#f87171"),
+                Width = 54, Height = 20, FontSize = 9,
+                Tag = loc.Id,
+            };
+            btn.Click += UnprotectBtn_Click;
+            row.Children.Add(btn);
+        }
+        else if (showProtect)
+        {
+            var btn = new Button
+            {
+                Content   = $"+{cost:F0} ОР",
+                Style     = (Style)FindResource("ABtn"),
+                IsEnabled = canProtect,
+                Width = 60, Height = 20, FontSize = 9,
+                Tag = loc.Id,
+                ToolTip = !isAdjacent ? "Сначала защитите соседнюю локацию"
+                         : !canAfford ? $"Нужно {cost:F0} ОР"
+                         : $"Защитить за {cost:F0} ОР",
+            };
+            btn.Click += ProtectBtn_Click;
+            row.Children.Add(btn);
+        }
+
+        panel.Children.Add(row);
     }
 
     private void ProtectBtn_Click(object sender, RoutedEventArgs e)

@@ -15,15 +15,18 @@ namespace ApocMinimal;
 public partial class GameWindow : Window
 {
     private readonly GameViewModel _viewModel;
+    private readonly DatabaseManager _db;
 
     public GameWindow(DatabaseManager db)
     {
         InitializeComponent();
 
+        _db = db;
         db.OpenCurrentSave();
         db.EnsureNpcModifiersSchema();
         db.EnsurePlayerSchema();
         db.EnsureNpcTechSchema();
+        db.EnsureGameLogTable();
         _viewModel = new GameViewModel(db, LogPlayer);
         DataContext = _viewModel;
         _viewModel.PropertyChanged += (s, e) => RefreshHeader();
@@ -64,6 +67,9 @@ public partial class GameWindow : Window
         }
         else
         {
+            // Load saved log history from DB
+            LoadSavedLogs();
+
             bool alreadyProcessed = _viewModel.AllNpcs
                 .Any(n => n.Memory.Any(m => m.Day == _viewModel.CurrentDay && m.Type == MemoryType.Action));
 
@@ -150,8 +156,43 @@ public partial class GameWindow : Window
         _viewModel.Refresh();
         RefreshAll();
 
+        // Save completed day log to DB
+        SaveCurrentDayLog(_viewModel.CurrentDay - 1);
+
         if (_viewModel.IsVictory || _viewModel.IsDefeat)
             ShowResultWindow();
+    }
+
+    private void SaveCurrentDayLog(int dayNumber)
+    {
+        var dayRaw = LogControl.GetDayRaw(dayNumber);
+        if (dayRaw == null) return;
+        _db.SaveDayLog(_db.CurrentSaveId, dayNumber,
+            dayRaw.Entries.Select(e => (e.Section, e.Text, e.Color, e.IsAction)));
+    }
+
+    private void LoadSavedLogs()
+    {
+        var allRows = _db.GetAllLogs(_db.CurrentSaveId);
+        if (allRows.Count == 0) return;
+
+        var rawDays = allRows
+            .GroupBy(r => r.DayNumber)
+            .OrderBy(g => g.Key)
+            .Select(g => new ApocMinimal.Controls.LogDayData
+            {
+                DayNumber = g.Key,
+                Entries   = g.Select(r => new ApocMinimal.Controls.LogEntryData
+                {
+                    Section  = r.Section,
+                    Text     = r.Text,
+                    Color    = r.Color,
+                    IsAction = r.IsAction,
+                }).ToList()
+            })
+            .ToList();
+
+        LogControl.RebuildFromRaw(rawDays);
     }
 
     private void ShowResultWindow()
