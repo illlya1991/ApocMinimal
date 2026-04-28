@@ -263,6 +263,7 @@ public partial class PlayerActionsControl : UserControl
         _viewModel.SelectedAction = action;
         BuildParametersUI(action);
         ParametersPanel.Visibility = Visibility.Visible;
+        RefreshExecuteBtn();
     }
 
     private void BuildParametersUI(PlayerGameAction action)
