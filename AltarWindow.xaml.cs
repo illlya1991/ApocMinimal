@@ -61,18 +61,36 @@ public partial class AltarWindow : Window
         foreach (var tech in _vm.AllTechniques)
         {
             bool unlocked = tech.TerminalLevel <= _vm.TerminalLevel;
-            string costLabel = tech.IsPlayerTechnique
-                ? $"{tech.EnergyCost:F0} энергии"
-                : $"{tech.OPCost:F0} ОР";
-            bool canUse = unlocked && (tech.IsPlayerTechnique
-                ? _vm.Energy >= tech.EnergyCost
-                : _vm.DevPoints >= tech.OPCost);
-            string category = tech.IsPlayerTechnique ? tech.TechType switch
+            string costLabel;
+            bool canUse;
+            string category;
+            if (tech.IsPlayerTechnique)
             {
-                TechniqueType.Mental   => "👥 ",
-                TechniqueType.Physical => "⚔ ",
-                _                      => "⚙ ",
-            } : "✨ ";
+                costLabel = $"{tech.EnergyCost:F0} энергии";
+                canUse = unlocked && _vm.Energy >= tech.EnergyCost;
+                category = tech.TechType switch
+                {
+                    TechniqueType.Physical => "⚔ ",
+                    _                      => "⚔ ",
+                };
+            }
+            else if (tech.OPCost == 0)
+            {
+                costLabel = $"{tech.EnergyCost:F0} энергии НПС";
+                bool anyNpcHasEnergy = _vm.AliveNpcs.Any(n => n.Energy >= tech.EnergyCost);
+                canUse = unlocked && anyNpcHasEnergy;
+                category = tech.TechType switch
+                {
+                    TechniqueType.Mental => "👥 ",
+                    _                    => "⚙ ",
+                };
+            }
+            else
+            {
+                costLabel = $"{tech.OPCost:F0} ОР";
+                canUse = unlocked && _vm.DevPoints >= tech.OPCost;
+                category = "✨ ";
+            }
             var btn = new Button
             {
                 Content = $"{category}{tech.Name}  ({costLabel})",
@@ -104,6 +122,27 @@ public partial class AltarWindow : Window
             foreach (var npc in _vm.AliveNpcs.Where(n => n.FollowerLevel > 0))
                 _vm.SaveNpc(npc);
             System.Windows.MessageBox.Show(log, tech.Name);
+        }
+        else if (tech.OPCost == 0)
+        {
+            // NPC-energy technique: pick smart target
+            var candidates = _vm.AliveNpcs.Where(n => n.Energy >= tech.EnergyCost).ToList();
+            if (candidates.Count == 0) return;
+            Npc? target = null;
+            if (tech.FearClear > 0)
+                target = candidates.OrderByDescending(n => n.Fear).FirstOrDefault();
+            else if (tech.TrustBoost > 0)
+                target = candidates.OrderBy(n => n.Trust).FirstOrDefault();
+            else if (tech.StaminaBoost > 0)
+                target = candidates.OrderBy(n => n.Stamina).FirstOrDefault();
+            else
+                target = candidates.OrderByDescending(n => n.Initiative).FirstOrDefault();
+            if (target == null) return;
+            if (TechniqueSystem.Apply(tech, target, out string log))
+            {
+                _vm.SaveNpc(target);
+                System.Windows.MessageBox.Show(log, tech.Name);
+            }
         }
         else
         {

@@ -143,7 +143,9 @@ public partial class PlayerInfoWindow : Window
 
         string costLabel = tech.IsPlayerTechnique
             ? $"{tech.EnergyCost:F0} энергии"
-            : $"{tech.OPCost:F0} ОР";
+            : tech.OPCost == 0
+                ? $"{tech.EnergyCost:F0} энергии НПС"
+                : $"{tech.OPCost:F0} ОР";
 
         string reqLabel = $"Терм. ур.{tech.TerminalLevel}";
 
@@ -189,7 +191,9 @@ public partial class PlayerInfoWindow : Window
             Text = costLabel,
             Foreground = tech.IsPlayerTechnique
                 ? (SolidColorBrush)new BrushConverter().ConvertFromString("#a5d6ff")!
-                : (SolidColorBrush)new BrushConverter().ConvertFromString("#d29922")!,
+                : tech.OPCost == 0
+                    ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
+                    : (SolidColorBrush)new BrushConverter().ConvertFromString("#d29922")!,
             FontSize = 11,
             HorizontalAlignment = HorizontalAlignment.Right,
         });

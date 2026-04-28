@@ -51,6 +51,34 @@ public static class TechniqueSystem
             return true;
         }
 
+        if (tech.TrustBoost > 0 || tech.FearClear > 0)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"{tech.Name} применена → {npc.Name}:");
+            if (tech.TrustBoost > 0)
+            {
+                int prev = npc.Trust;
+                npc.Trust = (int)Math.Min(100, npc.Trust + tech.TrustBoost);
+                sb.Append($" Доверие +{npc.Trust - prev}");
+            }
+            if (tech.FearClear > 0)
+            {
+                double prev = npc.Fear;
+                npc.Fear = Math.Max(0, npc.Fear - tech.FearClear);
+                sb.Append($" Страх −{prev - npc.Fear:F0}");
+            }
+            log = sb.ToString();
+            return true;
+        }
+
+        if (tech.StaminaBoost > 0)
+        {
+            double prev = npc.Stamina;
+            npc.Stamina = Math.Min(npc.MaxStamina, npc.Stamina + tech.StaminaBoost);
+            log = $"{tech.Name} применена → {npc.Name}: Выносливость +{npc.Stamina - prev:F0} → {npc.Stamina:F0}";
+            return true;
+        }
+
         double mult  = tech.TechLevel.GetMultiplier();
         double bonus = mult * 3.0;
 
