@@ -97,7 +97,7 @@ public static class DialogSystem
         [DialogContext.HighFaith] = new[]
         {
             "Я верю в то, что ты строишь. Пойду за тобой.",
-            "Сила Алтаря реальна. Я чувствую её.",
+            "Сила Терминала реальна. Я чувствую её.",
             "Ради общего дела — всё что угодно.",
             "Ты знаешь, что делаешь. Веду остальных за тобой.",
             "Это что-то большее, чем просто выживание.",
@@ -227,8 +227,8 @@ public static class DialogSystem
         if (npc.Hunger > 80) return DialogContext.LowFood;
         if (npc.Thirst > 80) return DialogContext.LowWater;
         if (npc.Injuries.Count > 0) return DialogContext.Injury;
-        if (npc.Faith < 20) return DialogContext.LowFaith;
-        if (npc.Faith > 80) return DialogContext.HighFaith;
+        if (npc.Devotion < 20) return DialogContext.LowFaith;
+        if (npc.Devotion > 80) return DialogContext.HighFaith;
         return DialogContext.Greeting;
     }
 }

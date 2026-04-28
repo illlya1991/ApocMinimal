@@ -23,7 +23,7 @@ public class DayResult
     public List<(Npc Npc, Quest Quest)> QuestRewards { get; } = new List<(Npc, Quest)>();
     public List<Quest> NewQuests { get; } = new List<Quest>();
     public List<(string Text, bool IsAlert)> Logs { get; } = new List<(string, bool)>();
-    public double FaithGained { get; set; }
+    public double DevPointsGained { get; set; }
     public int FollowerCount { get; set; }
 }
 
@@ -56,7 +56,7 @@ public static class GameLoopService
         ProcessNpcActions(result, npcs, player, rnd, null);
         ProcessQuests(result, quests, npcs, resources, rnd);
         ProcessLeaderBonus(result, npcs);
-        ProcessFaithGeneration(result, player, npcs);
+        ProcessDevPointsGeneration(result, player, npcs);
         ProcessDailyNeeds(result, player, npcs, resources, catalog);
         ProcessInjuryHealing(result, npcs);
 
@@ -84,7 +84,7 @@ public static class GameLoopService
         var result = new DayResult();
         ProcessQuests(result, quests, npcs, resources, rnd);
         ProcessLeaderBonus(result, npcs);
-        ProcessFaithGeneration(result, player, npcs);
+        ProcessDevPointsGeneration(result, player, npcs);
         ProcessDailyNeeds(result, player, npcs, resources, catalog);
         ProcessInjuryHealing(result, npcs);
         return result;
@@ -162,7 +162,7 @@ public static class GameLoopService
             {
                 Npc t = npcs[j];
                 if (!t.IsAlive || t.Id == leader.Id || t.Trait == NpcTrait.Loner) continue;
-                t.Faith = Math.Min(100, t.Faith + 3);
+                t.Devotion = Math.Min(100, t.Devotion + 3);
                 count++;
             }
 
@@ -171,7 +171,7 @@ public static class GameLoopService
         }
     }
 
-    private static void ProcessFaithGeneration(DayResult result, Player player, List<Npc> npcs)
+    private static void ProcessDevPointsGeneration(DayResult result, Player player, List<Npc> npcs)
     {
         double faithTotal = 0;
         int followerCount = 0;
@@ -182,7 +182,7 @@ public static class GameLoopService
             if (!npc.IsAlive || npc.FollowerLevel <= 0) continue;
 
             followerCount++;
-            double maxDay = npc.FollowerLevel * (Player.MaxFaithPerNpcPerDay / 5.0);
+            double maxDay = npc.FollowerLevel * (Player.MaxDevPointsPerNpcPerDay / 5.0);
 
             double avgSat = 0.5;
             if (npc.Needs.Count > 0)
@@ -202,8 +202,8 @@ public static class GameLoopService
             faithTotal += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
         }
 
-        player.FaithPoints += faithTotal;
-        result.FaithGained = faithTotal;
+        player.DevPoints += faithTotal;
+        result.DevPointsGained = faithTotal;
         result.FollowerCount = followerCount;
     }
 

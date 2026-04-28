@@ -145,7 +145,7 @@ public class ResourceHandler : BaseActionHandler
 
         // Снижение веры NPC
         double faithLoss = actualAmount * 0.5;
-        target.Faith = Math.Max(0, target.Faith - faithLoss);
+        target.Devotion = Math.Max(0, target.Devotion - faithLoss);
 
         // Снижение доверия
         int trustLossFinal = (int)Math.Min(20, 5 + actualAmount / 5);
@@ -155,7 +155,7 @@ public class ResourceHandler : BaseActionHandler
 
         // Логирование
         Log($"{target.Name} отдал {actualAmount:F0} ед. '{resource.Name}'", LogEntry.ColorWarning);
-        Log($"  Вера NPC: -{faithLoss:F0} (теперь {target.Faith:F0})", LogEntry.ColorDanger);
+        Log($"  Преданность NPC: -{faithLoss:F0} (теперь {target.Devotion:F0})", LogEntry.ColorDanger);
         Log($"  Доверие -{trustLossFinal} (теперь {target.Trust:F0})", LogEntry.ColorDanger);
 
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social,
@@ -186,8 +186,8 @@ public class ResourceHandler : BaseActionHandler
 
     private double CalculateAvailableResources(Npc target, Resource resource)
     {
-        // NPC отдаёт верой, а не прямыми ресурсами
-        double baseAmount = target.Faith * 0.3;
+        // NPC отдаёт преданностью, а не прямыми ресурсами
+        double baseAmount = target.Devotion * 0.3;
 
         // Модификатор уровня последователя
         double followerMod = GetConfig($"resource_avail_level_{target.FollowerLevel}", target.FollowerLevel switch

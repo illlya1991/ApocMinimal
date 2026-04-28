@@ -225,5 +225,5 @@ public static class TechniqueCatalog
         new("pass_jonin_ce",   "Усиление V: Запас энергии",    TechniqueLevel.Master, 23, 25, 800, "+25 Запас энергии"),
     };
 
-    public static int MinAltarLevel(TechniqueLevel rank) => (int)rank + 1;
+    public static int MinTerminalLevel(TechniqueLevel rank) => (int)rank + 1;
 }

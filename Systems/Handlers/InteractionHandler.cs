@@ -140,26 +140,26 @@ public class InteractionHandler : BaseActionHandler
         }
 
         // Применяем пожертвование
-        target.Faith = Math.Max(0, target.Faith - donationAmount);
-        player.FaithPoints += donationAmount;
+        target.Devotion = Math.Max(0, target.Devotion - donationAmount);
+        player.DevPoints += donationAmount;
 
         _db.SaveNpc(target);
         _db.SavePlayer(player);
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Пожертвовал {donationAmount:F0} веры"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Пожертвовал {donationAmount:F0} ОР"));
         _db.SaveNpc(target);
 
         // Логирование
         Log($"{target.Name} делает пожертвование:", LogEntry.ColorSpeech);
-        Log($"  +{donationAmount:F0} веры получено", LogEntry.ColorAltarColor);
-        Log($"  Вера NPC: {target.Faith + donationAmount:F0} → {target.Faith:F0}", LogEntry.ColorNormal);
+        Log($"  +{donationAmount:F0} ОР получено", LogEntry.ColorAltarColor);
+        Log($"  Преданность NPC: {target.Devotion + donationAmount:F0} → {target.Devotion:F0}", LogEntry.ColorNormal);
 
         return $"Пожертвование от {target.Name} получено";
     }
 
     private double CalculateDonationAmount(Npc target)
     {
-        double baseAmount = target.Faith * 0.3;
+        double baseAmount = target.Devotion * 0.3;
 
         double followerMod = GetConfig($"donate_mod_level_{target.FollowerLevel}", target.FollowerLevel switch
         {
@@ -177,7 +177,7 @@ public class InteractionHandler : BaseActionHandler
         double randomMod = 0.7 + _random.NextDouble() * 0.6;
 
         double donation = baseAmount * followerMod * trustMod * traitMod * healthMod * randomMod;
-        return Math.Clamp(Math.Floor(donation), 1, target.Faith);
+        return Math.Clamp(Math.Floor(donation), 1, target.Devotion);
     }
 
     // ============================================================
@@ -217,15 +217,15 @@ public class InteractionHandler : BaseActionHandler
     {
         int faithGain = CalculateInspirationGain(target);
 
-        target.Faith = Math.Min(100, target.Faith + faithGain);
+        target.Devotion = Math.Min(100, target.Devotion + faithGain);
         target.Initiative = Math.Min(100, target.Initiative + 5);
         _db.SaveNpc(target);
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Божество вдохновило (вера +{faithGain})"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Божество вдохновило (преданность +{faithGain})"));
         _db.SaveNpc(target);
 
         Log($"Ты вдохновляешь {target.Name}:", LogEntry.ColorNormal);
-        Log($"  Вера +{faithGain} (теперь {target.Faith:F0})", LogEntry.ColorAltarColor);
+        Log($"  Преданность +{faithGain} (теперь {target.Devotion:F0})", LogEntry.ColorAltarColor);
         Log($"  Инициатива +5 (теперь {target.Initiative:F0})", LogEntry.ColorSuccess);
 
         return $"{target.Name} вдохновлён";

@@ -49,9 +49,9 @@
                                Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
                     <TextBlock x:Name="DayLabel" Text="  |  День 1"
                                Foreground="#8b949e" VerticalAlignment="Center" Margin="8,0"/>
-                    <TextBlock x:Name="FaithLabel" Text="  0 веры"
+                    <TextBlock x:Name="FaithLabel" Text="  0 ОР"
                                Foreground="#d29922" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="AltarLabel" Text="  Алтарь: ур.1"
+                    <TextBlock x:Name="AltarLabel" Text="  Терминал: ур.1"
                                Foreground="#58a6ff" VerticalAlignment="Center" Margin="8,0"/>
                     <TextBlock x:Name="ActionsLabel" Text="  Действий: 0/10"
                                Foreground="#56d364" VerticalAlignment="Center" Margin="8,0"/>

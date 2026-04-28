@@ -63,18 +63,18 @@ public class GameViewModel : INotifyPropertyChanged
         set { _currentDay = value; OnPropertyChanged(); OnPropertyChanged(nameof(DayDisplay)); }
     }
 
-    private double _faithPoints;
-    public double FaithPoints
+    private double _devPoints;
+    public double DevPoints
     {
-        get => _faithPoints;
-        set { _faithPoints = value; OnPropertyChanged(); OnPropertyChanged(nameof(FaithDisplay)); OnPropertyChanged(nameof(CanUpgrade)); }
+        get => _devPoints;
+        set { _devPoints = value; OnPropertyChanged(); OnPropertyChanged(nameof(DevPointsDisplay)); OnPropertyChanged(nameof(CanUpgrade)); }
     }
 
-    private int _altarLevel;
-    public int AltarLevel
+    private int _terminalLevel;
+    public int TerminalLevel
     {
-        get => _altarLevel;
-        set { _altarLevel = value; OnPropertyChanged(); OnPropertyChanged(nameof(AltarDisplay)); OnPropertyChanged(nameof(UpgradeCost)); OnPropertyChanged(nameof(CanUpgrade)); OnPropertyChanged(nameof(UnlockedTechniques)); }
+        get => _terminalLevel;
+        set { _terminalLevel = value; OnPropertyChanged(); OnPropertyChanged(nameof(TerminalDisplay)); OnPropertyChanged(nameof(UpgradeCost)); OnPropertyChanged(nameof(CanUpgrade)); OnPropertyChanged(nameof(UnlockedTechniques)); }
     }
 
     private int _actionsToday;
@@ -92,12 +92,12 @@ public class GameViewModel : INotifyPropertyChanged
     }
 
     public string DayDisplay => $"День {CurrentDay}";
-    public string FaithDisplay => $"ОВ: {FaithPoints:F0}";
-    public string AltarDisplay => $"Алтарь: ур.{AltarLevel}";
+    public string DevPointsDisplay => $"ОР: {DevPoints:F0}";
+    public string TerminalDisplay => $"Терминал: ур.{TerminalLevel}";
     public string ActionsDisplay => $"Действий: {ActionsToday}/{Player.MaxPlayerActionsPerDay}";
     public bool HasActionsLeft => ActionsToday < Player.MaxPlayerActionsPerDay;
-    public long UpgradeCost => (long)(200 * Math.Pow(5, AltarLevel - 1));
-    public bool CanUpgrade => AltarLevel < 10 && FaithPoints >= UpgradeCost;
+    public long UpgradeCost => (long)(200 * Math.Pow(5, TerminalLevel - 1));
+    public bool CanUpgrade => TerminalLevel < 10 && DevPoints >= UpgradeCost;
     public string PlayerName => _player?.Name ?? "Божество";
     public int AliveNpcsCount => _npcs.Count(n => n.IsAlive);
     public int MaxActiveFollowers => _player?.MaxActiveFollowers ?? 0;
@@ -122,7 +122,7 @@ public class GameViewModel : INotifyPropertyChanged
     public IEnumerable<Technique> UnlockedTechniques => _player?.UnlockedTechniques ?? Enumerable.Empty<Technique>();
     public Technique[] AllTechniques => Player.AllTechniques;
 
-    public List<QuestCatalogEntry> QuestShop => _questCatalog.Where(q => q.MinAltarLevel <= AltarLevel).ToList();
+    public List<QuestCatalogEntry> QuestShop => _questCatalog.Where(q => q.MinTerminalLevel <= TerminalLevel).ToList();
     public List<PlayerLibraryEntry> PurchasedQuests => _playerLibrary;
     public List<Quest> PublishedQuests => _quests.Where(q => q.Status == QuestStatus.Available).ToList();
     public List<Quest> CompletedQuests => _quests.Where(q => q.Status == QuestStatus.Completed).ToList();
@@ -169,8 +169,8 @@ public class GameViewModel : INotifyPropertyChanged
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
 
         CurrentDay = _player.CurrentDay;
-        FaithPoints = _player.FaithPoints;
-        AltarLevel = _player.AltarLevel;
+        DevPoints = _player.DevPoints;
+        TerminalLevel = _player.TerminalLevel;
         ActionsToday = _player.PlayerActionsToday;
         BarrierSize = _player.BarrierSize;
     }
@@ -202,8 +202,8 @@ public class GameViewModel : INotifyPropertyChanged
         if (priceNullable == null)
             return "Этот тип покупки недоступен для данного квеста";
 
-        if (_player.FaithPoints < price)
-            return $"Недостаточно ОВ (нужно {price:F0}, есть {_player.FaithPoints:F0})";
+        if (_player.DevPoints < price)
+            return $"Недостаточно ОР (нужно {price:F0}, есть {_player.DevPoints:F0})";
 
         if (type == QuestType.OneTime)
         {
@@ -223,11 +223,11 @@ public class GameViewModel : INotifyPropertyChanged
             }
         }
 
-        _player.FaithPoints -= price;
+        _player.DevPoints -= price;
         _db.SavePlayer(_player);
         _db.PurchaseQuest(_db.CurrentSaveId, entry, type);
         ReloadQuestLibrary();
-        FaithPoints = _player.FaithPoints;
+        DevPoints = _player.DevPoints;
         string typeLabel = type switch
         {
             QuestType.OneTime => "×1",
@@ -235,7 +235,7 @@ public class GameViewModel : INotifyPropertyChanged
             QuestType.Eternal => "∞",
             _ => ""
         };
-        return $"Куплен квест «{entry.Title}» [{typeLabel}] за {price:F0} ОВ";
+        return $"Куплен квест «{entry.Title}» [{typeLabel}] за {price:F0} ОР";
     }
 
     public string PublishQuest(PlayerLibraryEntry entry)
@@ -264,7 +264,7 @@ public class GameViewModel : INotifyPropertyChanged
             DaysRemaining = catalog.CompleteDays,
             RewardResourceId = rewardResId,
             RewardAmount = catalog.RewardAmount,
-            FaithCost = 0,
+            OPCost = 0,
             QuestType = entry.QuestType,
             LibraryId = entry.Id,
             CompleteType = catalog.CompleteType,
@@ -463,7 +463,7 @@ public class GameViewModel : INotifyPropertyChanged
         _player.CurrentDay++;
         _player.PlayerActionsToday = 0;
         CurrentDay = _player.CurrentDay;
-        FaithPoints = _player.FaithPoints;
+        DevPoints = _player.DevPoints;
         ActionsToday = _player.PlayerActionsToday;
 
         return dayResult;
@@ -502,16 +502,16 @@ public class GameViewModel : INotifyPropertyChanged
         var res = _resources.FirstOrDefault(r => r.Name == resourceName);
         if (res == null || res.Amount < 1)
             return $"Недостаточно {resourceName} (нужна 1 ед.)";
-        if (_player.FaithPoints < 5)
-            return "Недостаточно ОВ (нужно 5)";
+        if (_player.DevPoints < 5)
+            return "Недостаточно ОР (нужно 5)";
 
         res.Amount -= 1;
-        _player.FaithPoints -= 5;
+        _player.DevPoints -= 5;
         _db.SaveResource(res);
         _db.SavePlayer(_player);
         _db.UnlockShopResource(_db.CurrentSaveId, resourceName);
         _shopUnlocks.Add(resourceName);
-        FaithPoints = _player.FaithPoints;
+        DevPoints = _player.DevPoints;
         return $"Разблокирована покупка: {resourceName}";
     }
 
@@ -531,10 +531,10 @@ public class GameViewModel : INotifyPropertyChanged
             1 => 2, 2 => 3, 3 => 5, 4 => 10, 5 => 20, _ => 5
         };
 
-        if (_player.FaithPoints < price)
-            return $"Недостаточно ОВ (нужно {price:F0})";
+        if (_player.DevPoints < price)
+            return $"Недостаточно ОР (нужно {price:F0})";
 
-        _player.FaithPoints -= price;
+        _player.DevPoints -= price;
         _db.SavePlayer(_player);
 
         var res = _resources.FirstOrDefault(r => r.Name == resourceName);
@@ -544,8 +544,8 @@ public class GameViewModel : INotifyPropertyChanged
             _db.SaveResource(res);
         }
 
-        FaithPoints = _player.FaithPoints;
-        return $"Куплено 10 ед. {resourceName} за {price:F0} ОВ";
+        DevPoints = _player.DevPoints;
+        return $"Куплено 10 ед. {resourceName} за {price:F0} ОР";
     }
 
     public List<PresidentialExchangeEntry> AppliedExchangesList =>
@@ -577,15 +577,15 @@ public class GameViewModel : INotifyPropertyChanged
             LocationType.Street => 50,
             _ => 100
         };
-        if (_player.FaithPoints < cost)
-            return $"Недостаточно ОВ (нужно {cost:F0})";
+        if (_player.DevPoints < cost)
+            return $"Недостаточно ОР (нужно {cost:F0})";
 
-        _player.FaithPoints -= cost;
+        _player.DevPoints -= cost;
         _player.ControlledZoneIds.Add(locationId);
         _player.TerritoryControl = _player.ControlledZoneIds.Count;
         _db.SavePlayer(_player);
-        FaithPoints = _player.FaithPoints;
-        return $"«{loc.Name}» взята под защиту ({cost:F0} ОВ)";
+        DevPoints = _player.DevPoints;
+        return $"«{loc.Name}» взята под защиту ({cost:F0} ОР)";
     }
 
     public string UnprotectLocation(int locationId)
@@ -665,7 +665,7 @@ public class GameViewModel : INotifyPropertyChanged
             if (def == null) return "Техника не найдена";
             cost = def.BuyCost;
             name = def.Name;
-            reqAltar = def.AltarLevel;
+            reqAltar = def.TerminalLevel;
         }
         else
         {
@@ -673,20 +673,20 @@ public class GameViewModel : INotifyPropertyChanged
             if (def == null) return "Способность не найдена";
             cost = def.BuyCost;
             name = def.Name;
-            reqAltar = def.AltarLevel;
+            reqAltar = def.TerminalLevel;
         }
 
-        if (AltarLevel < reqAltar)
-            return $"Требуется уровень алтаря {reqAltar} (сейчас {AltarLevel})";
-        if (_player.FaithPoints < cost)
-            return $"Недостаточно ОВ (нужно {cost:F0}, есть {_player.FaithPoints:F0})";
+        if (TerminalLevel < reqAltar)
+            return $"Требуется уровень Терминала {reqAltar} (сейчас {TerminalLevel})";
+        if (_player.DevPoints < cost)
+            return $"Недостаточно ОР (нужно {cost:F0}, есть {_player.DevPoints:F0})";
 
-        _player.FaithPoints -= cost;
+        _player.DevPoints -= cost;
         _db.SavePlayer(_player);
         _db.AddTechInventoryItem(_db.CurrentSaveId, itemId, itemType);
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
-        FaithPoints = _player.FaithPoints;
-        return $"Куплено: «{name}» за {cost:F0} ОВ";
+        DevPoints = _player.DevPoints;
+        return $"Куплено: «{name}» за {cost:F0} ОР";
     }
 
     /// <summary>

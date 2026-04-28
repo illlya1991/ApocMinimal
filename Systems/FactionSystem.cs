@@ -151,16 +151,16 @@ public static class FactionSystem
     }
 
     /// <summary>Propose alliance — only works if Friendly or better.</summary>
-    public static string ProposeAlliance(Faction faction, double faithCost, Player player)
+    public static string ProposeAlliance(Faction faction, double opCost, Player player)
     {
         if (faction.PlayerRelation < FactionRelation.Friendly)
             return $"«{faction.Name}» недостаточно дружественны для альянса.";
-        if (player.FaithPoints < faithCost)
-            return $"Недостаточно ОВ (нужно {faithCost:F0}).";
+        if (player.DevPoints < opCost)
+            return $"Недостаточно ОР (нужно {opCost:F0}).";
 
-        player.FaithPoints -= faithCost;
+        player.DevPoints -= opCost;
         faction.PlayerRelation = FactionRelation.Ally;
-        return $"Альянс с «{faction.Name}» заключён! -{faithCost:F0} ОВ";
+        return $"Альянс с «{faction.Name}» заключён! -{opCost:F0} ОР";
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

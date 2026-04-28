@@ -26,7 +26,10 @@
       "Read(//c/Users/illlya/Documents/Apoc Minimal/ApocMinimal/.claude/**)",
       "Read(//c/Users/illlya/.claude/**)",
       "Bash(python3)",
-      "Bash(grep -E '\\(Таблица:|^\\\\w+$|INTEGER|TEXT|BOOLEAN|REAL|BLOB\\)')"
+      "Bash(grep -E '\\(Таблица:|^\\\\w+$|INTEGER|TEXT|BOOLEAN|REAL|BLOB\\)')",
+      "PowerShell(sqlite3 --version)",
+      "PowerShell(python --version)",
+      "PowerShell(python3 --version)"
     ]
   }
 }

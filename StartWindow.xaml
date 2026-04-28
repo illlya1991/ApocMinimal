@@ -10,17 +10,32 @@
     <Grid>
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="420">
 
-            <TextBlock Text="СИМУЛЯЦИЯ АПОКАЛИПСИСА"
+            <TextBlock Text="ЗЕМЛЯ ПОСЛЕ КОНЦА. ТЫ ИЛИ ТЕБЯ?"
                        Foreground="#e0e0e0"
                        FontSize="20" FontWeight="Bold"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,6"/>
 
-            <TextBlock Text="Управляй выжившими. Развивай алтарь."
+            <TextBlock Text="Управляй выжившими. Развивай Терминал."
                        Foreground="#666"
                        FontSize="12"
                        HorizontalAlignment="Center"
-                       Margin="0,0,0,40"/>
+                       Margin="0,0,0,20"/>
+
+            <!-- Faction selection (only for new game) -->
+            <TextBlock Text="Выбери фракцию:"
+                       Foreground="#8b949e"
+                       FontSize="12"
+                       Margin="0,0,0,4"/>
+            <ComboBox x:Name="FactionCombo"
+                      Height="32" FontSize="12"
+                      Background="#161b22" Foreground="#c9d1d9"
+                      Margin="0,0,0,6"/>
+            <TextBlock x:Name="FactionDescText"
+                       Foreground="#8b949e"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,20"/>
 
             <Button x:Name="NewGameButton"
                     Content="Новая игра"

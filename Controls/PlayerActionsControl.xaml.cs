@@ -205,10 +205,10 @@ public partial class PlayerActionsControl : UserControl
         {
             var btn = new Button
             {
-                Content = $"{tech.Name} ({tech.FaithCost:F0} ОВ)",
+                Content = $"{tech.Name} ({tech.OPCost:F0} ОР)",
                 Style = (Style)FindResource("ActionBtn"),
-                IsEnabled = _viewModel.FaithPoints >= tech.FaithCost,
-                Opacity = _viewModel.FaithPoints >= tech.FaithCost ? 1.0 : 0.5,
+                IsEnabled = _viewModel.DevPoints >= tech.OPCost,
+                Opacity = _viewModel.DevPoints >= tech.OPCost ? 1.0 : 0.5,
                 ToolTip = tech.Description,
                 Tag = tech,
             };
@@ -541,7 +541,7 @@ public partial class PlayerActionsControl : UserControl
     private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn || btn.Tag is not Technique tech) return;
-        _viewModel.FaithPoints -= tech.FaithCost;
+        _viewModel.DevPoints -= tech.OPCost;
         _viewModel.SavePlayer();
         var target = tech.HealAmount > 0
             ? _viewModel.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()

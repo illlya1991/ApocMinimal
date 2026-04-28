@@ -7,7 +7,7 @@ namespace ApocMinimal.Models.PersonData;
 public enum NpcTrait
 {
     None,    // Обычный
-    Leader,  // Лидер: +3 Faith соседям каждый день
+    Leader,  // Лидер: +3 Devotion соседям каждый день
     Coward,  // Трус: 50% шанс отказа от задания
     Loner    // Одиночка: иммунен к бонусу Лидера
 }
@@ -29,7 +29,7 @@ public class Npc
 
     // ── VITALS ──────────────────────────────────────────────────────────────
     public double Health { get; set; } = 100;
-    public double Faith { get; set; }
+    public double Devotion { get; set; }
     public double Stamina { get; set; } = 100;
     public double Energy { get; set; } = 50;
     public double Fear { get; set; } = 10;

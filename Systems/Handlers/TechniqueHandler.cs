@@ -47,12 +47,12 @@ public class TechniqueHandler : BaseActionHandler
         if (technique == null) return "Ошибка: неверный тип техники";
 
         // Проверка уровня алтаря
-        if (technique.AltarLevel > player.AltarLevel)
-            return $"Техника «{technique.Name}» требует уровень алтаря {technique.AltarLevel} (у вас {player.AltarLevel})";
+        if (technique.TerminalLevel > player.TerminalLevel)
+            return $"Техника «{technique.Name}» требует уровень Терминала {technique.TerminalLevel} (у вас {player.TerminalLevel})";
 
         // Проверка веры
-        if (player.FaithPoints < technique.FaithCost)
-            return $"Недостаточно веры для обучения (нужно {technique.FaithCost:F0}, есть {player.FaithPoints:F0})";
+        if (player.DevPoints < technique.OPCost)
+            return $"Недостаточно веры для обучения (нужно {technique.OPCost:F0}, есть {player.DevPoints:F0})";
 
         // Проверка способностей NPC
         if (!CheckNPCAbility(target, technique))
@@ -64,19 +64,19 @@ public class TechniqueHandler : BaseActionHandler
             return techLog;
 
         // Списываем веру
-        player.FaithPoints -= technique.FaithCost;
+        player.DevPoints -= technique.OPCost;
         _db.SavePlayer(player);
         _db.SaveNpc(target);
 
         // Бонус к доверию
-        int trustGain = (int)Math.Min(10, technique.FaithCost / 10);
+        int trustGain = (int)Math.Min(10, technique.OPCost / 10);
         target.Trust = Math.Min(100, target.Trust + trustGain);
         _db.SaveNpc(target);
 
         // Логирование
         Log($"  {target.Name} изучил технику:", LogEntry.ColorSuccess);
         Log($"    «{technique.Name}»", LogEntry.ColorSpeech);
-        Log($"    Стоимость: {technique.FaithCost:F0} веры", LogEntry.ColorNormal);
+        Log($"    Стоимость: {technique.OPCost:F0} веры", LogEntry.ColorNormal);
         Log($"    Доверие +{trustGain}", LogEntry.ColorSuccess);
 
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine,

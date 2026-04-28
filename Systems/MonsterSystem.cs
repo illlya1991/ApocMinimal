@@ -60,9 +60,9 @@ public static class MonsterSystem
             if (result.HeartDropped)
             {
                 result.OvReward += 10;
-                result.Log.Add($"  Сердце монстра подобрано! +10 ОВ");
+                result.Log.Add($"  Сердце монстра подобрано! +10 ОР");
             }
-            result.Log.Add($"  {npc.Name} победил {monster.Name}! Награда: {result.OvReward:F0} ОВ");
+            result.Log.Add($"  {npc.Name} победил {monster.Name}! Награда: {result.OvReward:F0} ОР");
         }
         else
         {

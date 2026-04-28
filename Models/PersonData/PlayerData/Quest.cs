@@ -18,7 +18,7 @@ public class Quest
     public int RewardResourceId { get; set; }
     public double RewardAmount { get; set; }
 
-    public double FaithCost { get; set; }
+    public double OPCost { get; set; }
 
     public Dictionary<int, double> RequiredStats { get; set; } = new();
 
@@ -38,7 +38,7 @@ public class Quest
 
 public static class QuestTemplates
 {
-    public static readonly (string Title, string Desc, int Days, int ResId, double Reward, double FaithCost)[] All =
+    public static readonly (string Title, string Desc, int Days, int ResId, double Reward, double OPCost)[] All =
     {
         ("Добыть продовольствие",   "Найти запасы еды в ближайших районах.",          3, 1, 20, 0),
         ("Запасти воду",            "Собрать чистую воду из нескольких источников.",   2, 2, 25, 0),

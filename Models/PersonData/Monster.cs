@@ -14,7 +14,7 @@ public class Monster
 
     /// <summary>ОВ awarded on kill.</summary>
     public double OvReward { get; set; }
-    /// <summary>Probability (0–1) of heart drop (+10 ОВ).</summary>
+    /// <summary>Probability (0–1) of heart drop (+10 ОР).</summary>
     public double HeartChance { get; set; }
 
     public string TypeLabel => Type switch

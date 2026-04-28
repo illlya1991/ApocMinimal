@@ -33,14 +33,14 @@ public partial class AltarWindow : Window
     private void RefreshAltarTab()
     {
         AltarInfoLabel.Text =
-            $"Уровень: {_vm.AltarLevel} / 10\n" +
-            $"ОВ: {_vm.FaithPoints:F0}\n" +
-            $"Стоимость улучшения: {_vm.UpgradeCost:N0} ОВ";
+            $"Уровень Терминала: {_vm.TerminalLevel} / 10\n" +
+            $"ОР: {_vm.DevPoints:F0}\n" +
+            $"Стоимость улучшения: {_vm.UpgradeCost:N0} ОР";
 
         UpgradeAltarBtn.IsEnabled = _vm.CanUpgrade;
-        UpgradeAltarBtn.Content = _vm.AltarLevel >= 10
+        UpgradeAltarBtn.Content = _vm.TerminalLevel >= 10
             ? "Максимальный уровень"
-            : $"Улучшить ({_vm.UpgradeCost:N0} ОВ)";
+            : $"Улучшить ({_vm.UpgradeCost:N0} ОР)";
 
         var sb = new System.Text.StringBuilder();
         for (int fl = 1; fl <= 5; fl++)
@@ -55,12 +55,12 @@ public partial class AltarWindow : Window
         TechPanel.Children.Clear();
         foreach (var tech in _vm.AllTechniques)
         {
-            bool unlocked = tech.AltarLevel <= _vm.AltarLevel;
+            bool unlocked = tech.TerminalLevel <= _vm.TerminalLevel;
             var btn = new Button
             {
-                Content = $"{tech.Name}  ({tech.FaithCost:F0} ОВ)",
+                Content = $"{tech.Name}  ({tech.OPCost:F0} ОР)",
                 Style = (Style)FindResource("ABtn"),
-                IsEnabled = unlocked && _vm.FaithPoints >= tech.FaithCost,
+                IsEnabled = unlocked && _vm.DevPoints >= tech.OPCost,
                 Opacity = unlocked ? 1.0 : 0.4,
                 ToolTip = tech.Description,
                 Tag = tech,
@@ -73,7 +73,7 @@ public partial class AltarWindow : Window
     private void TechBtn_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn || btn.Tag is not Technique tech) return;
-        _vm.FaithPoints -= tech.FaithCost;
+        _vm.DevPoints -= tech.OPCost;
         _vm.SavePlayer();
         var target = tech.HealAmount > 0
             ? _vm.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
@@ -88,8 +88,8 @@ public partial class AltarWindow : Window
     private void UpgradeAltarBtn_Click(object sender, RoutedEventArgs e)
     {
         if (!_vm.CanUpgrade) return;
-        _vm.FaithPoints -= _vm.UpgradeCost;
-        _vm.AltarLevel++;
+        _vm.DevPoints -= _vm.UpgradeCost;
+        _vm.TerminalLevel++;
         _vm.SavePlayer();
         _vm.Refresh();
         Refresh();
@@ -100,13 +100,13 @@ public partial class AltarWindow : Window
         int units = _vm.BaseUnits;
         int protectedCount = _vm.ControlledZoneIds.Count;
         BarrierInfoLabel.Text =
-            $"Уровень барьера: {_vm.BarrierLevel}  |  ОВ: {_vm.FaithPoints:F0}\n" +
+            $"Уровень барьера: {_vm.BarrierLevel}  |  ОР: {_vm.DevPoints:F0}\n" +
             $"Базовые единицы: {units}  |  Защищено зон: {protectedCount}\n" +
             $"Размер барьера: {_vm.BarrierSize:F0} м";
 
-        BarrierUpgradeBtn.IsEnabled = _vm.FaithPoints >= 20;
+        BarrierUpgradeBtn.IsEnabled = _vm.DevPoints >= 20;
 
-        BarrierHintLabel.Text = "Квартира: 5 ОВ  |  Этаж: 10 ОВ  |  Здание: 20 ОВ  |  Улица: 50 ОВ";
+        BarrierHintLabel.Text = "Квартира: 5 ОР  |  Этаж: 10 ОР  |  Здание: 20 ОР  |  Улица: 50 ОР";
 
         BarrierMapPanel.Children.Clear();
 
@@ -175,9 +175,9 @@ public partial class AltarWindow : Window
             {
                 var protectBtn = new Button
                 {
-                    Content = $"Защитить ({cost:F0} ОВ)",
+                    Content = $"Защитить ({cost:F0} ОР)",
                     Style = (Style)FindResource("ABtn"),
-                    IsEnabled = _vm.FaithPoints >= cost,
+                    IsEnabled = _vm.DevPoints >= cost,
                     Width = 110,
                     Height = 22,
                     FontSize = 10,
@@ -207,8 +207,8 @@ public partial class AltarWindow : Window
 
     private void BarrierUpgradeBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (_vm.FaithPoints < 20) return;
-        _vm.FaithPoints -= 20;
+        if (_vm.DevPoints < 20) return;
+        _vm.DevPoints -= 20;
         _vm.BarrierLevel++;
         _vm.BarrierSize = _vm.BarrierLevel * 50;
         _vm.SavePlayer();
@@ -239,9 +239,9 @@ public partial class AltarWindow : Window
 
         // ── Shop: Techniques ──────────────────────────────────────────────
         TechShopPanel.Children.Add(MakeHdr("ТЕХНИКИ"));
-        foreach (var tech in TechAbilityCatalog.Techniques.OrderBy(t => t.AltarLevel).ThenBy(t => t.Name))
+        foreach (var tech in TechAbilityCatalog.Techniques.OrderBy(t => t.TerminalLevel).ThenBy(t => t.Name))
         {
-            bool unlocked = _vm.AltarLevel >= tech.AltarLevel;
+            bool unlocked = _vm.TerminalLevel >= tech.TerminalLevel;
             string kindLabel = tech.Kind == TechKind.Passive ? "[П]" : "[А]";
             string tooltip = tech.Kind == TechKind.Passive
                 ? tech.Description
@@ -249,9 +249,9 @@ public partial class AltarWindow : Window
 
             var btn = new Button
             {
-                Content = $"ур.{tech.AltarLevel}  {kindLabel}  {tech.Name}  ({tech.BuyCost:F0} ОВ)",
+                Content = $"ур.{tech.TerminalLevel}  {kindLabel}  {tech.Name}  ({tech.BuyCost:F0} ОР)",
                 Style = (Style)FindResource("ABtn"),
-                IsEnabled = unlocked && _vm.FaithPoints >= tech.BuyCost,
+                IsEnabled = unlocked && _vm.DevPoints >= tech.BuyCost,
                 Opacity = unlocked ? 1.0 : 0.45,
                 ToolTip = tooltip,
                 Tag = tech.Id,
@@ -262,9 +262,9 @@ public partial class AltarWindow : Window
 
         // ── Shop: Abilities ───────────────────────────────────────────────
         TechShopPanel.Children.Add(MakeHdr("СПОСОБНОСТИ"));
-        foreach (var abil in TechAbilityCatalog.Abilities.OrderBy(a => a.AltarLevel).ThenBy(a => a.Name))
+        foreach (var abil in TechAbilityCatalog.Abilities.OrderBy(a => a.TerminalLevel).ThenBy(a => a.Name))
         {
-            bool unlocked = _vm.AltarLevel >= abil.AltarLevel;
+            bool unlocked = _vm.TerminalLevel >= abil.TerminalLevel;
             var techNames = abil.TechniqueIds
                 .Select(id => TechAbilityCatalog.FindTech(id)?.Name ?? id)
                 .ToList();
@@ -272,11 +272,11 @@ public partial class AltarWindow : Window
 
             var btn = new Button
             {
-                Content = $"ур.{abil.AltarLevel}  [Сп]  {abil.Name}  ({abil.BuyCost:F0} ОВ)",
+                Content = $"ур.{abil.TerminalLevel}  [Сп]  {abil.Name}  ({abil.BuyCost:F0} ОР)",
                 Style = (Style)FindResource("ABtn"),
                 Background = MakeBrush("#1a1a2e"),
                 Foreground = MakeBrush("#c084fc"),
-                IsEnabled = unlocked && _vm.FaithPoints >= abil.BuyCost,
+                IsEnabled = unlocked && _vm.DevPoints >= abil.BuyCost,
                 Opacity = unlocked ? 1.0 : 0.45,
                 ToolTip = tooltip,
                 Tag = abil.Id,
@@ -481,7 +481,7 @@ public partial class AltarWindow : Window
         var filtered = resources
             .Where(e => e.IsLocationNode && (
                 _vm.IsShopUnlocked(e.Name) ||
-                (_vm.FaithPoints >= 5 && _vm.Resources.Any(r => r.Name == e.Name && r.Amount >= 1))
+                (_vm.DevPoints >= 5 && _vm.Resources.Any(r => r.Name == e.Name && r.Amount >= 1))
             ))
             .GroupBy(e => e.Quality)
             .OrderBy(g => g.Key);
@@ -514,9 +514,9 @@ public partial class AltarWindow : Window
                 {
                     btn = new Button
                     {
-                        Content = $"{entry.Name} — Разблокировать (1 ед. + 5 ОВ)",
+                        Content = $"{entry.Name} — Разблокировать (1 ед. + 5 ОР)",
                         Style = (Style)FindResource("ABtn"),
-                        IsEnabled = _vm.FaithPoints >= 5 &&
+                        IsEnabled = _vm.DevPoints >= 5 &&
                                     _vm.Resources.Any(r => r.Name == entry.Name && r.Amount >= 1),
                         Tag = entry.Name,
                     };
@@ -526,11 +526,11 @@ public partial class AltarWindow : Window
                 {
                     btn = new Button
                     {
-                        Content = $"{entry.Name} ×10 → {price:F0} ОВ",
+                        Content = $"{entry.Name} ×10 → {price:F0} ОР",
                         Style = (Style)FindResource("ABtn"),
                         Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#1a2a1a")!,
                         Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#56d364")!,
-                        IsEnabled = _vm.FaithPoints >= price,
+                        IsEnabled = _vm.DevPoints >= price,
                         Tag = entry.Name,
                     };
                     btn.Click += ShopBuy_Click;

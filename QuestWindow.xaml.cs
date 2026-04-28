@@ -74,7 +74,7 @@ public partial class QuestWindow : Window
         RefreshPublished();
         RefreshActive();
         RefreshHistory();
-        StatusText.Text = $"ОВ: {_vm.FaithPoints:F0}  |  Алтарь: {_vm.AltarLevel}  |  Куплено: {_vm.PurchasedQuests.Count}  |  Опубликовано: {_vm.PublishedQuests.Count}";
+        StatusText.Text = $"ОР: {_vm.DevPoints:F0}  |  Терминал: {_vm.TerminalLevel}  |  Куплено: {_vm.PurchasedQuests.Count}  |  Опубликовано: {_vm.PublishedQuests.Count}";
     }
 
     private void RefreshShop()
@@ -92,7 +92,7 @@ public partial class QuestWindow : Window
 
         _shopItems = altarFilter <= 0
             ? catalog
-            : catalog.Where(e => e.MinAltarLevel == altarFilter).ToList();
+            : catalog.Where(e => e.MinTerminalLevel == altarFilter).ToList();
 
         _shopItems = _shopItems
             .Where(e => !ownedEternal.Contains(e.Id))
@@ -197,9 +197,9 @@ public partial class QuestWindow : Window
         if (ShopGrid.SelectedItem is QuestCatalogEntry entry)
         {
             var parts = new List<string>();
-            if (entry.PriceOneTime.HasValue) parts.Add($"×1: {entry.PriceOneTime:F0} ОВ");
-            if (entry.PriceRepeatable.HasValue) parts.Add($"×10: {entry.PriceRepeatable:F0} ОВ");
-            if (entry.PriceEternal.HasValue) parts.Add($"∞: {entry.PriceEternal:F0} ОВ");
+            if (entry.PriceOneTime.HasValue) parts.Add($"×1: {entry.PriceOneTime:F0} ОР");
+            if (entry.PriceRepeatable.HasValue) parts.Add($"×10: {entry.PriceRepeatable:F0} ОР");
+            if (entry.PriceEternal.HasValue) parts.Add($"∞: {entry.PriceEternal:F0} ОР");
             string prices = string.Join("  ", parts);
             StatusText.Text = $"{entry.Title} — {entry.Description}  |  {prices}  |  Условие: {entry.TakeCondLabel}  |  Выполнение: {entry.CompletionLabel}  |  Награда: {entry.RewardLabel}";
         }

@@ -19,7 +19,7 @@ public class PlayerLibraryEntry
         {
             if (Catalog == null) return "—";
             return Catalog.RewardType == RewardType.Faith
-                ? $"{Catalog.RewardAmount:F0} ОВ"
+                ? $"{Catalog.RewardAmount:F0} ОР"
                 : "другое";
         }
     }

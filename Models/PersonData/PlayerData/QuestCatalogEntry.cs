@@ -9,7 +9,7 @@ public class QuestCatalogEntry
     public int Id { get; set; }
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
-    public int MinAltarLevel { get; set; } = 1;
+    public int MinTerminalLevel { get; set; } = 1;
 
     public double? PriceOneTime { get; set; }
     public double? PriceRepeatable { get; set; }
@@ -37,7 +37,7 @@ public class QuestCatalogEntry
     public string TakeCondStatLabel => TakeCondStat switch
     {
         "Initiative" => "Инициатива",
-        "Faith" => "Вера",
+        "Faith" => "Преданность",
         "Trust" => "Доверие",
         "Fear" => "Страх ≤",
         "FollowerLevel" => "Уровень",
@@ -62,7 +62,7 @@ public class QuestCatalogEntry
     public string RewardLabel => RewardType switch
     {
         RewardType.Resource => RewardAmount > 0 ? $"{RewardAmount:F0} {RewardResource}" : "—",
-        RewardType.Faith => $"{RewardAmount:F0} ОВ",
+        RewardType.Faith => $"{RewardAmount:F0} ОР",
         RewardType.Technique => string.IsNullOrEmpty(RewardTechnique) ? "Техника" : RewardTechnique,
         _ => "—"
     };

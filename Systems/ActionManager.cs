@@ -203,7 +203,7 @@ public class ActionManager
         }
         else if (sourceName == "available_techniques")
         {
-            List<Technique> techniques = _db.GetTechniquesByAltarLevel(player.AltarLevel);
+            List<Technique> techniques = _db.GetTechniquesByTerminalLevel(player.TerminalLevel);
             for (int i = 0; i < techniques.Count; i++)
             {
                 result.Add(techniques[i]);

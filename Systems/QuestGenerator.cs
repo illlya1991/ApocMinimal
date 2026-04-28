@@ -18,51 +18,51 @@ public static class QuestGenerator
     {
         new("Добыть {Resource}",
             "Найти и принести {Amount} единиц {Resource} для группы.",
-            days: 2, faithCost: 0, rewardMult: 1.0, category: "gather"),
+            days: 2, opCost: 0, rewardMult: 1.0, category: "gather"),
 
         new("Зачистить {Location}",
             "Уничтожить всех монстров в {Location} и вернуть трофеи.",
-            days: 3, faithCost: 5, rewardMult: 1.5, category: "combat"),
+            days: 3, opCost: 5, rewardMult: 1.5, category: "combat"),
 
         new("Разведать {Location}",
             "Исследовать {Location}, составить карту угроз.",
-            days: 2, faithCost: 5, rewardMult: 0.8, category: "explore"),
+            days: 2, opCost: 5, rewardMult: 0.8, category: "explore"),
 
         new("Починить оборудование",
             "Восстановить рабочее состояние техники на базе.",
-            days: 3, faithCost: 10, rewardMult: 0.5, category: "craft"),
+            days: 3, opCost: 10, rewardMult: 0.5, category: "craft"),
 
         new("Укрепить периметр",
             "Возвести дополнительные заграждения вокруг базы.",
-            days: 4, faithCost: 10, rewardMult: 0.3, category: "build"),
+            days: 4, opCost: 10, rewardMult: 0.3, category: "build"),
 
         new("Найти {Resource} для лечения",
             "Обыскать аптеки и склады в поисках {Resource}.",
-            days: 3, faithCost: 0, rewardMult: 1.2, category: "gather"),
+            days: 3, opCost: 0, rewardMult: 1.2, category: "gather"),
 
         new("Охота на монстра",
             "Выследить и уничтожить опасного монстра в окрестностях.",
-            days: 2, faithCost: 15, rewardMult: 2.0, category: "combat"),
+            days: 2, opCost: 15, rewardMult: 2.0, category: "combat"),
 
         new("Переговоры с выжившими",
             "Установить контакт с другой группой выживших.",
-            days: 4, faithCost: 20, rewardMult: 0.0, category: "social"),
+            days: 4, opCost: 20, rewardMult: 0.0, category: "social"),
 
         new("Создать запасы {Resource}",
             "Заготовить {Amount} единиц {Resource} на случай осады.",
-            days: 5, faithCost: 0, rewardMult: 0.8, category: "gather"),
+            days: 5, opCost: 0, rewardMult: 0.8, category: "gather"),
 
         new("Патруль территории",
             "Обойти все контролируемые локации и устранить угрозы.",
-            days: 2, faithCost: 5, rewardMult: 1.0, category: "combat"),
+            days: 2, opCost: 5, rewardMult: 1.0, category: "combat"),
 
         new("Эвакуировать выживших",
             "Найти и привести новых выживших на базу.",
-            days: 3, faithCost: 25, rewardMult: 0.0, category: "social"),
+            days: 3, opCost: 25, rewardMult: 0.0, category: "social"),
 
         new("Исследовать здание",
             "Провести полный обыск здания в поисках ресурсов.",
-            days: 2, faithCost: 0, rewardMult: 1.3, category: "explore"),
+            days: 2, opCost: 0, rewardMult: 1.3, category: "explore"),
     };
 
     private static readonly string[] _locationNames =
@@ -116,7 +116,7 @@ public static class QuestGenerator
                 DaysRemaining    = template.Days,
                 RewardResourceId = res?.Id ?? 0,
                 RewardAmount     = Math.Round(reward),
-                FaithCost        = template.FaithCost,
+                OPCost           = template.OPCost,
             });
         }
 
@@ -138,17 +138,17 @@ public static class QuestGenerator
         public string TitleTemplate { get; }
         public string DescTemplate { get; }
         public int Days { get; }
-        public double FaithCost { get; }
+        public double OPCost { get; }
         public double RewardMult { get; }
         public string Category { get; }
 
         public QuestTemplate(string title, string desc, int days,
-            double faithCost, double rewardMult, string category)
+            double opCost, double rewardMult, string category)
         {
             TitleTemplate = title;
             DescTemplate  = desc;
             Days          = days;
-            FaithCost     = faithCost;
+            OPCost        = opCost;
             RewardMult    = rewardMult;
             Category      = category;
         }

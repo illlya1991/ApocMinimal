@@ -157,7 +157,7 @@ public static class NpcInfoBuilder
         panel.Children.Add(CreateInfoRow("HP:", NumValue(npc.Health, other.Health), npc.Health < 30 ? "#f87171" : "#4ade80", 0, N(npc.Health, other.Health)));
         panel.Children.Add(CreateInfoRow("Выносливость:", NumValue(npc.Stamina, other.Stamina), npc.Stamina < 30 ? "#f87171" : "#60a5fa", 0, N(npc.Stamina, other.Stamina)));
         panel.Children.Add(CreateInfoRow("Энергия:", NumValue(npc.Energy, other.Energy), "#e879f9", 0, N(npc.Energy, other.Energy)));
-        panel.Children.Add(CreateInfoRow("Вера:", NumValue(npc.Faith, other.Faith), "#facc15", 0, N(npc.Faith, other.Faith)));
+        panel.Children.Add(CreateInfoRow("Преданность:", NumValue(npc.Devotion, other.Devotion), "#facc15", 0, N(npc.Devotion, other.Devotion)));
         panel.Children.Add(CreateInfoRow("Страх:", NumValue(npc.Fear, other.Fear), npc.Fear > 70 ? "#f87171" : "#c9d1d9", 0, N(npc.Fear, other.Fear)));
         panel.Children.Add(CreateInfoRow("Доверие:", NumValue(npc.Trust, other.Trust), npc.Trust > 70 ? "#4ade80" : "#c9d1d9", 0, N(npc.Trust, other.Trust)));
         panel.Children.Add(CreateInfoRow("Инициатива:", NumValue(npc.Initiative, other.Initiative), "#c9d1d9", 0, N(npc.Initiative, other.Initiative)));
@@ -540,7 +540,7 @@ public static class NpcInfoBuilder
         panel.Children.Add(CreateInfoRow("HP:", $"{npc.Health:F0}", npc.Health < 30 ? "#f87171" : "#4ade80"));
         panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stamina:F0}", npc.Stamina < 30 ? "#f87171" : "#60a5fa"));
         panel.Children.Add(CreateInfoRow("Энергия:", $"{npc.Energy:F0}", "#e879f9"));
-        panel.Children.Add(CreateInfoRow("Вера:", $"{npc.Faith:F0}", "#facc15"));
+        panel.Children.Add(CreateInfoRow("Преданность:", $"{npc.Devotion:F0}", "#facc15"));
         panel.Children.Add(CreateInfoRow("Страх:", $"{npc.Fear:F0}", npc.Fear > 70 ? "#f87171" : "#c9d1d9"));
         panel.Children.Add(CreateInfoRow("Доверие:", $"{npc.Trust:F0}", npc.Trust > 70 ? "#4ade80" : "#c9d1d9"));
         panel.Children.Add(CreateInfoRow("Инициатива:", $"{npc.Initiative:F0}", "#c9d1d9"));
@@ -693,7 +693,7 @@ public static class NpcInfoBuilder
 
         panel.Children.Add(new TextBlock
         {
-            Text = $"❤{npc.Health:F0} ✦{npc.Faith:F0} 😨{npc.Fear:F0} 🤝{npc.Trust:F0} 💪{npc.Stats.Strength} 🧠{npc.Stats.Intelligence}",
+            Text = $"❤{npc.Health:F0} ✦{npc.Devotion:F0} 😨{npc.Fear:F0} 🤝{npc.Trust:F0} 💪{npc.Stats.Strength} 🧠{npc.Stats.Intelligence}",
             Foreground = GetBrush("#c9d1d9"),
             FontSize = 12,
             Margin = new Thickness(0, 5, 0, 5)
@@ -759,7 +759,7 @@ public static class NpcInfoBuilder
 
         panel.Children.Add(CreateSectionHeader("СОЦИАЛЬНЫЕ ХАРАКТЕРИСТИКИ"));
         panel.Children.Add(CreateInfoRow("Доверие:", $"{npc.Trust:F0}", npc.Trust > 70 ? "#4ade80" : "#c9d1d9"));
-        panel.Children.Add(CreateInfoRow("Вера:", $"{npc.Faith:F0}", "#facc15"));
+        panel.Children.Add(CreateInfoRow("Преданность:", $"{npc.Devotion:F0}", "#facc15"));
         panel.Children.Add(CreateInfoRow("Уровень последователя:", npc.FollowerLabel, "#d29922"));
         panel.Children.Add(CreateInfoRow("Черты:", BuildTraitsString(npc.CharTraits), "#d29922"));
         panel.Children.Add(CreateInfoRow("Эмоции:", BuildEmotionsString(npc.Emotions), "#e879f9"));

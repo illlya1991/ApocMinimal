@@ -118,7 +118,7 @@ namespace ApocMinimal
                 {
                     saveContent.Children.Add(new TextBlock
                     {
-                        Text = $"День {save._currentDay}  |  Алтарь ур.{save._altarLevel}  |  ОВ: {save._faithPoints:F0}",
+                        Text = $"День {save._currentDay}  |  Терминал ур.{save._terminalLevel}  |  ОР: {save._devPoints:F0}",
                         Foreground = (Brush)new BrushConverter().ConvertFromString(isOccupied ? "#92400e" : "#4b7a4b"),
                         FontSize = 10,
                         Margin = new Thickness(0, 3, 0, 0)

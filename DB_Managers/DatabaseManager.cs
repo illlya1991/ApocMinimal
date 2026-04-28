@@ -70,13 +70,13 @@ public class DatabaseManager
                     item._active = currentDay > 1;
                     item._currentDay = (int)currentDay;
 
-                    object? altarResult = ExecuteScalar("SELECT AltarLevel FROM Player Limit 1");
+                    object? altarResult = ExecuteScalar("SELECT TerminalLevel FROM Player Limit 1");
                     if (altarResult != null)
-                        item._altarLevel = (int)(long)altarResult;
+                        item._terminalLevel = (int)(long)altarResult;
 
-                    object? faithResult = ExecuteScalar("SELECT FaithPoints FROM Player Limit 1");
+                    object? faithResult = ExecuteScalar("SELECT DevPoints FROM Player Limit 1");
                     if (faithResult != null)
-                        item._faithPoints = Convert.ToDouble(faithResult);
+                        item._devPoints = Convert.ToDouble(faithResult);
                 }
             }
             catch (Exception)
@@ -100,7 +100,7 @@ public class DatabaseManager
     public List<Technique> GetAllTechniques()
     {
         List<Technique> list = new List<Technique>();
-        using var cmd = new SQLiteCommand("SELECT * FROM Techniques ORDER BY AltarLevel, Id", _conn);
+        using var cmd = new SQLiteCommand("SELECT * FROM Techniques ORDER BY TerminalLevel, Id", _conn);
         using var rdr = cmd.ExecuteReader();
         while (rdr.Read())
             list.Add(ReadTechnique(rdr));
@@ -111,14 +111,14 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Techniques
-              (Name,Description,AltarLevel,TechLevel,TechType,FaithCost,EnergyCost,StaminaCost,RequiredStats)
+              (Name,Description,TerminalLevel,TechLevel,TechType,OPCost,EnergyCost,StaminaCost,RequiredStats)
             VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs)", _conn);
         cmd.Parameters.AddWithValue("@nm", t.Name);
         cmd.Parameters.AddWithValue("@ds", t.Description);
-        cmd.Parameters.AddWithValue("@al", t.AltarLevel);
+        cmd.Parameters.AddWithValue("@al", t.TerminalLevel);
         cmd.Parameters.AddWithValue("@tl", t.TechLevel.ToString());
         cmd.Parameters.AddWithValue("@tt", t.TechType.ToString());
-        cmd.Parameters.AddWithValue("@fc", t.FaithCost);
+        cmd.Parameters.AddWithValue("@fc", t.OPCost);
         cmd.Parameters.AddWithValue("@cc", t.EnergyCost);
         cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
         cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
@@ -129,14 +129,14 @@ public class DatabaseManager
     public void SaveTechnique(Technique t)
     {
         using var cmd = new SQLiteCommand(
-            "UPDATE Techniques SET Name=@nm,Description=@ds,AltarLevel=@al,TechLevel=@tl," +
-            "TechType=@tt,FaithCost=@fc,EnergyCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", _conn);
+            "UPDATE Techniques SET Name=@nm,Description=@ds,TerminalLevel=@al,TechLevel=@tl," +
+            "TechType=@tt,OPCost=@fc,EnergyCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@nm", t.Name);
         cmd.Parameters.AddWithValue("@ds", t.Description);
-        cmd.Parameters.AddWithValue("@al", t.AltarLevel);
+        cmd.Parameters.AddWithValue("@al", t.TerminalLevel);
         cmd.Parameters.AddWithValue("@tl", t.TechLevel.ToString());
         cmd.Parameters.AddWithValue("@tt", t.TechType.ToString());
-        cmd.Parameters.AddWithValue("@fc", t.FaithCost);
+        cmd.Parameters.AddWithValue("@fc", t.OPCost);
         cmd.Parameters.AddWithValue("@cc", t.EnergyCost);
         cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
         cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
@@ -479,7 +479,7 @@ public class DatabaseManager
             q.DaysRemaining = rdr.GetInt32(rdr.GetOrdinal("DaysRemaining"));
             q.RewardResourceId = rdr.GetInt32(rdr.GetOrdinal("RewardResourceId"));
             q.RewardAmount = rdr.GetDouble(rdr.GetOrdinal("RewardAmount"));
-            q.FaithCost = rdr.GetDouble(rdr.GetOrdinal("FaithCost"));
+            q.OPCost = rdr.GetDouble(rdr.GetOrdinal("OPCost"));
             string questTypeStr = GetStringOrDefault(rdr, "QuestType", "OneTime");
             q.QuestType = Enum.TryParse<QuestType>(questTypeStr, out var qt) ? qt : QuestType.OneTime;
             q.LibraryId = GetIntOrDefault(rdr, "LibraryId");
@@ -565,9 +565,10 @@ public class DatabaseManager
     public void SavePlayer(Player p)
     {
         using var cmd = new SQLiteCommand(
-            "UPDATE Player SET FaithPoints=@fp,AltarLevel=@al,CurrentDay=@cd,BarrierSize=@bs,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz WHERE Id=@id", _conn);
-        cmd.Parameters.AddWithValue("@fp", p.FaithPoints);
-        cmd.Parameters.AddWithValue("@al", p.AltarLevel);
+            "UPDATE Player SET DevPoints=@fp,TerminalLevel=@al,CurrentDay=@cd,BarrierSize=@bs,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,Faction=@fc WHERE Id=@id", _conn);
+        cmd.Parameters.AddWithValue("@fp", p.DevPoints);
+        cmd.Parameters.AddWithValue("@al", p.TerminalLevel);
+        cmd.Parameters.AddWithValue("@fc", p.Faction.ToString());
         cmd.Parameters.AddWithValue("@cd", p.CurrentDay);
         cmd.Parameters.AddWithValue("@bs", p.BarrierSize);
         cmd.Parameters.AddWithValue("@bl", p.BarrierLevel);
@@ -597,7 +598,7 @@ public class DatabaseManager
         var traitStrings = n.CharTraits.Select(t => t.ToString()).ToList();
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Npcs (Name, Age, Gender, Profession, Description,
-                Health, Faith, Stamina, Energy, Fear, Trust, Initiative, CombatInitiative,
+                Health, Devotion, Stamina, Energy, Fear, Trust, Initiative, CombatInitiative,
                 Trait, FollowerLevel, Goal, Dream, Desire, ActiveTask, TaskDaysLeft, TaskRewardResId, TaskRewardAmt,
                 Statistics, CharTraits, Specializations, Emotions, Needs, Memory)
             VALUES (@nm,@ag,@gn,@pr,@ds,
@@ -610,7 +611,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@pr", n.Profession);
         cmd.Parameters.AddWithValue("@ds", n.Description ?? "");
         cmd.Parameters.AddWithValue("@hp", n.Health);
-        cmd.Parameters.AddWithValue("@fa", n.Faith);
+        cmd.Parameters.AddWithValue("@fa", n.Devotion);
         cmd.Parameters.AddWithValue("@st", n.Stamina);
         cmd.Parameters.AddWithValue("@ck", n.Energy);
         cmd.Parameters.AddWithValue("@fr", n.Fear);
@@ -642,7 +643,7 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand(@"
         UPDATE Npcs SET
-            Health=@hp, Faith=@fa, Stamina=@st, Energy=@ck,
+            Health=@hp, Devotion=@fa, Stamina=@st, Energy=@ck,
             Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
             CharTraits=@ct, Specializations=@sp, Emotions=@em,
             Goal=@gl, Dream=@dr, Desire=@de,
@@ -651,7 +652,7 @@ public class DatabaseManager
         WHERE Id=@id", _conn);
 
         cmd.Parameters.AddWithValue("@hp", n.Health);
-        cmd.Parameters.AddWithValue("@fa", n.Faith);
+        cmd.Parameters.AddWithValue("@fa", n.Devotion);
         cmd.Parameters.AddWithValue("@st", n.Stamina);
         cmd.Parameters.AddWithValue("@ck", n.Energy);
         cmd.Parameters.AddWithValue("@fr", n.Fear);
@@ -806,7 +807,7 @@ public class DatabaseManager
         t.Id = rdr.GetInt32(rdr.GetOrdinal("Id"));
         t.Name = rdr.GetString(rdr.GetOrdinal("Name"));
         t.Description = GetStringOrDefault(rdr, "Description");
-        t.AltarLevel = rdr.GetInt32(rdr.GetOrdinal("AltarLevel"));
+        t.TerminalLevel = rdr.GetInt32(rdr.GetOrdinal("TerminalLevel"));
 
         string techLevelStr = GetStringOrDefault(rdr, "TechLevel", "Initiate");
         if (techLevelStr == "Initiate") t.TechLevel = TechniqueLevel.Initiate;
@@ -826,7 +827,7 @@ public class DatabaseManager
         else if (techTypeStr == "Mental") t.TechType = TechniqueType.Mental;
         else t.TechType = TechniqueType.Energy;
 
-        t.FaithCost = GetDoubleOrDefault(rdr, "FaithCost");
+        t.OPCost = GetDoubleOrDefault(rdr, "OPCost");
         t.EnergyCost = GetDoubleOrDefault(rdr, "EnergyCost");
         t.StaminaCost = GetDoubleOrDefault(rdr, "StaminaCost");
         t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new Dictionary<int, double>();
@@ -839,8 +840,10 @@ public class DatabaseManager
         Player p = new Player();
         p.Id = rdr.GetInt32(rdr.GetOrdinal("Id"));
         p.Name = rdr.GetString(rdr.GetOrdinal("Name"));
-        p.FaithPoints = rdr.GetDouble(rdr.GetOrdinal("FaithPoints"));
-        p.AltarLevel = rdr.GetInt32(rdr.GetOrdinal("AltarLevel"));
+        p.DevPoints = GetDoubleOrDefault(rdr, "DevPoints");
+        p.TerminalLevel = GetIntOrDefault(rdr, "TerminalLevel", 1);
+        string factionStr = GetStringOrDefault(rdr, "Faction", "ElementMages");
+        p.Faction = Enum.TryParse<PlayerFaction>(factionStr, out var f) ? f : PlayerFaction.ElementMages;
         p.CurrentDay = rdr.GetInt32(rdr.GetOrdinal("CurrentDay"));
         p.BarrierSize = GetDoubleOrDefault(rdr, "BarrierSize");
         p.BarrierLevel = GetIntOrDefault(rdr, "BarrierLevel", 1);
@@ -865,7 +868,7 @@ public class DatabaseManager
         npc.Profession = rdr.GetString(rdr.GetOrdinal("Profession"));
         npc.Description = GetStringOrDefault(rdr, "Description");
         npc.Health = rdr.GetDouble(rdr.GetOrdinal("Health"));
-        npc.Faith = rdr.GetDouble(rdr.GetOrdinal("Faith"));
+        npc.Devotion = GetDoubleOrDefault(rdr, "Devotion", 20);
         npc.Stamina = GetDoubleOrDefault(rdr, "Stamina", 100);
         npc.Energy = GetDoubleOrDefault(rdr, "Energy", 50);
         npc.Fear = GetDoubleOrDefault(rdr, "Fear", 10);
@@ -1185,11 +1188,11 @@ public class DatabaseManager
         return rdr.Read() ? ReadTechnique(rdr) : null;
     }
 
-    public List<Technique> GetTechniquesByAltarLevel(int altarLevel)
+    public List<Technique> GetTechniquesByTerminalLevel(int terminalLevel)
     {
         List<Technique> list = new List<Technique>();
-        using var cmd = new SQLiteCommand("SELECT * FROM Techniques WHERE AltarLevel <= @level ORDER BY AltarLevel, Id", _conn);
-        cmd.Parameters.AddWithValue("@level", altarLevel);
+        using var cmd = new SQLiteCommand("SELECT * FROM Techniques WHERE TerminalLevel <= @level ORDER BY TerminalLevel, Id", _conn);
+        cmd.Parameters.AddWithValue("@level", terminalLevel);
         using var rdr = cmd.ExecuteReader();
         while (rdr.Read())
             list.Add(ReadTechnique(rdr));
@@ -1251,7 +1254,7 @@ public class DatabaseManager
     {
         var list = new List<QuestCatalogEntry>();
         if (!IsTableExistsSafe("QuestCatalog")) return list;
-        using var cmd = new SQLiteCommand("SELECT * FROM QuestCatalog WHERE MinAltarLevel <= @al ORDER BY MinAltarLevel, Id", _conn);
+        using var cmd = new SQLiteCommand("SELECT * FROM QuestCatalog WHERE MinTerminalLevel <= @al ORDER BY MinTerminalLevel, Id", _conn);
         cmd.Parameters.AddWithValue("@al", altarLevel);
         using var rdr = cmd.ExecuteReader();
         while (rdr.Read())
@@ -1261,7 +1264,7 @@ public class DatabaseManager
                 Id = rdr.GetInt32(rdr.GetOrdinal("Id")),
                 Title = rdr.GetString(rdr.GetOrdinal("Title")),
                 Description = GetStringOrDefault(rdr, "Description"),
-                MinAltarLevel = GetIntOrDefault(rdr, "MinAltarLevel", 1),
+                MinTerminalLevel = GetIntOrDefault(rdr, "MinTerminalLevel", 1),
                 TakeCondStat = GetStringOrDefault(rdr, "TakeCondStat"),
                 TakeCondValue = GetIntOrDefault(rdr, "TakeCondValue"),
                 CompleteDays = GetIntOrDefault(rdr, "CompleteDays", 3),
@@ -1401,7 +1404,7 @@ public class DatabaseManager
         {
             using var ins = new SQLiteCommand(@"
                 INSERT INTO Quests (Title, Description, Source, Status, AssignedNpcId, DaysRequired, DaysRemaining,
-                    RewardResourceId, RewardAmount, FaithCost, QuestType, LibraryId,
+                    RewardResourceId, RewardAmount, OPCost, QuestType, LibraryId,
                     CompleteType, CompleteProgress, CompleteTarget, DayTaken, RewardType, RewardTechnique)
                 VALUES (@ti,@de,@so,@st,@an,@dre,@drm,@rri,@ra,@fc,@qt,@li,@cty,@cp,@ct2,@dt,@rty,@rte)", _conn);
             ins.Parameters.AddWithValue("@ti", q.Title);
@@ -1413,7 +1416,7 @@ public class DatabaseManager
             ins.Parameters.AddWithValue("@drm", q.DaysRemaining);
             ins.Parameters.AddWithValue("@rri", q.RewardResourceId);
             ins.Parameters.AddWithValue("@ra", q.RewardAmount);
-            ins.Parameters.AddWithValue("@fc", q.FaithCost);
+            ins.Parameters.AddWithValue("@fc", q.OPCost);
             ins.Parameters.AddWithValue("@qt", q.QuestType.ToString());
             ins.Parameters.AddWithValue("@li", q.LibraryId);
             ins.Parameters.AddWithValue("@cty", q.CompleteType.ToString());
@@ -1526,8 +1529,8 @@ public class OneSave
     public string _fileName = "";
     public bool _active = false;
     public int _currentDay = 0;
-    public int _altarLevel = 0;
-    public double _faithPoints = 0;
+    public int _terminalLevel = 0;
+    public double _devPoints = 0;
 
     public OneSave() { }
     public OneSave(string fileName)

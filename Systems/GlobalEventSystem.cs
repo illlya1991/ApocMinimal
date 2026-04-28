@@ -29,8 +29,8 @@ public class GlobalEventChoice
 {
     public string AcceptLabel { get; set; } = "Принять";
     public string RejectLabel { get; set; } = "Отказать";
-    /// <summary>Faith cost to accept (negative = faith gain).</summary>
-    public double FaithCost { get; set; }
+    /// <summary>ОР cost to accept (negative = ОР gain).</summary>
+    public double OPCost { get; set; }
     public string? ResourceName { get; set; }
     public double ResourceAmount { get; set; }
     /// <summary>Number of followers the president demands in exchange.</summary>
@@ -91,7 +91,7 @@ public static class GlobalEventSystem
         if (c == null) return "";
         evt.IsHandled = true;
 
-        player.FaithPoints -= c.FaithCost;
+        player.DevPoints -= c.OPCost;
 
         if (!string.IsNullOrEmpty(c.ResourceName) && c.ResourceAmount > 0)
         {
@@ -162,7 +162,7 @@ public static class GlobalEventSystem
             {
                 AcceptLabel     = "Принять сделку",
                 RejectLabel     = "Отказать",
-                FaithCost       = 0,
+                OPCost          = 0,
                 ResourceName    = res,
                 ResourceAmount  = amount,
                 FollowerDemand  = demand,
@@ -184,7 +184,7 @@ public static class GlobalEventSystem
             {
                 AcceptLabel = "Забрать груз",
                 RejectLabel = "Игнорировать",
-                FaithCost = -5, ResourceName = res, ResourceAmount = amount,
+                OPCost = -5, ResourceName = res, ResourceAmount = amount,
             },
         };
     }
@@ -217,7 +217,7 @@ public static class GlobalEventSystem
             {
                 AcceptLabel = $"Принять ({count} чел.)",
                 RejectLabel = "Отказать",
-                FaithCost = -10 * count,
+                OPCost = -10 * count,
             },
         };
     }

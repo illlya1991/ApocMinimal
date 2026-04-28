@@ -158,7 +158,7 @@
                                       SelectionChanged="ShopGrid_SelectionChanged">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Название" Binding="{Binding Title}" Width="*"/>
-                                    <DataGridTextColumn Header="Алт." Binding="{Binding MinAltarLevel}" Width="40"/>
+                                    <DataGridTextColumn Header="Терм." Binding="{Binding MinTerminalLevel}" Width="40"/>
                                     <DataGridTextColumn Header="×1" Binding="{Binding PriceOneTime, StringFormat={}{0:F0}}" Width="50"/>
                                     <DataGridTextColumn Header="×10" Binding="{Binding PriceRepeatable, StringFormat={}{0:F0}}" Width="50"/>
                                     <DataGridTextColumn Header="∞" Binding="{Binding PriceEternal, StringFormat={}{0:F0}}" Width="50"/>

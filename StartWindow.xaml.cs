@@ -1,5 +1,7 @@
 using System.Windows;
+using System.Windows.Controls;
 using ApocMinimal.Database;
+using ApocMinimal.Models.PersonData;
 
 namespace ApocMinimal;
 
@@ -10,7 +12,46 @@ public partial class StartWindow : Window
     public StartWindow()
     {
         InitializeComponent();
+        PopulateFactionCombo();
         CheckSave();
+    }
+
+    private void PopulateFactionCombo()
+    {
+        var factions = new[]
+        {
+            PlayerFaction.ElementMages,
+            PlayerFaction.PathBlades,
+            PlayerFaction.MirrorHealers,
+            PlayerFaction.DeepSmiths,
+            PlayerFaction.GuardHeralds,
+        };
+        foreach (var f in factions)
+            FactionCombo.Items.Add(f.ToLabel());
+        FactionCombo.SelectedIndex = 0;
+        FactionCombo.SelectionChanged += FactionCombo_SelectionChanged;
+        UpdateFactionDesc();
+    }
+
+    private void FactionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        => UpdateFactionDesc();
+
+    private void UpdateFactionDesc()
+    {
+        var faction = SelectedFaction();
+        FactionDescText.Text = faction.ToDescription();
+    }
+
+    private PlayerFaction SelectedFaction()
+    {
+        return FactionCombo.SelectedIndex switch
+        {
+            1 => PlayerFaction.PathBlades,
+            2 => PlayerFaction.MirrorHealers,
+            3 => PlayerFaction.DeepSmiths,
+            4 => PlayerFaction.GuardHeralds,
+            _ => PlayerFaction.ElementMages,
+        };
     }
 
     private void CheckSave()
@@ -34,6 +75,7 @@ public partial class StartWindow : Window
         if (result == true && !saveWindow.IsCanceled && saveWindow.SelectedSave != null)
         {
             _db.ThisSave = saveWindow.SelectedSave;
+            var chosenFaction = SelectedFaction();
 
             var loading = new LoadingWindow(
                 "Создание нового мира...",
@@ -43,6 +85,13 @@ public partial class StartWindow : Window
                     {
                         worker.ReportProgress(percent, (status, detail));
                     });
+                    // Apply faction to player after world creation
+                    var player = _db.GetPlayer();
+                    if (player != null)
+                    {
+                        player.Faction = chosenFaction;
+                        _db.SavePlayer(player);
+                    }
                 },
                 () =>
                 {

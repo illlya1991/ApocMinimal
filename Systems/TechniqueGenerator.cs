@@ -55,7 +55,7 @@ public static class TechniqueGenerator
         double multiplier = level.GetMultiplier();
         double energyCost  = Math.Round(10 + multiplier * 5 * costMult);
         double staminaCost = Math.Round(5  + multiplier * 2 * costMult);
-        double faithCost   = Math.Round(multiplier * 10 * costMult);
+        double opCost      = Math.Round(multiplier * 10 * costMult);
 
         string name = $"{elemName} техника {formSuffix}";
         string description;
@@ -83,8 +83,8 @@ public static class TechniqueGenerator
         {
             Name          = name,
             Description   = description,
-            AltarLevel    = level.MinAltarLevel(),
-            FaithCost     = faithCost,
+            TerminalLevel = level.MinTerminalLevel(),
+            OPCost        = opCost,
             TechLevel     = level,
             TechType      = techType,
             EnergyCost    = energyCost,
@@ -146,8 +146,8 @@ public static class TechniqueGenerator
         {
             Name          = name,
             Description   = description,
-            AltarLevel    = level.MinAltarLevel(),
-            FaithCost     = Math.Round(multiplier * 10 * costMult),
+            TerminalLevel = level.MinTerminalLevel(),
+            OPCost        = Math.Round(multiplier * 10 * costMult),
             TechLevel     = level,
             TechType      = techType,
             EnergyCost    = Math.Round(10 + multiplier * 5 * costMult),

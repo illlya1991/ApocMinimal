@@ -57,15 +57,15 @@ public class ManagementHandler : BaseActionHandler
         int currentCount = _db.GetFollowerCountAtLevel(target.FollowerLevel + 1);
         int limit = player.GetFollowerLimit(target.FollowerLevel + 1);
         if (limit != -1 && currentCount >= limit)
-            return $"Невозможно повысить: достигнут лимит алтаря для уровня {target.FollowerLevel + 1} (лимит: {limit})";
+            return $"Невозможно повысить: достигнут лимит Терминала для уровня {target.FollowerLevel + 1} (лимит: {limit})";
 
         // Стоимость повышения в вере
         double cost = CalculateUpgradeCost(target);
-        if (player.FaithPoints < cost)
-            return $"Недостаточно веры для повышения {target.Name} (нужно {cost:F0}, есть {player.FaithPoints:F0})";
+        if (player.DevPoints < cost)
+            return $"Недостаточно ОР для повышения {target.Name} (нужно {cost:F0}, есть {player.DevPoints:F0})";
 
         // Повышаем уровень
-        player.FaithPoints -= cost;
+        player.DevPoints -= cost;
         target.FollowerLevel++;
 
         // Бонусы при повышении
@@ -138,7 +138,7 @@ public class ManagementHandler : BaseActionHandler
         target.Fear = Math.Max(0, target.Fear - 15);
 
         // Бонус к вере NPC
-        target.Faith = Math.Min(100, target.Faith + 20);
+        target.Devotion = Math.Min(100, target.Devotion + 20);
 
         // Небольшое повышение инициативы
         target.Initiative = Math.Min(100, target.Initiative + 5);
@@ -154,7 +154,7 @@ public class ManagementHandler : BaseActionHandler
         target.Fear = Math.Min(100, target.Fear + 20);
 
         // Потеря веры NPC
-        target.Faith = Math.Max(0, target.Faith - 10);
+        target.Devotion = Math.Max(0, target.Devotion - 10);
 
         // Снижение инициативы
         target.Initiative = Math.Max(0, target.Initiative - 5);

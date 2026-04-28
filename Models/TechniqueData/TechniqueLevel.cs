@@ -54,5 +54,5 @@ public static class TechniqueLevelExtensions
     };
 
     /// <summary>Minimum altar level required to grant this technique.</summary>
-    public static int MinAltarLevel(this TechniqueLevel level) => (int)level + 1;
+    public static int MinTerminalLevel(this TechniqueLevel level) => (int)level + 1;
 }

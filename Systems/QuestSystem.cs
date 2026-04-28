@@ -41,7 +41,7 @@ public static class QuestSystem
 
                 double score = n.Initiative;
 
-                if (n.Faith > 50) score += 10;
+                if (n.Devotion > 50) score += 10;
                 if (n.Trust > 60) score += 15;
                 if (n.Fear > 70) score -= 20;
 

@@ -68,7 +68,7 @@ public static class TechniqueSystem
         return true;
     }
 
-    /// <summary>ОВ reward for clearing a location: Floor=5, Building=50.</summary>
+    /// <summary>ОР reward for clearing a location: Floor=5, Building=50.</summary>
     public static double ClearanceReward(LocationType type) => type switch
     {
         LocationType.Floor    => 5.0,

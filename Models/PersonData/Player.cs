@@ -2,14 +2,14 @@ using ApocMinimal.Models.TechniqueData;
 
 namespace ApocMinimal.Models.PersonData;
 
-/// <summary>A technique grantable to NPCs or usable by the player via the altar.</summary>
+/// <summary>A technique grantable to NPCs or usable by the player via the terminal.</summary>
 public class Technique
 {
     public int Id { get; set; }
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
-    public int AltarLevel { get; set; }   // min altar level to grant/use
-    public double FaithCost { get; set; }
+    public int TerminalLevel { get; set; }   // min terminal level to grant/use
+    public double OPCost { get; set; }
 
     // ── Technique system ──────────────────────────────────────────────
     public TechniqueLevel TechLevel { get; set; } = TechniqueLevel.Initiate;
@@ -28,9 +28,10 @@ public class Player
 {
     public int Id { get; set; }
     public string Name { get; set; } = "";
-    public double FaithPoints { get; set; }
-    public int AltarLevel { get; set; } = 1;   // 1–10
+    public double DevPoints { get; set; }
+    public int TerminalLevel { get; set; } = 1;   // 1–10
     public int CurrentDay { get; set; }
+    public PlayerFaction Faction { get; set; } = PlayerFaction.ElementMages;
 
     // ── Barrier & territory ───────────────────────────────────────────
     /// <summary>Barrier level 1–10 (separate from altar). Determines radius and BaseUnits.</summary>
@@ -43,10 +44,10 @@ public class Player
     public List<int> ControlledZoneIds { get; set; } = new();
 
     /// <summary>
-    /// Base units available per day: AltarLevel × BarrierLevel × (BarrierLevel+1) / 2.
+    /// Base units available per day: TerminalLevel × BarrierLevel × (BarrierLevel+1) / 2.
     /// Represents patrol/defense capacity derived from altar and barrier investment.
     /// </summary>
-    public int BaseUnits => AltarLevel * (BarrierLevel * (BarrierLevel + 1)) / 2;
+    public int BaseUnits => TerminalLevel * (BarrierLevel * (BarrierLevel + 1)) / 2;
 
     // ── Player action hour ────────────────────────────────────────────
     /// <summary>How many direct player actions were taken today.</summary>
@@ -56,14 +57,14 @@ public class Player
 
     // ── Derived ────────────────────────────────────────────────────────
     /// <summary>200 × 5^(level-1). Level 1=200, 2=1000, 3=5000 … 10=390 625 000.</summary>
-    public long UpgradeCost => (long)(200 * Math.Pow(5, AltarLevel - 1));
-    public bool CanUpgrade => AltarLevel < 10 && FaithPoints >= UpgradeCost;
+    public long UpgradeCost => (long)(200 * Math.Pow(5, TerminalLevel - 1));
+    public bool CanUpgrade => TerminalLevel < 10 && DevPoints >= UpgradeCost;
 
-    /// <summary>Max ОВ any single NPC can generate per day (reached at follower level 5).</summary>
-    public const double MaxFaithPerNpcPerDay = 10.0;
+    /// <summary>Max ОР any single NPC can generate per day (reached at follower level 5).</summary>
+    public const double MaxDevPointsPerNpcPerDay = 10.0;
 
-    // ── Follower limits per altar level ───────────────────────────────
-    // [altarLevel 1..10, followerLevel 0..5]; -1 = unlimited
+    // ── Follower limits per terminal level ────────────────────────────
+    // [terminalLevel 1..10, followerLevel 0..5]; -1 = unlimited
     private static readonly int[,] _followerLimits =
     {
         //           lvl0   lvl1   lvl2   lvl3   lvl4   lvl5
@@ -86,7 +87,7 @@ public class Player
     /// </summary>
     public int GetFollowerLimit(int followerLevel)
     {
-        int al = Math.Clamp(AltarLevel, 0, 10);
+        int al = Math.Clamp(TerminalLevel, 0, 10);
         int fl = Math.Clamp(followerLevel, 0, 5);
         return _followerLimits[al, fl];
     }
@@ -110,32 +111,32 @@ public class Player
     // ── Techniques (unlocked every 2 levels) ──────────────────────────
     public static readonly Technique[] AllTechniques =
     {
-        new() { Name="Ученик базовый",        AltarLevel=1,  FaithCost=5,
+        new() { Name="Ученик базовый",        TerminalLevel=1,  OPCost=5,
                 TechLevel=TechniqueLevel.Initiate,    TechType=TechniqueType.Energy,
                 EnergyCost=5,   StaminaCost=2,  HealAmount=10,
                 Description="Базовая техника ученика. Даёт +10 здоровья одному НПС." },
-        new() { Name="Благословение",        AltarLevel=2,  FaithCost=10,
+        new() { Name="Благословение",        TerminalLevel=2,  OPCost=10,
                 TechLevel=TechniqueLevel.Initiate,    TechType=TechniqueType.Energy,
                 EnergyCost=10,  StaminaCost=5,  HealAmount=20,
                 Description="Даёт +20 здоровья одному НПС." },
-        new() { Name="Исцеление",            AltarLevel=4,  FaithCost=20,
+        new() { Name="Исцеление",            TerminalLevel=4,  OPCost=20,
                 TechLevel=TechniqueLevel.Adept,       TechType=TechniqueType.Energy,
                 EnergyCost=20,  StaminaCost=10, HealAmount=100,
                 Description="Полностью восстанавливает здоровье одного НПС." },
-        new() { Name="Щит веры",             AltarLevel=6,  FaithCost=30,
+        new() { Name="Щит веры",             TerminalLevel=6,  OPCost=30,
                 TechLevel=TechniqueLevel.Warrior,     TechType=TechniqueType.Energy,
                 EnergyCost=30,  StaminaCost=15,
                 Description="Создаёт барьер вокруг алтаря на 3 дня." },
-        new() { Name="Откровение",           AltarLevel=8,  FaithCost=40,
+        new() { Name="Откровение",           TerminalLevel=8,  OPCost=40,
                 TechLevel=TechniqueLevel.Master,      TechType=TechniqueType.Mental,
                 EnergyCost=40,  StaminaCost=20,
                 Description="Вскрывает все соседние локации на карте." },
-        new() { Name="Апокалиптический удар",AltarLevel=10, FaithCost=100,
+        new() { Name="Апокалиптический удар",TerminalLevel=10, OPCost=100,
                 TechLevel=TechniqueLevel.Apex,        TechType=TechniqueType.Physical,
                 EnergyCost=80,  StaminaCost=50,
                 Description="Мгновенно уничтожает одну враждебную группу." },
     };
 
     public IEnumerable<Technique> UnlockedTechniques =>
-        AllTechniques.Where(t => t.AltarLevel <= AltarLevel);
+        AllTechniques.Where(t => t.TerminalLevel <= TerminalLevel);
 }
