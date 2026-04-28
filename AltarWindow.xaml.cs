@@ -232,6 +232,16 @@ public partial class AltarWindow : Window
             Foreground = MakeBrush("#58a6ff"),
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+
+        // Show current faction
+        var faction = _vm.PlayerFaction;
+        TerminalAbilPanel.Children.Add(new TextBlock
+        {
+            Text = $"Фракция: {faction.ToLabel()}",
+            Foreground = MakeBrush("#f59e0b"),
+            FontSize = 11,
             Margin = new Thickness(0, 0, 0, 8),
         });
 
@@ -295,6 +305,46 @@ public partial class AltarWindow : Window
                     Margin = new Thickness(0, 0, 0, 4),
                 });
             }
+        }
+
+        // ── Фракционные способности ──────────────────────────────────────
+        TerminalAbilPanel.Children.Add(new TextBlock
+        {
+            Text = "── СПОСОБНОСТИ ФРАКЦИИ ────────────────",
+            Foreground = MakeBrush("#f59e0b"),
+            FontSize = 10,
+            Margin = new Thickness(0, 14, 0, 4),
+        });
+
+        foreach (int lvl in levels)
+        {
+            bool unlocked = _vm.TerminalLevel >= lvl;
+            var fAbil = FactionAbilityCatalog.All
+                .FirstOrDefault(a => a.Faction == faction && a.UnlockLevel == lvl);
+            if (fAbil == null) continue;
+
+            string nameColor = unlocked ? "#c084fc" : "#4b5563";
+            var row = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+
+            row.Children.Add(new TextBlock
+            {
+                Text = $"[Ур.{lvl}] {fAbil.Name}" +
+                       (fAbil.OPCostPerUse > 0 ? $"  ({fAbil.OPCostPerUse:F0} ОР)" : "  [Пассив]"),
+                Foreground = MakeBrush(nameColor),
+                FontSize = 11,
+                FontWeight = unlocked ? FontWeights.SemiBold : FontWeights.Normal,
+                Opacity = unlocked ? 1.0 : 0.4,
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = "   " + fAbil.Description,
+                Foreground = MakeBrush(unlocked ? "#8b949e" : "#4b5563"),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = unlocked ? 1.0 : 0.35,
+                Margin = new Thickness(0, 1, 0, 4),
+            });
+            TerminalAbilPanel.Children.Add(row);
         }
     }
 
