@@ -145,6 +145,22 @@ public partial class GameWindow : Window
 
         _viewModel.Refresh();
         RefreshAll();
+
+        if (_viewModel.IsVictory || _viewModel.IsDefeat)
+            ShowResultWindow();
+    }
+
+    private void ShowResultWindow()
+    {
+        int aliveFollowers = _viewModel.AliveNpcs.Count(n => n.FollowerLevel > 0);
+        string summary = _viewModel.TrueTerminal.GetProgressSummary(
+            _viewModel.TerminalLevel,
+            aliveFollowers,
+            _viewModel.DevPoints,
+            _viewModel.CurrentDay);
+        var win = new ResultWindow(_viewModel.IsVictory, _viewModel.CurrentDay, summary);
+        win.Owner = this;
+        win.ShowDialog();
     }
 
     // =========================================================
