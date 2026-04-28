@@ -16,8 +16,8 @@
                        HorizontalAlignment="Center"
                        Margin="0,0,0,6"/>
 
-            <TextBlock Text="Управляй выжившими. Развивай Терминал."
-                       Foreground="#666"
+            <TextBlock Text="Управляй выжившими. Развивай общину. Улучшай Терминал."
+                       Foreground="Aqua"
                        FontSize="12"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,20"/>

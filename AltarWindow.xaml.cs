@@ -14,9 +14,11 @@ namespace ApocMinimal;
 public partial class AltarWindow : Window
 {
     private readonly GameViewModel _vm;
+    ListPlayerFactions listPlayerFactions;
 
     public AltarWindow(GameViewModel vm)
     {
+        listPlayerFactions = new ListPlayerFactions();
         InitializeComponent();
         _vm = vm;
         Refresh();
@@ -237,9 +239,10 @@ public partial class AltarWindow : Window
 
         // Show current faction
         var faction = _vm.PlayerFaction;
+        OnePlayerFaction onePlayerFaction = listPlayerFactions.factions.FirstOrDefault(pf => pf.Faction == faction);
         TerminalAbilPanel.Children.Add(new TextBlock
         {
-            Text = $"Фракция: {faction.ToLabel()}",
+            Text = $"Фракция: {onePlayerFaction.Label}",
             Foreground = MakeBrush("#f59e0b"),
             FontSize = 11,
             Margin = new Thickness(0, 0, 0, 8),

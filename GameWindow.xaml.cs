@@ -102,10 +102,14 @@ public partial class GameWindow : Window
 
     private void RefreshHeader()
     {
-        DayLabel.Text    = $"  |  {_viewModel.DayDisplay}";
-        FaithLabel.Text  = $"  {_viewModel.DevPointsDisplay}";
-        AltarLabel.Text  = $"  {_viewModel.TerminalDisplay}";
-        ActionsLabel.Text = $"  {_viewModel.ActionsDisplay}";
+        ListPlayerFactions listPlayerFactions = new ListPlayerFactions();
+        OnePlayerFaction onePlayerFaction = listPlayerFactions.factions.FirstOrDefault(pf => pf.Faction == _viewModel.PlayerFaction);
+        PlayerNameLabel.Text    = $"{_viewModel.PlayerName}";
+        PlayerFactionLabel.Text = $"  |  {onePlayerFaction.Label}";
+        DayLabel.Text           = $"  |  {_viewModel.DayDisplay}";
+        FaithLabel.Text         = $"  {_viewModel.DevPointsDisplay}";
+        AltarLabel.Text         = $"  {_viewModel.TerminalDisplay}";
+        ActionsLabel.Text       = $"  {_viewModel.ActionsDisplay}";
         ActionsLabel.Foreground = _viewModel.HasActionsLeft
             ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
             : (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;

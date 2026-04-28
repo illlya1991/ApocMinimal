@@ -565,7 +565,7 @@ public class DatabaseManager
     public void SavePlayer(Player p)
     {
         using var cmd = new SQLiteCommand(
-            "UPDATE Player SET DevPoints=@fp,TerminalLevel=@al,CurrentDay=@cd,BarrierSize=@bs,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,Faction=@fc WHERE Id=@id", _conn);
+            "UPDATE Player SET Name=@pn, Faction=@pf, DevPoints=@fp, TerminalLevel=@al,CurrentDay=@cd,BarrierSize=@bs,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,Faction=@fc WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@fp", p.DevPoints);
         cmd.Parameters.AddWithValue("@al", p.TerminalLevel);
         cmd.Parameters.AddWithValue("@fc", p.Faction.ToString());
@@ -574,6 +574,8 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@bl", p.BarrierLevel);
         cmd.Parameters.AddWithValue("@tc", p.TerritoryControl);
         cmd.Parameters.AddWithValue("@pa", p.PlayerActionsToday);
+        cmd.Parameters.AddWithValue("@pn", p.Name);
+        cmd.Parameters.AddWithValue("@pf", p.Faction);
         cmd.Parameters.AddWithValue("@cz", System.Text.Json.JsonSerializer.Serialize(p.ControlledZoneIds, JsonOpts));
         cmd.Parameters.AddWithValue("@id", p.Id);
         cmd.ExecuteNonQuery();

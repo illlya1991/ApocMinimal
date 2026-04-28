@@ -100,7 +100,7 @@ public class GameViewModel : INotifyPropertyChanged
     public bool HasActionsLeft => ActionsToday < Player.MaxPlayerActionsPerDay;
     public long UpgradeCost => (long)(200 * Math.Pow(5, TerminalLevel - 1));
     public bool CanUpgrade => TerminalLevel < 10 && DevPoints >= UpgradeCost;
-    public string PlayerName => _player?.Name ?? "Божество";
+    public string PlayerName => _player?.Name ?? "Игрок";
     public PlayerFaction PlayerFaction => _player?.Faction ?? PlayerFaction.ElementMages;
     public int AliveNpcsCount => _npcs.Count(n => n.IsAlive);
     public int MaxActiveFollowers => _player?.MaxActiveFollowers ?? 0;

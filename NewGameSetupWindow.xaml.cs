@@ -11,14 +11,7 @@ public partial class NewGameSetupWindow : Window
     public PlayerFaction ChosenFaction { get; private set; } = PlayerFaction.ElementMages;
     public bool Confirmed { get; private set; }
 
-    private static readonly (PlayerFaction Faction, string Label, string Color)[] Factions =
-    {
-        (PlayerFaction.ElementMages,  "Маги Стихий",      "#79c0ff"),
-        (PlayerFaction.PathBlades,    "Клинки Пути",      "#f87171"),
-        (PlayerFaction.MirrorHealers, "Зеркальные Целители", "#56d364"),
-        (PlayerFaction.DeepSmiths,    "Кузнецы Глубин",   "#e3b341"),
-        (PlayerFaction.GuardHeralds,  "Герольды Стражи",  "#d2a8ff"),
-    };
+    ListPlayerFactions listPlayerFactions;
 
     public NewGameSetupWindow()
     {
@@ -26,18 +19,19 @@ public partial class NewGameSetupWindow : Window
         NameBox.Text = "Игрок";
         NameBox.SelectAll();
         NameBox.Focus();
+        listPlayerFactions = new ListPlayerFactions();
         BuildFactionList();
     }
 
     private void BuildFactionList()
     {
-        foreach (var (faction, label, color) in Factions)
+        foreach (OnePlayerFaction itemFaction in listPlayerFactions.factions)
         {
             var item = new ListBoxItem
             {
-                Content = label,
-                Tag = faction,
-                Foreground = (Brush)new BrushConverter().ConvertFromString(color)!,
+                Content = itemFaction.Label,
+                Tag = itemFaction.Faction,
+                Foreground = (Brush)new BrushConverter().ConvertFromString(itemFaction.Color)!,
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Padding = new Thickness(10, 6, 10, 6),
@@ -55,10 +49,10 @@ public partial class NewGameSetupWindow : Window
         var faction = (PlayerFaction)item.Tag;
         ChosenFaction = faction;
 
-        var entry = System.Array.Find(Factions, x => x.Faction == faction);
-        FactionDescText.Text = faction.ToDescription();
-        if (entry != default)
-            FactionDescText.Foreground = (Brush)new BrushConverter().ConvertFromString(entry.Color)!;
+        OnePlayerFaction onePlayerFaction = listPlayerFactions.factions.FirstOrDefault(pf => pf.Faction == faction);
+        FactionDescText.Text = onePlayerFaction.Description;
+        if (onePlayerFaction != default)
+            FactionDescText.Foreground = (Brush)new BrushConverter().ConvertFromString(onePlayerFaction.Color)!;
     }
 
     private void Confirm_Click(object sender, RoutedEventArgs e)

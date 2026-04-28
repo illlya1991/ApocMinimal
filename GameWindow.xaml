@@ -45,8 +45,10 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="APOCALYPSE SIMULATION" FontSize="15"
+                        <TextBlock x:Name="PlayerNameLabel" Text="Игрок" FontSize="15"
                                Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="PlayerFactionLabel" Text="  |  Землянин" FontSize="15"
+                                Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
                     <TextBlock x:Name="DayLabel" Text="  |  День 1"
                                Foreground="#8b949e" VerticalAlignment="Center" Margin="8,0"/>
                     <TextBlock x:Name="FaithLabel" Text="  0 ОР"
