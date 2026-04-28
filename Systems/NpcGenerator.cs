@@ -100,7 +100,7 @@ public static class NpcGenerator
             CharTraits     = traits.ToList(),
             Stats          = stats,
             Health         = rnd.Next(60, 101),
-            Faith          = rnd.Next(10, 51),
+            Devotion       = rnd.Next(10, 51),
             Fear           = rnd.Next(5, 30),
             Trust          = rnd.Next(30, 71),
             Initiative     = rnd.Next(30, 80),

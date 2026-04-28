@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using ApocMinimal.Database;
 using ApocMinimal.Models.PersonData;
 
@@ -8,6 +9,15 @@ namespace ApocMinimal;
 public partial class StartWindow : Window
 {
     private readonly DatabaseManager _db = new();
+
+    private static readonly (PlayerFaction Faction, string Color)[] FactionColors = new[]
+    {
+        (PlayerFaction.ElementMages,  "#79c0ff"),
+        (PlayerFaction.PathBlades,    "#f87171"),
+        (PlayerFaction.MirrorHealers, "#56d364"),
+        (PlayerFaction.DeepSmiths,    "#e3b341"),
+        (PlayerFaction.GuardHeralds,  "#d2a8ff"),
+    };
 
     public StartWindow()
     {
@@ -18,16 +28,19 @@ public partial class StartWindow : Window
 
     private void PopulateFactionCombo()
     {
-        var factions = new[]
+        foreach (var (faction, color) in FactionColors)
         {
-            PlayerFaction.ElementMages,
-            PlayerFaction.PathBlades,
-            PlayerFaction.MirrorHealers,
-            PlayerFaction.DeepSmiths,
-            PlayerFaction.GuardHeralds,
-        };
-        foreach (var f in factions)
-            FactionCombo.Items.Add(f.ToLabel());
+            var item = new ComboBoxItem
+            {
+                Content = faction.ToLabel(),
+                Foreground = (Brush)new BrushConverter().ConvertFromString(color)!,
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Background = new SolidColorBrush(Color.FromRgb(0x16, 0x1b, 0x22)),
+                Tag = faction,
+            };
+            FactionCombo.Items.Add(item);
+        }
         FactionCombo.SelectedIndex = 0;
         FactionCombo.SelectionChanged += FactionCombo_SelectionChanged;
         UpdateFactionDesc();
@@ -40,31 +53,27 @@ public partial class StartWindow : Window
     {
         var faction = SelectedFaction();
         FactionDescText.Text = faction.ToDescription();
+        var entry = System.Array.Find(FactionColors, x => x.Faction == faction);
+        if (entry != default)
+            FactionDescText.Foreground = (Brush)new BrushConverter().ConvertFromString(entry.Color)!;
     }
 
     private PlayerFaction SelectedFaction()
     {
-        return FactionCombo.SelectedIndex switch
-        {
-            1 => PlayerFaction.PathBlades,
-            2 => PlayerFaction.MirrorHealers,
-            3 => PlayerFaction.DeepSmiths,
-            4 => PlayerFaction.GuardHeralds,
-            _ => PlayerFaction.ElementMages,
-        };
+        if (FactionCombo.SelectedItem is ComboBoxItem item && item.Tag is PlayerFaction f)
+            return f;
+        return PlayerFaction.ElementMages;
     }
 
     private void CheckSave()
     {
-        if (_db.HasAnyActiveSave())
-        {
-            ContinueButton.IsEnabled = true;
-        }
-        else
-        {
-            ContinueButton.IsEnabled = false;
+        bool hasSave = _db.HasAnyActiveSave();
+        ContinueButton.IsEnabled = hasSave;
+        if (!hasSave)
             ContinueButton.Background = System.Windows.Media.Brushes.Gray;
-        }
+
+        // Faction selection is only relevant for new games
+        FactionSection.Visibility = Visibility.Visible;
     }
 
     private void NewGame_Click(object sender, RoutedEventArgs e)
