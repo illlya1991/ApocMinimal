@@ -22,22 +22,6 @@
                        HorizontalAlignment="Center"
                        Margin="0,0,0,20"/>
 
-            <!-- Faction selection — only for new game -->
-            <StackPanel x:Name="FactionSection" Visibility="Collapsed">
-                <TextBlock Text="ВЫБЕРИ ФРАКЦИЮ (только для новой игры)"
-                           Foreground="#6b7280"
-                           FontSize="10" FontWeight="Bold"
-                           Margin="0,0,0,4"/>
-                <ComboBox x:Name="FactionCombo"
-                          Height="34" FontSize="13" FontWeight="Bold"
-                          Background="#161b22"
-                          Margin="0,0,0,6"/>
-                <TextBlock x:Name="FactionDescText"
-                           FontSize="11"
-                           TextWrapping="Wrap"
-                           Margin="0,0,0,20"/>
-            </StackPanel>
-
             <Button x:Name="NewGameButton"
                     Content="Новая игра"
                     Height="42" FontSize="14"
