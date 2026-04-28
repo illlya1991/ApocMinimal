@@ -61,11 +61,23 @@ public partial class AltarWindow : Window
         foreach (var tech in _vm.AllTechniques)
         {
             bool unlocked = tech.TerminalLevel <= _vm.TerminalLevel;
+            string costLabel = tech.IsPlayerTechnique
+                ? $"{tech.EnergyCost:F0} энергии"
+                : $"{tech.OPCost:F0} ОР";
+            bool canUse = unlocked && (tech.IsPlayerTechnique
+                ? _vm.Energy >= tech.EnergyCost
+                : _vm.DevPoints >= tech.OPCost);
+            string category = tech.IsPlayerTechnique ? tech.TechType switch
+            {
+                TechniqueType.Mental   => "👥 ",
+                TechniqueType.Physical => "⚔ ",
+                _                      => "⚙ ",
+            } : "✨ ";
             var btn = new Button
             {
-                Content = $"{tech.Name}  ({tech.OPCost:F0} ОР)",
+                Content = $"{category}{tech.Name}  ({costLabel})",
                 Style = (Style)FindResource("ABtn"),
-                IsEnabled = unlocked && _vm.DevPoints >= tech.OPCost,
+                IsEnabled = canUse,
                 Opacity = unlocked ? 1.0 : 0.4,
                 ToolTip = tech.Description,
                 Tag = tech,
@@ -78,14 +90,33 @@ public partial class AltarWindow : Window
     private void TechBtn_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn || btn.Tag is not Technique tech) return;
-        _vm.DevPoints -= tech.OPCost;
+
+        if (tech.IsPlayerTechnique)
+        {
+            if (_vm.Energy < tech.EnergyCost)
+            {
+                System.Windows.MessageBox.Show($"Недостаточно энергии: {_vm.Energy:F0}/{tech.EnergyCost:F0}", "Энергия");
+                return;
+            }
+            _vm.Energy -= tech.EnergyCost;
+            string log = TechniqueSystem.ApplyPlayerTechnique(
+                tech, _vm.GetPlayer(), _vm.AliveNpcs, _vm.MonsterFactions);
+            foreach (var npc in _vm.AliveNpcs.Where(n => n.FollowerLevel > 0))
+                _vm.SaveNpc(npc);
+            System.Windows.MessageBox.Show(log, tech.Name);
+        }
+        else
+        {
+            if (_vm.DevPoints < tech.OPCost) return;
+            _vm.DevPoints -= tech.OPCost;
+            var target = tech.HealAmount > 0
+                ? _vm.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
+                : _vm.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
+            if (target == null) return;
+            if (TechniqueSystem.Apply(tech, target, out string log))
+                _vm.SaveNpc(target);
+        }
         _vm.SavePlayer();
-        var target = tech.HealAmount > 0
-            ? _vm.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
-            : _vm.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
-        if (target == null) return;
-        if (TechniqueSystem.Apply(tech, target, out string log))
-            _vm.SaveNpc(target);
         _vm.Refresh();
         Refresh();
     }

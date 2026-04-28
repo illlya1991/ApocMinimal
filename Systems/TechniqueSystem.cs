@@ -1,6 +1,7 @@
 using ApocMinimal.Models.StatisticsData;
 using ApocMinimal.Models.TechniqueData;
 using ApocMinimal.Models.PersonData;
+using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.LocationData;
 
 namespace ApocMinimal.Systems;
@@ -66,6 +67,76 @@ public static class TechniqueSystem
 
         log = $"{tech.Name} [{tech.TechLevel.ToLabel()} ×{mult}] применена → {npc.Name}";
         return true;
+    }
+
+    /// <summary>
+    /// Apply a player-level technique. Returns log message.
+    /// Modifies NPCs in-place; caller saves them. Modifies player.DevPoints.
+    /// </summary>
+    public static string ApplyPlayerTechnique(
+        Technique tech,
+        Player player,
+        List<Npc> followers,
+        List<MonsterFaction> factions)
+    {
+        var alive = followers.Where(n => n.IsAlive && n.FollowerLevel > 0).ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"[{tech.Name}] ");
+
+        // Social: TrustBoost / FearClear
+        if (tech.TrustBoost > 0 || tech.FearClear > 0)
+        {
+            double avgSocial = alive.Count > 0
+                ? alive.Average(n => n.Stats.GetStatValue(20) / 100.0)  // SocialIntel id=20
+                : 0.5;
+            double trust = Math.Round(tech.TrustBoost * (0.5 + avgSocial * 0.5));
+
+            foreach (var npc in alive)
+            {
+                if (tech.TrustBoost > 0)
+                    npc.Trust = (int)Math.Min(100, npc.Trust + trust);
+                if (tech.FearClear > 0)
+                    npc.Fear = Math.Max(0, npc.Fear - tech.FearClear);
+            }
+            if (tech.TrustBoost > 0) sb.Append($"+{trust:F0} Доверия × {alive.Count} посл. ");
+            if (tech.FearClear > 0)  sb.Append("Страх снят. ");
+        }
+
+        // Stamina boost
+        if (tech.StaminaBoost > 0)
+        {
+            foreach (var npc in alive)
+                npc.Stamina = Math.Min(npc.MaxStamina, npc.Stamina + tech.StaminaBoost);
+            sb.Append($"+{tech.StaminaBoost:F0} Выносл. × {alive.Count} посл. ");
+        }
+
+        // ОР gain (crafting) — scaled by followers' Logic (id=13) + Creativity (id=21)
+        if (tech.DevPointsBoost > 0)
+        {
+            double avgMental = alive.Count > 0
+                ? alive.Average(n => (n.Stats.GetStatValue(13) + n.Stats.GetStatValue(21)) / 200.0)
+                : 0.5;
+            double gain = Math.Round(tech.DevPointsBoost * (0.5 + avgMental * 0.5));
+            player.DevPoints += gain;
+            sb.Append($"+{gain:F0} ОР ");
+        }
+
+        // Threat damage (combat) — scaled by followers' Strength (id=3)
+        if (tech.ThreatDamage > 0)
+        {
+            double avgStr = alive.Count > 0
+                ? alive.Average(n => n.Stats.GetStatValue(3) / 100.0)
+                : 0.5;
+            double dmg = Math.Round(tech.ThreatDamage * (0.5 + avgStr * 0.5));
+            var top = factions.OrderByDescending(f => f.ThreatLevel).FirstOrDefault();
+            if (top != null)
+            {
+                MonsterFactionFactory.ApplyDefeat(top, dmg);
+                sb.Append($"Угроза «{top.Name}» −{dmg:F0} ");
+            }
+        }
+
+        return sb.ToString().TrimEnd();
     }
 
     /// <summary>ОР reward for clearing a location: Floor=5, Building=50.</summary>

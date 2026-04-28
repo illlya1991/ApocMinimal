@@ -322,6 +322,7 @@ public class DatabaseManager
             "ALTER TABLE Player ADD COLUMN BarrierLevel INTEGER NOT NULL DEFAULT 1",
             "ALTER TABLE Player ADD COLUMN ControlledZoneIds TEXT NOT NULL DEFAULT '[]'",
             "ALTER TABLE Player ADD COLUMN FactionCoeffs TEXT NOT NULL DEFAULT '{}'",
+            "ALTER TABLE Player ADD COLUMN Energy REAL NOT NULL DEFAULT 100",
         };
         foreach (var sql in alters)
         {
@@ -685,7 +686,7 @@ public class DatabaseManager
     public void SavePlayer(Player p)
     {
         using var cmd = new SQLiteCommand(
-            "UPDATE Player SET Name=@pn, Faction=@fc, DevPoints=@fp, TerminalLevel=@al,CurrentDay=@cd,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,FactionCoeffs=@fcoeffs WHERE Id=@id", _conn);
+            "UPDATE Player SET Name=@pn, Faction=@fc, DevPoints=@fp, TerminalLevel=@al,CurrentDay=@cd,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,FactionCoeffs=@fcoeffs,Energy=@en WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@fp", p.DevPoints);
         cmd.Parameters.AddWithValue("@al", p.TerminalLevel);
         cmd.Parameters.AddWithValue("@fc", p.Faction.ToString());
@@ -696,6 +697,7 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@pn", p.Name);
         cmd.Parameters.AddWithValue("@cz", System.Text.Json.JsonSerializer.Serialize(p.ControlledZoneIds, JsonOpts));
         cmd.Parameters.AddWithValue("@fcoeffs", System.Text.Json.JsonSerializer.Serialize(p.FactionCoeffs, JsonOpts));
+        cmd.Parameters.AddWithValue("@en", p.Energy);
         cmd.Parameters.AddWithValue("@id", p.Id);
         cmd.ExecuteNonQuery();
     }
@@ -975,6 +977,7 @@ public class DatabaseManager
         string coeffsJson = GetStringOrDefault(rdr, "FactionCoeffs", "{}");
         try { p.FactionCoeffs = System.Text.Json.JsonSerializer.Deserialize<FactionCoefficients>(coeffsJson) ?? new(); }
         catch { p.FactionCoeffs = new(); }
+        p.Energy = GetDoubleOrDefault(rdr, "Energy", 100.0);
         return p;
     }
 

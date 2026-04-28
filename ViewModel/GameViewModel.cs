@@ -93,6 +93,21 @@ public class GameViewModel : INotifyPropertyChanged
         }
     }
 
+    private double _energy;
+    public double Energy
+    {
+        get => _energy;
+        set
+        {
+            _energy = Math.Max(0, Math.Min(value, _player?.MaxEnergy ?? 100));
+            if (_player != null) _player.Energy = _energy;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(EnergyDisplay));
+        }
+    }
+    public int MaxEnergy => _player?.MaxEnergy ?? 100;
+    public string EnergyDisplay => $"Энергия: {Energy:F0}/{MaxEnergy}";
+
     public string DayDisplay => $"День {CurrentDay}";
     public string DevPointsDisplay => $"ОР: {DevPoints:F0}";
     public string TerminalDisplay => $"Терминал: ур.{TerminalLevel}";
@@ -120,6 +135,7 @@ public class GameViewModel : INotifyPropertyChanged
         _actionManager.ExecuteAction(action, parameters, _player, _npcs, _resources, _quests);
 
     // Properties for UI binding
+    public Player GetPlayer() => _player;
     public List<Npc> AllNpcs => _npcs;
     public List<Npc> AliveNpcs => _npcs.Where(n => n.IsAlive).ToList();
     public List<Resource> Resources => _resources;
@@ -180,6 +196,7 @@ public class GameViewModel : INotifyPropertyChanged
         DevPoints = _player.DevPoints;
         TerminalLevel = _player.TerminalLevel;
         ActionsToday = _player.PlayerActionsToday;
+        _energy = _player.Energy;
 
         if (_monsterFactions.Count == 0)
             _monsterFactions = MonsterFactionFactory.CreateDefault();
@@ -492,6 +509,7 @@ public class GameViewModel : INotifyPropertyChanged
         CurrentDay = _player.CurrentDay;
         DevPoints = _player.DevPoints;
         ActionsToday = _player.PlayerActionsToday;
+        Energy = _player.Energy;
 
         // ── Victory check ───────────────────────────────────────────────────
         if (!_trueTerminal.IsAchieved)

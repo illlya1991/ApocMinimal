@@ -119,6 +119,7 @@ public partial class GameWindow : Window
         ActionsLabel.Foreground = _viewModel.HasActionsLeft
             ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
             : (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;
+        EnergyLabel.Text = $"  {_viewModel.EnergyDisplay}";
     }
 
     // =========================================================
@@ -275,6 +276,12 @@ public partial class GameWindow : Window
     {
         var fullscreenWindow = new NpcFullscreenWindow(_viewModel.AllNpcs);
         fullscreenWindow.ShowDialog();
+    }
+
+    private void PlayerInfoBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var w = new PlayerInfoWindow(_viewModel) { Owner = this };
+        w.ShowDialog();
     }
 
     private void QuestsBtn_Click(object sender, RoutedEventArgs e)
