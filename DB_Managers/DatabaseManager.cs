@@ -321,11 +321,82 @@ public class DatabaseManager
         {
             "ALTER TABLE Player ADD COLUMN BarrierLevel INTEGER NOT NULL DEFAULT 1",
             "ALTER TABLE Player ADD COLUMN ControlledZoneIds TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE Player ADD COLUMN FactionCoeffs TEXT NOT NULL DEFAULT '{}'",
         };
         foreach (var sql in alters)
         {
             try { ExecuteNQ(sql); } catch { }
         }
+        EnsureFactionCoeffsInGameConfig();
+    }
+
+    public void EnsureFactionCoeffsInGameConfig()
+    {
+        if (!IsTableExistsSafe("GameConfig")) return;
+        var rows = new (string Key, string Value)[]
+        {
+            // ElementMages: +15% ОР с НПС и пожертвований
+            ("faction_ElementMages_dev_per_npc",      "1.15"),
+            ("faction_ElementMages_dev_per_location", "0"),
+            ("faction_ElementMages_donation",         "1.15"),
+            ("faction_ElementMages_terminal_cost",    "1"),
+            ("faction_ElementMages_stat_growth",      "1"),
+            ("faction_ElementMages_shop_cost",        "1"),
+            ("faction_ElementMages_max_dev_per_npc",  "1"),
+            ("faction_ElementMages_barrier_units",    "1"),
+            // PathBlades: терминал дороже на 25%
+            ("faction_PathBlades_dev_per_npc",        "1"),
+            ("faction_PathBlades_dev_per_location",   "0"),
+            ("faction_PathBlades_donation",           "1"),
+            ("faction_PathBlades_terminal_cost",      "1.25"),
+            ("faction_PathBlades_stat_growth",        "1"),
+            ("faction_PathBlades_shop_cost",          "1"),
+            ("faction_PathBlades_max_dev_per_npc",    "1"),
+            ("faction_PathBlades_barrier_units",      "1"),
+            // MirrorHealers: магазин -20%, макс. генерация НПС +10%
+            ("faction_MirrorHealers_dev_per_npc",     "1"),
+            ("faction_MirrorHealers_dev_per_location","0"),
+            ("faction_MirrorHealers_donation",        "1"),
+            ("faction_MirrorHealers_terminal_cost",   "1"),
+            ("faction_MirrorHealers_stat_growth",     "1"),
+            ("faction_MirrorHealers_shop_cost",       "0.8"),
+            ("faction_MirrorHealers_max_dev_per_npc", "1.1"),
+            ("faction_MirrorHealers_barrier_units",   "1"),
+            // DeepSmiths: барьерные единицы +25%, магазин -25%
+            ("faction_DeepSmiths_dev_per_npc",        "1"),
+            ("faction_DeepSmiths_dev_per_location",   "0"),
+            ("faction_DeepSmiths_donation",           "1"),
+            ("faction_DeepSmiths_terminal_cost",      "1"),
+            ("faction_DeepSmiths_stat_growth",        "1"),
+            ("faction_DeepSmiths_shop_cost",          "0.75"),
+            ("faction_DeepSmiths_max_dev_per_npc",    "1"),
+            ("faction_DeepSmiths_barrier_units",      "1.25"),
+            // GuardHeralds: +2 ОР/локацию/день, -10% ОР с НПС
+            ("faction_GuardHeralds_dev_per_npc",      "0.9"),
+            ("faction_GuardHeralds_dev_per_location", "2"),
+            ("faction_GuardHeralds_donation",         "1"),
+            ("faction_GuardHeralds_terminal_cost",    "1"),
+            ("faction_GuardHeralds_stat_growth",      "1"),
+            ("faction_GuardHeralds_shop_cost",        "1"),
+            ("faction_GuardHeralds_max_dev_per_npc",  "1"),
+            ("faction_GuardHeralds_barrier_units",    "1"),
+        };
+        using var tx = _conn.BeginTransaction();
+        foreach (var (key, val) in rows)
+        {
+            using var cmd = new SQLiteCommand(
+                "INSERT OR IGNORE INTO GameConfig (Key, Value) VALUES (@k, @v)", _conn, tx);
+            cmd.Parameters.AddWithValue("@k", key);
+            cmd.Parameters.AddWithValue("@v", val);
+            cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+    }
+
+    public void ApplyFactionCoefficients(Player player)
+    {
+        var config = GetGameConfig();
+        player.FactionCoeffs = FactionCoefficients.ForFaction(player.Faction, config);
     }
 
     public void EnsureNpcTechSchema()
@@ -614,18 +685,17 @@ public class DatabaseManager
     public void SavePlayer(Player p)
     {
         using var cmd = new SQLiteCommand(
-            "UPDATE Player SET Name=@pn, Faction=@pf, DevPoints=@fp, TerminalLevel=@al,CurrentDay=@cd,BarrierSize=@bs,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,Faction=@fc WHERE Id=@id", _conn);
+            "UPDATE Player SET Name=@pn, Faction=@fc, DevPoints=@fp, TerminalLevel=@al,CurrentDay=@cd,BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,FactionCoeffs=@fcoeffs WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@fp", p.DevPoints);
         cmd.Parameters.AddWithValue("@al", p.TerminalLevel);
         cmd.Parameters.AddWithValue("@fc", p.Faction.ToString());
         cmd.Parameters.AddWithValue("@cd", p.CurrentDay);
-        cmd.Parameters.AddWithValue("@bs", p.BarrierSize);
         cmd.Parameters.AddWithValue("@bl", p.BarrierLevel);
         cmd.Parameters.AddWithValue("@tc", p.TerritoryControl);
         cmd.Parameters.AddWithValue("@pa", p.PlayerActionsToday);
         cmd.Parameters.AddWithValue("@pn", p.Name);
-        cmd.Parameters.AddWithValue("@pf", p.Faction);
         cmd.Parameters.AddWithValue("@cz", System.Text.Json.JsonSerializer.Serialize(p.ControlledZoneIds, JsonOpts));
+        cmd.Parameters.AddWithValue("@fcoeffs", System.Text.Json.JsonSerializer.Serialize(p.FactionCoeffs, JsonOpts));
         cmd.Parameters.AddWithValue("@id", p.Id);
         cmd.ExecuteNonQuery();
     }
@@ -896,13 +966,15 @@ public class DatabaseManager
         string factionStr = GetStringOrDefault(rdr, "Faction", "ElementMages");
         p.Faction = Enum.TryParse<PlayerFaction>(factionStr, out var f) ? f : PlayerFaction.ElementMages;
         p.CurrentDay = rdr.GetInt32(rdr.GetOrdinal("CurrentDay"));
-        p.BarrierSize = GetDoubleOrDefault(rdr, "BarrierSize");
         p.BarrierLevel = GetIntOrDefault(rdr, "BarrierLevel", 1);
         p.TerritoryControl = GetIntOrDefault(rdr, "TerritoryControl");
         p.PlayerActionsToday = GetIntOrDefault(rdr, "PlayerActionsToday");
         string zonesJson = GetStringOrDefault(rdr, "ControlledZoneIds", "[]");
         try { p.ControlledZoneIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(zonesJson) ?? new(); }
         catch { p.ControlledZoneIds = new(); }
+        string coeffsJson = GetStringOrDefault(rdr, "FactionCoeffs", "{}");
+        try { p.FactionCoeffs = System.Text.Json.JsonSerializer.Deserialize<FactionCoefficients>(coeffsJson) ?? new(); }
+        catch { p.FactionCoeffs = new(); }
         return p;
     }
 

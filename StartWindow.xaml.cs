@@ -54,6 +54,8 @@ public partial class StartWindow : Window
                 {
                     player.Name = chosenName;
                     player.Faction = chosenFaction;
+                    _db.EnsureFactionCoeffsInGameConfig();
+                    _db.ApplyFactionCoefficients(player);
                     _db.SavePlayer(player);
                 }
             },

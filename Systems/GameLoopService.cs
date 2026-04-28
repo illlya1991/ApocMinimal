@@ -108,7 +108,7 @@ public static class GameLoopService
         for (int i = 0; i < npcs.Count; i++)
         {
             if (!npcs[i].IsAlive) continue;
-            ownLogs[npcs[i].Id] = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx, systemAlerts);
+            ownLogs[npcs[i].Id] = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx, systemAlerts, player.FactionCoeffs.CoeffStatGrowth);
         }
         foreach (var alert in systemAlerts)
             result.Logs.Add((alert.Text, true));
@@ -175,6 +175,7 @@ public static class GameLoopService
     {
         double faithTotal = 0;
         int followerCount = 0;
+        double maxDevPerNpc = Player.MaxDevPointsPerNpcPerDay * player.FactionCoeffs.CoeffMaxDevPerNpc;
 
         for (int i = 0; i < npcs.Count; i++)
         {
@@ -182,7 +183,7 @@ public static class GameLoopService
             if (!npc.IsAlive || npc.FollowerLevel <= 0) continue;
 
             followerCount++;
-            double maxDay = npc.FollowerLevel * (Player.MaxDevPointsPerNpcPerDay / 5.0);
+            double maxDay = npc.FollowerLevel * (maxDevPerNpc / 5.0);
 
             double avgSat = 0.5;
             if (npc.Needs.Count > 0)
@@ -202,8 +203,10 @@ public static class GameLoopService
             faithTotal += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
         }
 
-        player.DevPoints += faithTotal;
-        result.DevPointsGained = faithTotal;
+        double npcContrib = faithTotal * player.FactionCoeffs.CoeffDevPerNpc;
+        double locationBonus = player.ControlledZoneIds.Count * player.FactionCoeffs.CoeffDevPerLocation;
+        player.DevPoints += npcContrib + locationBonus;
+        result.DevPointsGained = npcContrib + locationBonus;
         result.FollowerCount = followerCount;
     }
 

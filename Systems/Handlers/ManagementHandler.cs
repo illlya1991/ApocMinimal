@@ -56,10 +56,22 @@ public class ManagementHandler : BaseActionHandler
         // Проверка лимита алтаря
         int currentCount = _db.GetFollowerCountAtLevel(target.FollowerLevel + 1);
         int limit = player.GetFollowerLimit(target.FollowerLevel + 1);
+        if (limit == 0)
+            return $"Уровень последователя {target.FollowerLevel + 1} недоступен при текущем уровне Терминала";
         if (limit != -1 && currentCount >= limit)
-            return $"Невозможно повысить: достигнут лимит Терминала для уровня {target.FollowerLevel + 1} (лимит: {limit})";
+            return $"Невозможно повысить: достигнут лимит для уровня {target.FollowerLevel + 1} (лимит: {limit})";
 
-        // Стоимость повышения в вере
+        // Проверка генерации ОР для уровней 3-5
+        int targetLevel = target.FollowerLevel + 1;
+        if (targetLevel >= 3)
+        {
+            double minGen = targetLevel >= 5 ? 5.0 : 2.0;
+            double currentGen = CalcNpcDevGeneration(target, player);
+            if (currentGen < minGen)
+                return $"Для уровня {targetLevel} нужна генерация ОР ≥ {minGen:F0}/день (сейчас: {currentGen:F1})";
+        }
+
+        // Стоимость повышения
         double cost = CalculateUpgradeCost(target);
         if (player.DevPoints < cost)
             return $"Недостаточно ОР для повышения {target.Name} (нужно {cost:F0}, есть {player.DevPoints:F0})";
@@ -158,6 +170,27 @@ public class ManagementHandler : BaseActionHandler
 
         // Снижение инициативы
         target.Initiative = Math.Max(0, target.Initiative - 5);
+    }
+
+    private static double CalcNpcDevGeneration(Npc npc, Player player)
+    {
+        if (npc.FollowerLevel <= 0) return 0;
+        double maxDevPerNpc = Player.MaxDevPointsPerNpcPerDay * player.FactionCoeffs.CoeffMaxDevPerNpc;
+        double maxDay = npc.FollowerLevel * (maxDevPerNpc / 5.0);
+
+        double avgSat = 0.5;
+        if (npc.Needs.Count > 0)
+            avgSat = npc.Needs.Average(n => n.Satisfaction) / 100.0;
+
+        double trustMod = 0.3 + (npc.Trust / 100.0) * 0.7;
+
+        double posSum = npc.Emotions.Where(e =>
+            e.Name is "Радость" or "Спокойствие" or "Надежда" or "Любовь"
+                     or "Воодушевление" or "Гордость" or "Благодарность")
+            .Sum(e => e.Percentage);
+        double emoMod = 0.5 + posSum / 200.0;
+
+        return Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod) * player.FactionCoeffs.CoeffDevPerNpc;
     }
 
 }

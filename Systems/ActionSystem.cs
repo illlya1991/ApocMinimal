@@ -30,7 +30,7 @@ public static class ActionSystem
     private static bool IsSocialAction(NpcAction action) => SocialActionIds.Contains(action.Id);
 
     public static List<ActionLogEntry> ProcessDayActions(Npc npc, Random rnd, int day, ActionContext? ctx = null,
-        List<ActionLogEntry>? systemAlerts = null)
+        List<ActionLogEntry>? systemAlerts = null, double statGrowthCoeff = 1.0)
     {
         var log = new List<ActionLogEntry>();
         if (!npc.IsAlive) return log;
@@ -155,7 +155,7 @@ public static class ActionSystem
             foreach (var kvp in action.SatisfiedNeeds)
                 NeedSystem.SatisfyNeed(npc, kvp.Key, kvp.Value);
 
-            var growth = StatGrowthSystem.Apply(npc, action, rnd);
+            var growth = StatGrowthSystem.Apply(npc, action, rnd, statGrowthCoeff);
             string growthSuffix = growth.Count > 0
                 ? $" [{string.Join(", ", growth.Select(g => $"+{g.Gain} {g.StatName}"))}]"
                 : "";

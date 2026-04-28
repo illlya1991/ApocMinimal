@@ -104,8 +104,7 @@ public partial class AltarWindow : Window
     {
         BarrierInfoLabel.Text =
             $"Уровень барьера: {_vm.BarrierLevel}  |  ОР: {_vm.DevPoints:F0}\n" +
-            $"Базовые единицы: {_vm.BaseUnits}  |  Защищено зон: {_vm.ControlledZoneIds.Count}\n" +
-            $"Размер барьера: {_vm.BarrierSize:F0} м";
+            $"Базовые единицы: {_vm.BaseUnits}  |  Защищено зон: {_vm.ControlledZoneIds.Count}";
 
         BarrierUpgradeBtn.IsEnabled = _vm.DevPoints >= 20;
         BarrierHintLabel.Text = "Квартира: 5 ОР  |  Этаж: 10 ОР  |  Здание: 20 ОР  |  Улица: 50 ОР  (только зачищенные)";
@@ -318,7 +317,6 @@ public partial class AltarWindow : Window
         if (_vm.DevPoints < 20) return;
         _vm.DevPoints -= 20;
         _vm.BarrierLevel++;
-        _vm.BarrierSize = _vm.BarrierLevel * 50;
         _vm.SavePlayer();
         _vm.Refresh();
         RefreshBarrierTab();

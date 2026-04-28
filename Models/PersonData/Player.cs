@@ -34,20 +34,15 @@ public class Player
     public PlayerFaction Faction { get; set; } = PlayerFaction.ElementMages;
 
     // ── Barrier & territory ───────────────────────────────────────────
-    /// <summary>Barrier level 1–10 (separate from altar). Determines radius and BaseUnits.</summary>
     public int BarrierLevel { get; set; } = 1;
-    /// <summary>Altar can project a protective barrier of this radius (0 = none).</summary>
-    public double BarrierSize { get; set; }
-    /// <summary>Number of controlled location IDs.</summary>
     public int TerritoryControl { get; set; }
-    /// <summary>IDs of location nodes under player control.</summary>
     public List<int> ControlledZoneIds { get; set; } = new();
 
-    /// <summary>
-    /// Base units available per day: TerminalLevel × BarrierLevel × (BarrierLevel+1) / 2.
-    /// Represents patrol/defense capacity derived from altar and barrier investment.
-    /// </summary>
-    public int BaseUnits => TerminalLevel * (BarrierLevel * (BarrierLevel + 1)) / 2;
+    public int BaseUnits =>
+        (int)(TerminalLevel * (BarrierLevel * (BarrierLevel + 1)) / 2.0 * FactionCoeffs.CoeffBarrierUnits);
+
+    // ── Faction coefficients ──────────────────────────────────────────
+    public FactionCoefficients FactionCoeffs { get; set; } = new();
 
     // ── Player action hour ────────────────────────────────────────────
     /// <summary>How many direct player actions were taken today.</summary>
@@ -56,8 +51,7 @@ public class Player
     public const int MaxPlayerActionsPerDay = 10;
 
     // ── Derived ────────────────────────────────────────────────────────
-    /// <summary>200 × 5^(level-1). Level 1=200, 2=1000, 3=5000 … 10=390 625 000.</summary>
-    public long UpgradeCost => (long)(200 * Math.Pow(5, TerminalLevel - 1));
+    public long UpgradeCost => (long)(200 * Math.Pow(5, TerminalLevel - 1) * FactionCoeffs.CoeffTerminalUpgradeCost);
     public bool CanUpgrade => TerminalLevel < 10 && DevPoints >= UpgradeCost;
 
     /// <summary>Max ОР any single NPC can generate per day (reached at follower level 5).</summary>

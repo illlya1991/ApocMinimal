@@ -130,8 +130,7 @@ public class InteractionHandler : BaseActionHandler
     // ============================================================
     private string ExecuteDonate(Npc target, Player player)
     {
-        // Расчет суммы пожертвования
-        double donationAmount = CalculateDonationAmount(target);
+        double donationAmount = CalculateDonationAmount(target, player.FactionCoeffs.CoeffDonation);
 
         if (donationAmount <= 0)
         {
@@ -157,9 +156,9 @@ public class InteractionHandler : BaseActionHandler
         return $"Пожертвование от {target.Name} получено";
     }
 
-    private double CalculateDonationAmount(Npc target)
+    private double CalculateDonationAmount(Npc target, double donationCoeff = 1.0)
     {
-        double baseAmount = target.Devotion * 0.3;
+        double baseAmount = target.Devotion * 0.3 * donationCoeff;
 
         double followerMod = GetConfig($"donate_mod_level_{target.FollowerLevel}", target.FollowerLevel switch
         {

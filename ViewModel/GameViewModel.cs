@@ -93,19 +93,12 @@ public class GameViewModel : INotifyPropertyChanged
         }
     }
 
-    private double _barrierSize;
-    public double BarrierSize
-    {
-        get => _barrierSize;
-        set { _barrierSize = value; OnPropertyChanged(); }
-    }
-
     public string DayDisplay => $"День {CurrentDay}";
     public string DevPointsDisplay => $"ОР: {DevPoints:F0}";
     public string TerminalDisplay => $"Терминал: ур.{TerminalLevel}";
     public string ActionsDisplay => $"Действий: {ActionsToday}/{Player.MaxPlayerActionsPerDay}";
     public bool HasActionsLeft => ActionsToday < Player.MaxPlayerActionsPerDay;
-    public long UpgradeCost => (long)(200 * Math.Pow(5, TerminalLevel - 1));
+    public long UpgradeCost => _player?.UpgradeCost ?? (long)(200 * Math.Pow(5, TerminalLevel - 1));
     public bool CanUpgrade => TerminalLevel < 10 && DevPoints >= UpgradeCost;
     public string PlayerName => _player?.Name ?? "Игрок";
     public PlayerFaction PlayerFaction => _player?.Faction ?? PlayerFaction.ElementMages;
@@ -187,7 +180,6 @@ public class GameViewModel : INotifyPropertyChanged
         DevPoints = _player.DevPoints;
         TerminalLevel = _player.TerminalLevel;
         ActionsToday = _player.PlayerActionsToday;
-        BarrierSize = _player.BarrierSize;
 
         if (_monsterFactions.Count == 0)
             _monsterFactions = MonsterFactionFactory.CreateDefault();

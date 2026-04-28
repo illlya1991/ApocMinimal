@@ -14,7 +14,7 @@ public static class StatGrowthSystem
     /// Apply stat growth for the given action to the NPC.
     /// Returns a list of (statName, gain) for logging; empty if no growth occurred.
     /// </summary>
-    public static List<(string StatName, int Gain)> Apply(Npc npc, NpcAction action, Random rnd)
+    public static List<(string StatName, int Gain)> Apply(Npc npc, NpcAction action, Random rnd, double statGrowthCoeff = 1.0)
     {
         var results = new List<(string, int)>();
         if (action.StatGrowthIds.Count == 0) return results;
@@ -26,7 +26,7 @@ public static class StatGrowthSystem
             var characteristic = npc.Stats.GetByNumber(kvp.Key);
             if (characteristic == null) continue;
 
-            double baseGain   = kvp.Value;
+            double baseGain   = kvp.Value * statGrowthCoeff;
             int    current    = characteristic.FinalValue;
 
             // Diminishing returns: harder to grow an already-high stat
