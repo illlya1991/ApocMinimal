@@ -95,7 +95,7 @@
 
                     <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
 
-                    <Button Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
+                    <Button x:Name="ExecuteBtn" Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
 
                     <Separator Background="#30363d" Margin="0,12,0,6"/>
                     <TextBlock Text="ТЕХНИКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>

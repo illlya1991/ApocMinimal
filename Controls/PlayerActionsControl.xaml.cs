@@ -71,6 +71,20 @@ public partial class PlayerActionsControl : UserControl
         RefreshTechniquePanel();
         RefreshResourceCombo();
         RefreshActionCombo();
+        RefreshExecuteBtn();
+    }
+
+    private void RefreshExecuteBtn()
+    {
+        if (ExecuteBtn == null || _viewModel == null) return;
+        bool noActionsLeft = !_viewModel.HasActionsLeft;
+        bool consumesAction = _viewModel.SelectedAction?.ConsumesAction ?? true;
+        bool blocked = noActionsLeft && consumesAction;
+        ExecuteBtn.IsEnabled = !blocked;
+        ExecuteBtn.Opacity = blocked ? 0.4 : 1.0;
+        ExecuteBtn.ToolTip = blocked
+            ? $"Все действия за день использованы (лимит {Player.MaxPlayerActionsPerDay})"
+            : null;
     }
 
     private void RefreshActionCombo()
@@ -249,6 +263,7 @@ public partial class PlayerActionsControl : UserControl
         _viewModel.SelectedAction = action;
         BuildParametersUI(action);
         ParametersPanel.Visibility = Visibility.Visible;
+        RefreshExecuteBtn();
     }
 
     private void BuildParametersUI(PlayerGameAction action)

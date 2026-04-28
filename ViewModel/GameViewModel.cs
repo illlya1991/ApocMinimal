@@ -83,7 +83,14 @@ public class GameViewModel : INotifyPropertyChanged
     public int ActionsToday
     {
         get => _actionsToday;
-        set { _actionsToday = value; OnPropertyChanged(); OnPropertyChanged(nameof(ActionsDisplay)); OnPropertyChanged(nameof(HasActionsLeft)); }
+        set
+        {
+            _actionsToday = value;
+            if (_player != null) _player.PlayerActionsToday = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ActionsDisplay));
+            OnPropertyChanged(nameof(HasActionsLeft));
+        }
     }
 
     private double _barrierSize;
