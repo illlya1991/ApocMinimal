@@ -35,6 +35,8 @@ public class GameViewModel : INotifyPropertyChanged
     private List<string> _shopUnlocks = new();
     private List<int> _appliedExchangeIds = new();
     private List<(int RowId, string ItemId, string ItemType)> _techInventory = new();
+    private List<MonsterFaction> _monsterFactions = new();
+    private TrueTerminal _trueTerminal = new();
     public List<PresidentialExchangeEntry> PendingExchanges { get; private set; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -102,6 +104,11 @@ public class GameViewModel : INotifyPropertyChanged
     public PlayerFaction PlayerFaction => _player?.Faction ?? PlayerFaction.ElementMages;
     public int AliveNpcsCount => _npcs.Count(n => n.IsAlive);
     public int MaxActiveFollowers => _player?.MaxActiveFollowers ?? 0;
+
+    public List<MonsterFaction> MonsterFactions => _monsterFactions;
+    public TrueTerminal TrueTerminal => _trueTerminal;
+    public bool IsVictory => _trueTerminal.IsAchieved;
+    public bool IsDefeat => !_trueTerminal.IsAchieved && _player != null && _player.CurrentDay >= 365;
 
     public List<PlayerActionGroup> ActionGroups { get; private set; } = new();
     public PlayerGameAction? SelectedAction { get; set; }
@@ -174,6 +181,9 @@ public class GameViewModel : INotifyPropertyChanged
         TerminalLevel = _player.TerminalLevel;
         ActionsToday = _player.PlayerActionsToday;
         BarrierSize = _player.BarrierSize;
+
+        if (_monsterFactions.Count == 0)
+            _monsterFactions = MonsterFactionFactory.CreateDefault();
     }
 
     public void ReloadQuestLibrary()
@@ -461,11 +471,40 @@ public class GameViewModel : INotifyPropertyChanged
 
         _quests.AddRange(dayResult.NewQuests);
 
+        // ── Monster faction simulation ──────────────────────────────────────
+        var monsterLogs = MonsterFactionFactory.SimulateDay(_monsterFactions, _rnd);
+        foreach (var log in monsterLogs)
+            dayResult.Logs.Add((log, true));
+
+        // NPC AI: high monster threat erodes devotion
+        double avgThreat = _monsterFactions.Count > 0
+            ? _monsterFactions.Average(f => f.ThreatLevel)
+            : 0;
+        if (avgThreat > 60)
+        {
+            int penalty = avgThreat > 80 ? 5 : 2;
+            foreach (var npc in _npcs.Where(n => n.IsAlive))
+                npc.Devotion = Math.Max(0, npc.Devotion - penalty);
+            dayResult.Logs.Add(($"🔴 Давление монстров ({avgThreat:F0}): выжившие теряют -{penalty} Преданности", true));
+        }
+
         _player.CurrentDay++;
         _player.PlayerActionsToday = 0;
         CurrentDay = _player.CurrentDay;
         DevPoints = _player.DevPoints;
         ActionsToday = _player.PlayerActionsToday;
+
+        // ── Victory check ───────────────────────────────────────────────────
+        if (!_trueTerminal.IsAchieved)
+        {
+            int aliveFollowers = _npcs.Count(n => n.IsAlive && n.FollowerLevel > 0);
+            if (_trueTerminal.CheckAchieved(_player.TerminalLevel, aliveFollowers, _player.DevPoints, _player.CurrentDay))
+            {
+                _trueTerminal.IsAchieved = true;
+                _trueTerminal.AchievedDay = _player.CurrentDay;
+                dayResult.Logs.Add(("🏆 ИСТИННЫЙ ТЕРМИНАЛ ДОСТИГНУТ! ПОБЕДА!", false));
+            }
+        }
 
         return dayResult;
     }
