@@ -111,12 +111,15 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Techniques
-              (Name,Description,TerminalLevel,TechLevel,TechType,OPCost,EnergyCost,StaminaCost,RequiredStats,Faction,CatalogKey)
-            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs,@fn,@ck)", _conn);
+              (Name,Description,TerminalLevel,TechLevel,TechType,OPCost,EnergyCost,StaminaCost,
+               RequiredStats,HealAmount,Faction,CatalogKey,ActivationModes)
+            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs,@ha,@fn,@ck,@am)", _conn);
         BindTechnique(cmd, t);
         cmd.ExecuteNonQuery();
         t.Id = (int)_conn.LastInsertRowId;
     }
+
+    private static readonly JsonSerializerOptions JsonOptsPolymorphic = new() { WriteIndented = false };
 
     private void BindTechnique(SQLiteCommand cmd, Technique t)
     {
@@ -129,8 +132,10 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@cc", t.EnergyCost);
         cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
         cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
+        cmd.Parameters.AddWithValue("@ha", t.HealAmount);
         cmd.Parameters.AddWithValue("@fn", t.Faction);
         cmd.Parameters.AddWithValue("@ck", t.CatalogKey);
+        cmd.Parameters.AddWithValue("@am", JsonSerializer.Serialize(t.ActivationModes, JsonOptsPolymorphic));
     }
 
 
@@ -152,7 +157,7 @@ public class DatabaseManager
         using var cmd = new SQLiteCommand(
             "UPDATE Techniques SET Name=@nm,Description=@ds,TerminalLevel=@al,TechLevel=@tl," +
             "TechType=@tt,OPCost=@fc,EnergyCost=@cc,StaminaCost=@sc,RequiredStats=@rs," +
-            "Faction=@fn,CatalogKey=@ck WHERE Id=@id", _conn);
+            "HealAmount=@ha,Faction=@fn,CatalogKey=@ck,ActivationModes=@am WHERE Id=@id", _conn);
         BindTechnique(cmd, t);
         cmd.Parameters.AddWithValue("@id", t.Id);
         cmd.ExecuteNonQuery();
@@ -419,6 +424,7 @@ public class DatabaseManager
         {
             "ALTER TABLE Npcs ADD COLUMN LearnedTechIds TEXT NOT NULL DEFAULT '[]'",
             "ALTER TABLE Npcs ADD COLUMN LearnedAbilityIds TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE Techniques ADD COLUMN ActivationModes TEXT NOT NULL DEFAULT '[]'",
         };
         foreach (var sql in alters)
         {
@@ -426,11 +432,40 @@ public class DatabaseManager
         }
         ExecuteNQ(@"
             CREATE TABLE IF NOT EXISTS PlayerTechInventory (
-                Id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                SaveId  TEXT    NOT NULL,
-                ItemId  TEXT    NOT NULL,
-                ItemType TEXT   NOT NULL
+                Id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                SaveId   TEXT    NOT NULL,
+                TechKey  TEXT    NOT NULL
             )");
+    }
+
+    public List<string> GetTechInventory(string saveId)
+    {
+        var list = new List<string>();
+        using var cmd = new SQLiteCommand(
+            "SELECT TechKey FROM PlayerTechInventory WHERE SaveId=@s", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read()) list.Add(rdr.GetString(0));
+        return list;
+    }
+
+    public void AddTechInventoryItem(string saveId, string techKey)
+    {
+        using var cmd = new SQLiteCommand(
+            "INSERT INTO PlayerTechInventory (SaveId,TechKey) VALUES (@s,@k)", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        cmd.Parameters.AddWithValue("@k", techKey);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void RemoveTechInventoryItem(string saveId, string techKey)
+    {
+        using var cmd = new SQLiteCommand(
+            "DELETE FROM PlayerTechInventory WHERE SaveId=@s AND TechKey=@k AND Id=(" +
+            "SELECT Id FROM PlayerTechInventory WHERE SaveId=@s AND TechKey=@k LIMIT 1)", _conn);
+        cmd.Parameters.AddWithValue("@s", saveId);
+        cmd.Parameters.AddWithValue("@k", techKey);
+        cmd.ExecuteNonQuery();
     }
 
     // ── Game log persistence ─────────────────────────────────────────────────
@@ -480,42 +515,6 @@ public class DatabaseManager
         while (rdr.Read())
             result.Add((rdr.GetInt32(0), rdr.GetString(1), rdr.GetString(2), rdr.GetString(3), rdr.GetInt32(4) == 1));
         return result;
-    }
-
-    // ── Player tech/ability inventory ────────────────────────────────────────
-
-    public List<(int RowId, string ItemId, string ItemType)> GetTechInventory(string saveId)
-    {
-        var list = new List<(int, string, string)>();
-        try
-        {
-            using var cmd = new SQLiteCommand(
-                "SELECT Id, ItemId, ItemType FROM PlayerTechInventory WHERE SaveId=@s ORDER BY Id", _conn);
-            cmd.Parameters.AddWithValue("@s", saveId);
-            using var rdr = cmd.ExecuteReader();
-            while (rdr.Read())
-                list.Add((rdr.GetInt32(0), rdr.GetString(1), rdr.GetString(2)));
-        }
-        catch { }
-        return list;
-    }
-
-    public void AddTechInventoryItem(string saveId, string itemId, string itemType)
-    {
-        using var cmd = new SQLiteCommand(
-            "INSERT INTO PlayerTechInventory (SaveId, ItemId, ItemType) VALUES (@s,@i,@t)", _conn);
-        cmd.Parameters.AddWithValue("@s", saveId);
-        cmd.Parameters.AddWithValue("@i", itemId);
-        cmd.Parameters.AddWithValue("@t", itemType);
-        cmd.ExecuteNonQuery();
-    }
-
-    public void RemoveTechInventoryItem(int rowId)
-    {
-        using var cmd = new SQLiteCommand(
-            "DELETE FROM PlayerTechInventory WHERE Id=@id", _conn);
-        cmd.Parameters.AddWithValue("@id", rowId);
-        cmd.ExecuteNonQuery();
     }
 
     public void DeleteSave(OneSave value)
@@ -969,6 +968,12 @@ public class DatabaseManager
         t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new Dictionary<int, double>();
         t.Faction = GetStringOrDefault(rdr, "Faction");
         t.CatalogKey = GetStringOrDefault(rdr, "CatalogKey");
+        try
+        {
+            string amJson = GetStringOrDefault(rdr, "ActivationModes", "[]");
+            t.ActivationModes = JsonSerializer.Deserialize<List<ActivationMode>>(amJson, JsonOptsPolymorphic) ?? new();
+        }
+        catch { t.ActivationModes = new(); }
 
         return t;
     }

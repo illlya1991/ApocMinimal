@@ -30,6 +30,12 @@ public class Technique
     public double TrustBoost { get; set; }
     public double FearClear { get; set; }
     public double StaminaBoost { get; set; }
+
+    /// <summary>Activation modes stored as JSON. 1–9 entries; count scales with TerminalLevel.</summary>
+    public List<ActivationMode> ActivationModes { get; set; } = new();
+
+    /// <summary>Human-readable label for the number of activation modes.</summary>
+    public string ModesLabel => ActivationModes.Count == 0 ? "—" : $"{ActivationModes.Count} реж.";
 }
 
 public class Player

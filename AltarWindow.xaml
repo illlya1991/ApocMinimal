@@ -85,19 +85,8 @@
         </TabItem>
         <!-- ТЕХНИКИ -->
         <TabItem Header="Техники" Style="{StaticResource TabStyle}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="14">
-                    <TextBlock Text="КУПИТЬ ТЕХНИКУ / СПОСОБНОСТЬ" Style="{StaticResource Hdr}"/>
-                    <StackPanel x:Name="TechShopPanel"/>
-                    <TextBlock Text="ОБУЧИТЬ НПС" Style="{StaticResource Hdr}" Margin="0,12,0,4"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                        <TextBlock Text="НПС:" Foreground="#8b949e" FontSize="10" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <ComboBox x:Name="TeachNpcCombo" Width="180" Background="#21262d" Foreground="#c9d1d9"
-                                  BorderBrush="#30363d" FontSize="10" SelectionChanged="TeachNpcCombo_SelectionChanged"/>
-                    </StackPanel>
-                    <StackPanel x:Name="TechInventoryPanel"/>
-                </StackPanel>
-            </ScrollViewer>
+            <TextBlock Text="Управление техниками — открыть через кнопку «Техники»."
+                       Foreground="#8b949e" FontSize="11" Margin="14,20,14,0"/>
         </TabItem>
     </TabControl>
 </Window>

@@ -617,63 +617,18 @@ public static class NpcInfoBuilder
 
     public static void AddTechAbilitySection(StackPanel panel, Npc npc)
     {
-        bool hasAbilities  = npc.LearnedAbilityIds.Count > 0;
-        bool hasTechniques = npc.LearnedTechIds.Count  > 0;
-        if (!hasAbilities && !hasTechniques) return;
+        if (npc.LearnedTechIds.Count == 0) return;
 
-        panel.Children.Add(CreateSectionHeader("ТЕХНИКИ И СПОСОБНОСТИ"));
+        panel.Children.Add(CreateSectionHeader("ТЕХНИКИ"));
 
-        // Abilities first
-        foreach (var abilId in npc.LearnedAbilityIds)
+        foreach (var key in npc.LearnedTechIds)
         {
-            var abil = TechAbilityCatalog.FindAbility(abilId);
-            string abilName = abil?.Name ?? abilId;
-
             panel.Children.Add(new TextBlock
             {
-                Text = $"◆ {abilName}",
-                Foreground = GetBrush("#c084fc"),
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, 3, 0, 1),
-            });
-
-            if (abil != null)
-            {
-                foreach (var techId in abil.TechniqueIds)
-                {
-                    var tech = TechAbilityCatalog.FindTech(techId);
-                    if (tech == null) continue;
-                    string kindLabel = tech.Kind == TechKind.Passive ? "Пассив" : "Актив";
-                    string fgColor   = tech.Kind == TechKind.Passive ? "#7ee787" : "#79c0ff";
-                    panel.Children.Add(new TextBlock
-                    {
-                        Text = $"   • {tech.Name} [{kindLabel}]",
-                        Foreground = GetBrush(fgColor),
-                        FontSize = 11,
-                        Margin = new Thickness(0, 1, 0, 1),
-                        ToolTip = tech.Kind == TechKind.Passive ? tech.Description
-                            : $"{tech.Description}\n⚔ {tech.CombatEffect}\n🌿 {tech.LifeEffect}",
-                    });
-                }
-            }
-        }
-
-        // Standalone techniques
-        foreach (var techId in npc.LearnedTechIds)
-        {
-            var tech = TechAbilityCatalog.FindTech(techId);
-            string techName  = tech?.Name ?? techId;
-            string kindLabel = tech?.Kind == TechKind.Passive ? "Пассив" : "Актив";
-            string fgColor   = tech?.Kind == TechKind.Passive ? "#7ee787" : "#79c0ff";
-            panel.Children.Add(new TextBlock
-            {
-                Text = $"▸ {techName} [{kindLabel}]",
-                Foreground = GetBrush(fgColor),
+                Text = $"▸ {key}",
+                Foreground = GetBrush("#79c0ff"),
                 FontSize = 12,
                 Margin = new Thickness(0, 2, 0, 2),
-                ToolTip = tech == null ? null : (tech.Kind == TechKind.Passive ? tech.Description
-                    : $"{tech.Description}\n⚔ {tech.CombatEffect}\n🌿 {tech.LifeEffect}"),
             });
         }
     }

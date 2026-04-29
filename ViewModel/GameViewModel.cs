@@ -34,7 +34,7 @@ public class GameViewModel : INotifyPropertyChanged
     private List<PlayerLibraryEntry> _playerLibrary = new();
     private List<string> _shopUnlocks = new();
     private List<int> _appliedExchangeIds = new();
-    private List<(int RowId, string ItemId, string ItemType)> _techInventory = new();
+    private List<string> _techInventory = new();
     private List<MonsterFaction> _monsterFactions = new();
     private TrueTerminal _trueTerminal = new();
     public List<PresidentialExchangeEntry> PendingExchanges { get; private set; } = new();
@@ -685,123 +685,53 @@ public class GameViewModel : INotifyPropertyChanged
         return -1;
     }
 
-    // ── Tech / Ability inventory ─────────────────────────────────────────────
+    // ── Tech inventory (CatalogKeys owned by player) ─────────────────────────
 
-    public List<(int RowId, string ItemId, string ItemType)> TechInventory => _techInventory;
+    public List<string> TechInventory => _techInventory;
 
-    /// <summary>Buy one copy of a technique or ability from the altar shop.</summary>
-    public string BuyTechItem(string itemId, string itemType)
+    /// <summary>Buy one copy of a technique from the catalog (costs OPCost ОР).</summary>
+    public string BuyTechnique(Technique tech)
     {
-        double cost;
-        string name;
-        int reqAltar;
+        if (TerminalLevel < tech.TerminalLevel)
+            return $"Требуется уровень Терминала {tech.TerminalLevel} (сейчас {TerminalLevel})";
+        if (_player.DevPoints < tech.OPCost)
+            return $"Недостаточно ОР (нужно {tech.OPCost:F0}, есть {_player.DevPoints:F0})";
 
-        if (itemType == "Technique")
-        {
-            var def = TechAbilityCatalog.FindTech(itemId);
-            if (def == null) return "Техника не найдена";
-            cost = def.BuyCost;
-            name = def.Name;
-            reqAltar = def.TerminalLevel;
-        }
-        else
-        {
-            var def = TechAbilityCatalog.FindAbility(itemId);
-            if (def == null) return "Способность не найдена";
-            cost = def.BuyCost;
-            name = def.Name;
-            reqAltar = def.TerminalLevel;
-        }
-
-        if (TerminalLevel < reqAltar)
-            return $"Требуется уровень Терминала {reqAltar} (сейчас {TerminalLevel})";
-        if (_player.DevPoints < cost)
-            return $"Недостаточно ОР (нужно {cost:F0}, есть {_player.DevPoints:F0})";
-
-        _player.DevPoints -= cost;
+        _player.DevPoints -= tech.OPCost;
         _db.SavePlayer(_player);
-        _db.AddTechInventoryItem(_db.CurrentSaveId, itemId, itemType);
+        _db.AddTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
         DevPoints = _player.DevPoints;
-        return $"Куплено: «{name}» за {cost:F0} ОР";
+        return $"Куплено: «{tech.Name}» за {tech.OPCost:F0} ОР";
     }
 
     /// <summary>
-    /// Teach a technique or ability from inventory to an NPC.
-    /// Removes the item from player inventory. Applies passive stat bonuses.
+    /// Teach a technique from inventory to an NPC.
+    /// Removes one copy from inventory. NPC cannot re-learn what it already knows.
     /// </summary>
-    public string TeachTechItem(Npc npc, int rowId, string itemId, string itemType)
+    public string TeachTechnique(Npc npc, Technique tech)
     {
-        // Confirm the row still exists
-        var entry = _techInventory.FirstOrDefault(e => e.RowId == rowId);
-        if (entry == default) return "Предмет не найден в инвентаре";
+        if (!_techInventory.Contains(tech.CatalogKey))
+            return "Нет в инвентаре";
+        if (npc.LearnedTechIds.Contains(tech.CatalogKey))
+            return $"«{npc.Name}» уже знает технику «{tech.Name}»";
 
-        if (itemType == "Technique")
+        // Check required stats
+        foreach (var (statId, minVal) in tech.RequiredStats)
         {
-            var def = TechAbilityCatalog.FindTech(itemId);
-            if (def == null) return "Техника не найдена";
-
-            // Cannot re-learn standalone tech if already learned standalone
-            if (npc.LearnedTechIds.Contains(itemId))
-                return $"«{npc.Name}» уже знает технику «{def.Name}»";
-
-            // Cannot learn standalone tech if it's already part of a learned ability
-            foreach (var abilId in npc.LearnedAbilityIds)
+            int cur = npc.Stats.GetStatValue(statId);
+            if (cur < minVal)
             {
-                var abil = TechAbilityCatalog.FindAbility(abilId);
-                if (abil != null && abil.TechniqueIds.Contains(itemId))
-                    return $"Техника «{def.Name}» уже входит в способность «{abil.Name}»";
+                string sname = npc.Stats.GetByNumber(statId)?.Name ?? $"Стат {statId}";
+                return $"Требуется {sname} ≥ {minVal} (есть {cur})";
             }
-
-            npc.LearnedTechIds.Add(itemId);
-            ApplyTechStatBonus(npc, def);
-        }
-        else // Ability
-        {
-            var def = TechAbilityCatalog.FindAbility(itemId);
-            if (def == null) return "Способность не найдена";
-
-            if (npc.LearnedAbilityIds.Contains(itemId))
-                return $"«{npc.Name}» уже знает способность «{def.Name}»";
-
-            // Merge standalone techs that are included in the ability
-            foreach (var techId in def.TechniqueIds)
-            {
-                if (npc.LearnedTechIds.Remove(techId))
-                {
-                    // Stat bonus was already applied when tech was learned standalone — skip re-apply
-                }
-                else
-                {
-                    // Tech not yet learned: apply its passive bonus now
-                    var techDef = TechAbilityCatalog.FindTech(techId);
-                    if (techDef != null) ApplyTechStatBonus(npc, techDef);
-                }
-            }
-
-            npc.LearnedAbilityIds.Add(itemId);
         }
 
-        _db.RemoveTechInventoryItem(rowId);
+        npc.LearnedTechIds.Add(tech.CatalogKey);
+        _db.RemoveTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
         _db.SaveNpc(npc);
-        return $"«{npc.Name}» обучен успешно";
-    }
-
-    private static void ApplyTechStatBonus(Npc npc, TechniqueDefinition def)
-    {
-        if (def.Kind != TechKind.Passive) return;
-        foreach (var (statId, bonus) in def.StatBonus)
-        {
-            var stat = npc.Stats.GetByNumber(statId);
-            if (stat == null) continue;
-            stat.AddModifier(new PermanentModifier(
-                $"tech_{def.Id}",
-                def.Name,
-                "Техника",
-                ModifierType.Additive,
-                bonus));
-        }
+        return $"«{npc.Name}» обучен технике «{tech.Name}»";
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
