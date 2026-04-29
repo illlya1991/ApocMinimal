@@ -57,7 +57,7 @@ public static class TechniqueSystem
             sb.Append($"{tech.Name} применена → {npc.Name}:");
             if (tech.TrustBoost > 0)
             {
-                int prev = npc.Trust;
+                int prev = (int)npc.Trust;
                 npc.Trust = (int)Math.Min(100, npc.Trust + tech.TrustBoost);
                 sb.Append($" Доверие +{npc.Trust - prev}");
             }
