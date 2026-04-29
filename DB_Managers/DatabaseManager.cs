@@ -423,7 +423,6 @@ public class DatabaseManager
         string[] alters =
         {
             "ALTER TABLE Npcs ADD COLUMN LearnedTechIds TEXT NOT NULL DEFAULT '[]'",
-            "ALTER TABLE Npcs ADD COLUMN LearnedAbilityIds TEXT NOT NULL DEFAULT '[]'",
             "ALTER TABLE Techniques ADD COLUMN ActivationModes TEXT NOT NULL DEFAULT '[]'",
         };
         foreach (var sql in alters)
@@ -782,7 +781,7 @@ public class DatabaseManager
             CharTraits=@ct, Specializations=@sp, Emotions=@em,
             Goal=@gl, Dream=@dr, Desire=@de,
             Needs=@nd, Memory=@me, Statistics=@stat, LocationId=@li,
-            LearnedTechIds=@lti, LearnedAbilityIds=@lai
+            LearnedTechIds=@lti
         WHERE Id=@id", _conn);
 
         cmd.Parameters.AddWithValue("@hp", n.Health);
@@ -811,7 +810,6 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@id", n.Id);
         cmd.Parameters.AddWithValue("@li", n.LocationId);
         cmd.Parameters.AddWithValue("@lti", JsonSerializer.Serialize(n.LearnedTechIds, JsonOpts));
-        cmd.Parameters.AddWithValue("@lai", JsonSerializer.Serialize(n.LearnedAbilityIds, JsonOpts));
 
         SaveModifiersForNpc(n.Id, n.Stats);
         cmd.ExecuteNonQuery();
@@ -1084,8 +1082,7 @@ public class DatabaseManager
         }
 
         npc.LocationId = GetIntOrDefault(rdr, "LocationId", 0);
-        npc.LearnedTechIds    = DeserializeOrDefault<List<string>>(rdr, "LearnedTechIds")    ?? new();
-        npc.LearnedAbilityIds = DeserializeOrDefault<List<string>>(rdr, "LearnedAbilityIds") ?? new();
+        npc.LearnedTechIds = DeserializeOrDefault<List<string>>(rdr, "LearnedTechIds") ?? new();
 
         return npc;
     }

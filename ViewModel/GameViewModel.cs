@@ -35,6 +35,7 @@ public class GameViewModel : INotifyPropertyChanged
     private List<string> _shopUnlocks = new();
     private List<int> _appliedExchangeIds = new();
     private List<string> _techInventory = new();
+    private List<Technique> _inventoryTechniques = new();
     private List<MonsterFaction> _monsterFactions = new();
     private TrueTerminal _trueTerminal = new();
     public List<PresidentialExchangeEntry> PendingExchanges { get; private set; } = new();
@@ -128,7 +129,7 @@ public class GameViewModel : INotifyPropertyChanged
     public List<Quest> ActiveQuests => _quests.Where(q => q.Status == QuestStatus.Active).ToList();
     // Теперь вместо _locations используем _locationService
     public List<Location> Locations => _locationService.GetAllLocations();
-    public IEnumerable<Technique> UnlockedTechniques => Enumerable.Empty<Technique>();
+    public IEnumerable<Technique> UnlockedTechniques => _inventoryTechniques;
     public List<QuestCatalogEntry> QuestShop => _questCatalog.Where(q => q.MinTerminalLevel <= TerminalLevel).ToList();
     public List<PlayerLibraryEntry> PurchasedQuests => _playerLibrary;
     public List<Quest> PublishedQuests => _quests.Where(q => q.Status == QuestStatus.Available).ToList();
@@ -174,6 +175,7 @@ public class GameViewModel : INotifyPropertyChanged
         _shopUnlocks = _db.GetShopUnlocks(_db.CurrentSaveId);
         _appliedExchangeIds = _db.GetAppliedExchanges(_db.CurrentSaveId);
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
+        RefreshInventoryTechniques();
 
         CurrentDay = _player.CurrentDay;
         DevPoints = _player.DevPoints;
@@ -701,6 +703,7 @@ public class GameViewModel : INotifyPropertyChanged
         _db.SavePlayer(_player);
         _db.AddTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
+        RefreshInventoryTechniques();
         DevPoints = _player.DevPoints;
         return $"Куплено: «{tech.Name}» за {tech.OPCost:F0} ОР";
     }
@@ -730,9 +733,14 @@ public class GameViewModel : INotifyPropertyChanged
         npc.LearnedTechIds.Add(tech.CatalogKey);
         _db.RemoveTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
+        RefreshInventoryTechniques();
         _db.SaveNpc(npc);
         return $"«{npc.Name}» обучен технике «{tech.Name}»";
     }
+
+    private void RefreshInventoryTechniques() =>
+        _inventoryTechniques = _db.GetAllTechniques()
+            .Where(t => _techInventory.Contains(t.CatalogKey)).ToList();
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
