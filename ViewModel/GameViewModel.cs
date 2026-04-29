@@ -687,7 +687,12 @@ public class GameViewModel : INotifyPropertyChanged
         return -1;
     }
 
-    // ── Tech inventory (CatalogKeys owned by player) ─────────────────────────
+    // ── Tech catalog & inventory ─────────────────────────────────────────────
+
+    public List<Technique> GetTechniqueCatalog() => _db.GetTechniquesByFaction(_player.Faction.ToString(), 10);
+
+    public Dictionary<string, int> TechInventoryCounts =>
+        _techInventory.GroupBy(k => k).ToDictionary(g => g.Key, g => g.Count());
 
     public List<string> TechInventory => _techInventory;
 

@@ -1,0 +1,247 @@
+<Window x:Class="ApocMinimal.TechniqueWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Техники"
+        Height="700" Width="1300"
+        WindowStartupLocation="CenterScreen"
+        Background="#0d1117"
+        Foreground="#c9d1d9"
+        FontFamily="Consolas"
+        FontSize="12">
+
+    <Window.Resources>
+        <Style x:Key="DarkGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="#161b22"/>
+            <Setter Property="Foreground" Value="#c9d1d9"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="#161b22"/>
+            <Setter Property="AlternatingRowBackground" Value="#0d1117"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#21262d"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#21262d"/>
+            <Setter Property="ColumnHeaderHeight" Value="26"/>
+            <Setter Property="RowHeight" Value="22"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+        <Style x:Key="DarkGridHeader" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#21262d"/>
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="DarkGridCell" TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="3,1"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1f3a5f"/>
+                    <Setter Property="Foreground" Value="#ffffff"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DarkRow" TargetType="DataGridRow">
+            <Setter Property="Background" Value="#161b22"/>
+            <Setter Property="Foreground" Value="#c9d1d9"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1f3a5f"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="Background" Value="#21262d"/>
+            <Setter Property="Foreground" Value="#c9d1d9"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363d"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#4a4a4a"/>
+                    <Setter Property="Background" Value="#161b22"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="Hdr" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="Panel" TargetType="Border">
+            <Setter Property="Background" Value="#161b22"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Padding" Value="6"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="#161b22" BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="10,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="ТЕХНИКИ" FontSize="15" FontWeight="Bold" Foreground="#79c0ff" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="✕" Width="28" Height="28"
+                        Background="#21262d" Foreground="#f87171"
+                        BorderBrush="#30363d" BorderThickness="1"
+                        Click="Close_Click" Cursor="Hand"/>
+            </Grid>
+        </Border>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Background="#161b22" BorderBrush="#30363d" BorderThickness="0,1,0,0" Padding="10,4">
+            <TextBlock x:Name="StatusText" Foreground="#8b949e" FontSize="11" Text=""/>
+        </Border>
+
+        <!-- 3 columns -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2.5*"/>
+                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ── Магазин ── -->
+            <Border Grid.Column="0" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                        <TextBlock Text="МАГАЗИН" Style="{StaticResource Hdr}" VerticalAlignment="Center"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <ComboBox x:Name="FactionFilter" Width="110" Height="22" FontSize="11"
+                                      Background="#21262d" Foreground="#c9d1d9" BorderBrush="#30363d"
+                                      Margin="0,0,4,0" SelectionChanged="FactionFilter_Changed"/>
+                            <ComboBox x:Name="LevelFilter" Width="70" Height="22" FontSize="11"
+                                      Background="#21262d" Foreground="#c9d1d9" BorderBrush="#30363d"
+                                      SelectionChanged="LevelFilter_Changed"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <Button DockPanel.Dock="Bottom" Content="Купить (OPCost ОР)" Style="{StaticResource Btn}"
+                            Background="#1f3a1a" Foreground="#56d364" Margin="0,4,0,0"
+                            Click="BuyTech_Click"/>
+                    <DataGrid x:Name="CatalogGrid" Style="{StaticResource DarkGrid}"
+                              ColumnHeaderStyle="{StaticResource DarkGridHeader}"
+                              CellStyle="{StaticResource DarkGridCell}"
+                              SelectionChanged="CatalogGrid_SelectionChanged"
+                              MouseDoubleClick="CatalogGrid_DoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource DarkRow}"/>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Ур." Binding="{Binding TerminalLevel}" Width="30"/>
+                            <DataGridTextColumn Header="Тип" Binding="{Binding TechType}" Width="60"/>
+                            <DataGridTextColumn Header="ОР" Binding="{Binding OPCost, StringFormat={}{0:F0}}" Width="45"/>
+                            <DataGridTextColumn Header="Реж." Binding="{Binding ModesLabel}" Width="45"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
+            <!-- ── Инвентарь ── -->
+            <Border Grid.Column="1" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="КУПЛЕНО" Style="{StaticResource Hdr}"/>
+                    <DataGrid x:Name="InventoryGrid" Style="{StaticResource DarkGrid}"
+                              ColumnHeaderStyle="{StaticResource DarkGridHeader}"
+                              CellStyle="{StaticResource DarkGridCell}"
+                              SelectionChanged="InventoryGrid_SelectionChanged">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource DarkRow}"/>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Ур." Binding="{Binding TerminalLevel}" Width="30"/>
+                            <DataGridTextColumn Header="×" Binding="{Binding Count}" Width="30"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
+            <!-- ── Обучить НПС ── -->
+            <Border Grid.Column="2" Style="{StaticResource Panel}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="ОБУЧИТЬ НПС" Style="{StaticResource Hdr}"/>
+
+                    <!-- NPC selector row -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="НПС:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" DockPanel.Dock="Left"/>
+                        <ComboBox x:Name="NpcCombo" Background="#21262d" Foreground="#c9d1d9"
+                                  BorderBrush="#30363d" FontSize="11" Height="24"
+                                  SelectionChanged="NpcCombo_SelectionChanged"/>
+                    </DockPanel>
+
+                    <!-- Find buttons -->
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button Content="НПС с техникой" Style="{StaticResource Btn}" Margin="0,0,4,0"
+                                Click="FindNpcWith_Click"/>
+                        <Button Content="НПС без техники" Style="{StaticResource Btn}"
+                                Click="FindNpcWithout_Click"/>
+                    </StackPanel>
+
+                    <!-- Teach button -->
+                    <Button DockPanel.Dock="Bottom" Content="Обучить выбранной технике" Style="{StaticResource Btn}"
+                            Background="#1a2d4a" Foreground="#58a6ff" Margin="0,4,0,0"
+                            Click="Teach_Click"/>
+
+                    <!-- Split: NPC techniques (top) + inventory for teaching (bottom) -->
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="8"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0">
+                            <TextBlock DockPanel.Dock="Top" Text="Техники НПС:" Foreground="#8b949e" FontSize="10" Margin="0,0,0,2"/>
+                            <DataGrid x:Name="NpcTechGrid" Style="{StaticResource DarkGrid}"
+                                      ColumnHeaderStyle="{StaticResource DarkGridHeader}"
+                                      CellStyle="{StaticResource DarkGridCell}">
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow" BasedOn="{StaticResource DarkRow}"/>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="*"/>
+                                    <DataGridTextColumn Header="Ур." Binding="{Binding TerminalLevel}" Width="30"/>
+                                    <DataGridTextColumn Header="Тип" Binding="{Binding TechType}" Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+
+                        <DockPanel Grid.Row="2">
+                            <TextBlock DockPanel.Dock="Top" Text="Выбрать из инвентаря:" Foreground="#8b949e" FontSize="10" Margin="0,0,0,2"/>
+                            <DataGrid x:Name="TeachFromGrid" Style="{StaticResource DarkGrid}"
+                                      ColumnHeaderStyle="{StaticResource DarkGridHeader}"
+                                      CellStyle="{StaticResource DarkGridCell}"
+                                      SelectionChanged="TeachFromGrid_SelectionChanged">
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow" BasedOn="{StaticResource DarkRow}"/>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="*"/>
+                                    <DataGridTextColumn Header="Ур." Binding="{Binding TerminalLevel}" Width="30"/>
+                                    <DataGridTextColumn Header="×" Binding="{Binding Count}" Width="30"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

@@ -291,6 +291,14 @@ public partial class GameWindow : Window
         RefreshAll();
     }
 
+    private void TechniquesBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var w = new TechniqueWindow(_viewModel, LogPlayer);
+        w.ShowDialog();
+        _viewModel.Refresh();
+        RefreshAll();
+    }
+
     // =========================================================
     // Settings
     // =========================================================

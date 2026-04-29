@@ -68,6 +68,10 @@
                             Style="{StaticResource ActionBtn}"
                             Background="#1a3a2a" Foreground="#56d364"
                             Width="110" Margin="0,0,8,0" Click="QuestsBtn_Click"/>
+                    <Button x:Name="TechniquesBtn" Content="⚡ ТЕХНИКИ"
+                            Style="{StaticResource ActionBtn}"
+                            Background="#1a2a3a" Foreground="#79c0ff"
+                            Width="110" Margin="0,0,8,0" Click="TechniquesBtn_Click"/>
                     <Button x:Name="FullscreenInfoBtn" Content="📊 ПОЛНЫЙ ОБЗОР"
                             Style="{StaticResource ActionBtn}"
                             Background="#2d1b69" Foreground="#d2a8ff"
