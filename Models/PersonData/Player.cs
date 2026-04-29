@@ -22,6 +22,10 @@ public class Technique
     /// If > 0, Apply() heals the target NPC by this amount instead of boosting stats.
     /// </summary>
     public double HealAmount { get; set; }
+    /// <summary>Faction restriction. Empty = available to all factions.</summary>
+    public string Faction { get; set; } = "";
+    /// <summary>Unique catalog key for INSERT OR IGNORE deduplication.</summary>
+    public string CatalogKey { get; set; } = "";
 
     // ── Player-level technique effects ────────────────────────────────
     /// <summary>If true, costs Player.Energy (not NPC energy or ОР).</summary>

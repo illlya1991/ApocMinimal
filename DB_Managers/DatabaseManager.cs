@@ -111,8 +111,25 @@ public class DatabaseManager
     {
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Techniques
-              (Name,Description,TerminalLevel,TechLevel,TechType,OPCost,EnergyCost,StaminaCost,RequiredStats)
-            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs)", _conn);
+              (Name,Description,TerminalLevel,TechLevel,TechType,OPCost,EnergyCost,StaminaCost,RequiredStats,Faction,CatalogKey)
+            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs,@fn,@ck)", _conn);
+        BindTechnique(cmd, t);
+        cmd.ExecuteNonQuery();
+        t.Id = (int)_conn.LastInsertRowId;
+    }
+
+    private void InsertTechniqueIgnore(Technique t)
+    {
+        using var cmd = new SQLiteCommand(@"
+            INSERT OR IGNORE INTO Techniques
+              (Name,Description,TerminalLevel,TechLevel,TechType,OPCost,EnergyCost,StaminaCost,RequiredStats,Faction,CatalogKey)
+            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs,@fn,@ck)", _conn);
+        BindTechnique(cmd, t);
+        cmd.ExecuteNonQuery();
+    }
+
+    private void BindTechnique(SQLiteCommand cmd, Technique t)
+    {
         cmd.Parameters.AddWithValue("@nm", t.Name);
         cmd.Parameters.AddWithValue("@ds", t.Description);
         cmd.Parameters.AddWithValue("@al", t.TerminalLevel);
@@ -122,24 +139,53 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@cc", t.EnergyCost);
         cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
         cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
-        cmd.ExecuteNonQuery();
-        t.Id = (int)_conn.LastInsertRowId;
+        cmd.Parameters.AddWithValue("@fn", t.Faction);
+        cmd.Parameters.AddWithValue("@ck", t.CatalogKey);
+    }
+
+    public void EnsureTechniqueColumns()
+    {
+        foreach (var sql in new[]
+        {
+            "ALTER TABLE Techniques ADD COLUMN HealAmount REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE Techniques ADD COLUMN Faction TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE Techniques ADD COLUMN CatalogKey TEXT NOT NULL DEFAULT ''",
+        })
+        { try { ExecuteNQ(sql); } catch { } }
+        try { ExecuteNQ("CREATE UNIQUE INDEX IF NOT EXISTS idx_tech_ck ON Techniques(CatalogKey) WHERE CatalogKey != ''"); } catch { }
+    }
+
+    public void SeedTechniquesIfEmpty()
+    {
+        EnsureTechniqueColumns();
+        long existing = (long)(ExecuteScalar("SELECT COUNT(*) FROM Techniques WHERE CatalogKey != ''") ?? 0L);
+        if (existing >= 1050) return;
+        using var tx = _conn.BeginTransaction();
+        foreach (var t in TechniqueSeeder.GetAll())
+            InsertTechniqueIgnore(t);
+        tx.Commit();
+    }
+
+    public List<Technique> GetTechniquesByFaction(string faction, int maxTerminalLevel)
+    {
+        var list = new List<Technique>();
+        using var cmd = new SQLiteCommand(
+            "SELECT * FROM Techniques WHERE (Faction=@fn OR Faction='') AND TerminalLevel<=@lvl ORDER BY TerminalLevel,TechType,Id",
+            _conn);
+        cmd.Parameters.AddWithValue("@fn", faction);
+        cmd.Parameters.AddWithValue("@lvl", maxTerminalLevel);
+        using var rdr = cmd.ExecuteReader();
+        while (rdr.Read()) list.Add(ReadTechnique(rdr));
+        return list;
     }
 
     public void SaveTechnique(Technique t)
     {
         using var cmd = new SQLiteCommand(
             "UPDATE Techniques SET Name=@nm,Description=@ds,TerminalLevel=@al,TechLevel=@tl," +
-            "TechType=@tt,OPCost=@fc,EnergyCost=@cc,StaminaCost=@sc,RequiredStats=@rs WHERE Id=@id", _conn);
-        cmd.Parameters.AddWithValue("@nm", t.Name);
-        cmd.Parameters.AddWithValue("@ds", t.Description);
-        cmd.Parameters.AddWithValue("@al", t.TerminalLevel);
-        cmd.Parameters.AddWithValue("@tl", t.TechLevel.ToString());
-        cmd.Parameters.AddWithValue("@tt", t.TechType.ToString());
-        cmd.Parameters.AddWithValue("@fc", t.OPCost);
-        cmd.Parameters.AddWithValue("@cc", t.EnergyCost);
-        cmd.Parameters.AddWithValue("@sc", t.StaminaCost);
-        cmd.Parameters.AddWithValue("@rs", JsonSerializer.Serialize(t.RequiredStats, JsonOpts));
+            "TechType=@tt,OPCost=@fc,EnergyCost=@cc,StaminaCost=@sc,RequiredStats=@rs," +
+            "Faction=@fn,CatalogKey=@ck WHERE Id=@id", _conn);
+        BindTechnique(cmd, t);
         cmd.Parameters.AddWithValue("@id", t.Id);
         cmd.ExecuteNonQuery();
     }
@@ -953,7 +999,10 @@ public class DatabaseManager
         t.OPCost = GetDoubleOrDefault(rdr, "OPCost");
         t.EnergyCost = GetDoubleOrDefault(rdr, "EnergyCost");
         t.StaminaCost = GetDoubleOrDefault(rdr, "StaminaCost");
+        t.HealAmount = GetDoubleOrDefault(rdr, "HealAmount");
         t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new Dictionary<int, double>();
+        t.Faction = GetStringOrDefault(rdr, "Faction");
+        t.CatalogKey = GetStringOrDefault(rdr, "CatalogKey");
 
         return t;
     }
