@@ -44,6 +44,7 @@ public class DatabaseManager
         }
         _thisSave = _ListSaves[0];
         InitializeDatabase();
+        SeedTemplateDB();
     }
 
     public List<OneSave> ListSaves { get { return _ListSaves; } }
@@ -153,6 +154,32 @@ public class DatabaseManager
         })
         { try { ExecuteNQ(sql); } catch { } }
         try { ExecuteNQ("CREATE UNIQUE INDEX IF NOT EXISTS idx_tech_ck ON Techniques(CatalogKey) WHERE CatalogKey != ''"); } catch { }
+    }
+
+    private void SeedTemplateDB()
+    {
+        if (!File.Exists(_templateSave._fileName)) return;
+        try
+        {
+            OpenConnection(_templateSave._connectionString);
+            EnsureTechniqueColumns();
+            long existing = (long)(ExecuteScalar("SELECT COUNT(*) FROM Techniques WHERE CatalogKey != ''") ?? 0L);
+            if (existing < 1050)
+            {
+                using var tx = _conn.BeginTransaction();
+                foreach (var t in TechniqueSeeder.GetAll())
+                    InsertTechniqueIgnore(t);
+                tx.Commit();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SeedTemplateDB error: {ex.Message}");
+        }
+        finally
+        {
+            OpenConnection("");
+        }
     }
 
     public void SeedTechniquesIfEmpty()
