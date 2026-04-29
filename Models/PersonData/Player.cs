@@ -1,42 +1,4 @@
-using ApocMinimal.Models.TechniqueData;
-
 namespace ApocMinimal.Models.PersonData;
-
-/// <summary>A technique grantable to NPCs or usable by the player via the terminal.</summary>
-public class Technique
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = "";
-    public string Description { get; set; } = "";
-    public int TerminalLevel { get; set; }   // min terminal level to grant/use
-    public double OPCost { get; set; }
-
-    // ── Technique system ──────────────────────────────────────────────
-    public TechniqueLevel TechLevel { get; set; } = TechniqueLevel.Initiate;
-    public TechniqueType TechType { get; set; } = TechniqueType.Energy;
-    public double EnergyCost { get; set; }
-    public double StaminaCost { get; set; }
-    /// <summary>Required minimum stat values (StatId → minValue).</summary>
-    public Dictionary<int, double> RequiredStats { get; set; } = new();
-    /// <summary>
-    /// If > 0, Apply() heals the target NPC by this amount instead of boosting stats.
-    /// </summary>
-    public double HealAmount { get; set; }
-    /// <summary>Faction restriction. Empty = available to all factions.</summary>
-    public string Faction { get; set; } = "";
-    /// <summary>Unique catalog key for INSERT OR IGNORE deduplication.</summary>
-    public string CatalogKey { get; set; } = "";
-
-    public double TrustBoost { get; set; }
-    public double FearClear { get; set; }
-    public double StaminaBoost { get; set; }
-
-    /// <summary>Activation modes stored as JSON. 1–9 entries; count scales with TerminalLevel.</summary>
-    public List<ActivationMode> ActivationModes { get; set; } = new();
-
-    /// <summary>Human-readable label for the number of activation modes.</summary>
-    public string ModesLabel => ActivationModes.Count == 0 ? "—" : $"{ActivationModes.Count} реж.";
-}
 
 public class Player
 {

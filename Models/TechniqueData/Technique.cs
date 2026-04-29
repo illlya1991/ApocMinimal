@@ -17,5 +17,9 @@ public class Technique
     public string                  CatalogKey      { get; set; } = "";
     public List<ActivationMode>    ActivationModes { get; set; } = new();
 
-    public string ModesLabel => ActivationModes.Count.ToString();
+    public double TrustBoost   { get; set; }
+    public double FearClear    { get; set; }
+    public double StaminaBoost { get; set; }
+
+    public string ModesLabel => ActivationModes.Count == 0 ? "—" : $"{ActivationModes.Count} реж.";
 }
