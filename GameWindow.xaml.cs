@@ -27,7 +27,6 @@ public partial class GameWindow : Window
         db.EnsurePlayerSchema();
         db.EnsureNpcTechSchema();
         db.EnsureGameLogTable();
-        db.SeedTechniquesIfEmpty(); // migrate existing saves that pre-date template seeding
         _viewModel = new GameViewModel(db, LogPlayer);
         DataContext = _viewModel;
         _viewModel.PropertyChanged += (s, e) => RefreshHeader();
