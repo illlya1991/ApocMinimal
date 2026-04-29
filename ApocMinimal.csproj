@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ApocMinimal</AssemblyName>
     <RootNamespace>ApocMinimal</RootNamespace>
+    <ApplicationIcon>Resources\earth_after_the_end.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,10 +19,15 @@
     <Content Include="DataBase\apoc_minimal_template.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="Resources\earth_after_the_end.ico" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
 
 </Project>

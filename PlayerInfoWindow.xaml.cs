@@ -118,7 +118,7 @@ public partial class PlayerInfoWindow : Window
         row.Children.Add(tb);
     }
 
-    }
+    
 
     private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();
 }
