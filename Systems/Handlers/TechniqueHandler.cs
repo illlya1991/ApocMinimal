@@ -79,8 +79,8 @@ public class TechniqueHandler : BaseActionHandler
         Log($"    Стоимость: {technique.OPCost:F0} веры", LogEntry.ColorNormal);
         Log($"    Доверие +{trustGain}", LogEntry.ColorSuccess);
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine,
-            $"Божество обучило меня технике «{technique.Name}»"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social,
+            $"Координатор обучил меня технике «{technique.Name}»"));
 
         return $"Техника «{technique.Name}» передана {target.Name}";
     }

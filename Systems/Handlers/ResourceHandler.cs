@@ -159,7 +159,7 @@ public class ResourceHandler : BaseActionHandler
         Log($"  Доверие -{trustLossFinal} (теперь {target.Trust:F0})", LogEntry.ColorDanger);
 
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social,
-            $"Божество потребовало {actualAmount:F0} ед. {resource.Name} (доверие -{trustLossFinal})"));
+            $"Координатор изъял {actualAmount:F0} ед. {resource.Name} (доверие -{trustLossFinal})"));
 
         return $"Требование ресурсов от {target.Name} выполнено";
     }

@@ -76,7 +76,7 @@ public class InteractionHandler : BaseActionHandler
 
         // Сохранение
         _db.SaveNpc(target);
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Поговорил с Божеством (доверие {(trustChange >= 0 ? "+" : "")}{trustChange})"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Поговорил с координатором (доверие {(trustChange >= 0 ? "+" : "")}{trustChange})"));
         _db.SaveNpc(target);
 
         // Логирование
@@ -92,7 +92,7 @@ public class InteractionHandler : BaseActionHandler
     {
         // Черты характера
         if (target.CharTraits.Contains(CharacterTrait.Loyal))
-            return "Я всегда верю в тебя, Божество!";
+            return "Я всегда верю в тебя, координатор!";
         if (target.CharTraits.Contains(CharacterTrait.Cowardly))
             return target.Health < 40 ? "Пожалуйста, не бросай нас! Я боюсь..." : "Я постараюсь. Только это не опасно?";
         if (target.CharTraits.Contains(CharacterTrait.Greedy))
@@ -116,7 +116,7 @@ public class InteractionHandler : BaseActionHandler
             case NpcTrait.Coward:
                 return "Я постараюсь. Только это не опасно?";
             case NpcTrait.Leader when target.Trust > 60:
-                return "Я верю в тебя, Божество! Веду остальных вперёд.";
+                return "Я с тобой, координатор! Веду остальных вперёд.";
         }
 
         // Уровень доверия
@@ -189,7 +189,7 @@ public class InteractionHandler : BaseActionHandler
         target.Fear = Math.Max(0, target.Fear - fearReduction);
         _db.SaveNpc(target);
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Божество успокоило (страх -{fearReduction})"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Координатор успокоил (страх -{fearReduction})"));
         _db.SaveNpc(target);
 
         Log($"Ты успокаиваешь {target.Name}:", LogEntry.ColorNormal);
@@ -266,7 +266,7 @@ public class InteractionHandler : BaseActionHandler
             }
         }
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Божество запугало (страх +{fearGain})"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Координатор запугал (страх +{fearGain})"));
         _db.SaveNpc(target);
 
         Log(result, LogEntry.ColorWarning);

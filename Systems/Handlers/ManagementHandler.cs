@@ -91,8 +91,8 @@ public class ManagementHandler : BaseActionHandler
         Log($"    Стоимость: {cost:F0} веры", LogEntry.ColorNormal);
         Log($"    Доверие: +10 (теперь {target.Trust:F0})", LogEntry.ColorSuccess);
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine,
-            $"Божество повысило меня до {target.FollowerLabel}!"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social,
+            $"Координатор повысил меня до {target.FollowerLabel}!"));
 
         return $"{target.Name} повышен до {target.FollowerLabel}";
     }
@@ -119,8 +119,8 @@ public class ManagementHandler : BaseActionHandler
         Log($"    Доверие: -15 (теперь {target.Trust:F0})", LogEntry.ColorDanger);
         Log($"    Вера NPC: -{(oldLevel - target.FollowerLevel) * 10:F0}", LogEntry.ColorDanger);
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine,
-            $"Божество наказало меня, понизив до {target.FollowerLabel}"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social,
+            $"Координатор понизил меня до {target.FollowerLabel}"));
 
         return $"{target.Name} понижен до {target.FollowerLabel}";
     }
