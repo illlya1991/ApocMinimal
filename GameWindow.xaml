@@ -57,8 +57,7 @@
                                Foreground="#58a6ff" VerticalAlignment="Center" Margin="8,0"/>
                     <TextBlock x:Name="ActionsLabel" Text="  Действий: 0/10"
                                Foreground="#56d364" VerticalAlignment="Center" Margin="8,0"/>
-                    <TextBlock x:Name="EnergyLabel" Text="  Энергия: 100/60"
-                               Foreground="#a5d6ff" VerticalAlignment="Center" Margin="8,0"/>
+
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="PlayerInfoBtn" Content="👤 Игрок"

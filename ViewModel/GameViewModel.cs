@@ -76,7 +76,7 @@ public class GameViewModel : INotifyPropertyChanged
     public int TerminalLevel
     {
         get => _terminalLevel;
-        set { _terminalLevel = value; OnPropertyChanged(); OnPropertyChanged(nameof(TerminalDisplay)); OnPropertyChanged(nameof(UpgradeCost)); OnPropertyChanged(nameof(CanUpgrade)); OnPropertyChanged(nameof(UnlockedTechniques)); }
+        set { _terminalLevel = value; OnPropertyChanged(); OnPropertyChanged(nameof(TerminalDisplay)); OnPropertyChanged(nameof(UpgradeCost)); OnPropertyChanged(nameof(CanUpgrade)); }
     }
 
     private int _actionsToday;
@@ -92,21 +92,6 @@ public class GameViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HasActionsLeft));
         }
     }
-
-    private double _energy;
-    public double Energy
-    {
-        get => _energy;
-        set
-        {
-            _energy = Math.Max(0, Math.Min(value, _player?.MaxEnergy ?? 100));
-            if (_player != null) _player.Energy = _energy;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(EnergyDisplay));
-        }
-    }
-    public int MaxEnergy => _player?.MaxEnergy ?? 100;
-    public string EnergyDisplay => $"Энергия: {Energy:F0}/{MaxEnergy}";
 
     public string DayDisplay => $"День {CurrentDay}";
     public string DevPointsDisplay => $"ОР: {DevPoints:F0}";
@@ -143,9 +128,7 @@ public class GameViewModel : INotifyPropertyChanged
     public List<Quest> ActiveQuests => _quests.Where(q => q.Status == QuestStatus.Active).ToList();
     // Теперь вместо _locations используем _locationService
     public List<Location> Locations => _locationService.GetAllLocations();
-    public IEnumerable<Technique> UnlockedTechniques => _player?.UnlockedTechniques ?? Enumerable.Empty<Technique>();
-    public Technique[] AllTechniques => Player.AllTechniques;
-
+    public IEnumerable<Technique> UnlockedTechniques => Enumerable.Empty<Technique>();
     public List<QuestCatalogEntry> QuestShop => _questCatalog.Where(q => q.MinTerminalLevel <= TerminalLevel).ToList();
     public List<PlayerLibraryEntry> PurchasedQuests => _playerLibrary;
     public List<Quest> PublishedQuests => _quests.Where(q => q.Status == QuestStatus.Available).ToList();
@@ -196,7 +179,6 @@ public class GameViewModel : INotifyPropertyChanged
         DevPoints = _player.DevPoints;
         TerminalLevel = _player.TerminalLevel;
         ActionsToday = _player.PlayerActionsToday;
-        _energy = _player.Energy;
 
         if (_monsterFactions.Count == 0)
             _monsterFactions = MonsterFactionFactory.CreateDefault();
@@ -417,7 +399,6 @@ public class GameViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(AvailableQuests));
         OnPropertyChanged(nameof(ActiveQuests));
         OnPropertyChanged(nameof(Locations));
-        OnPropertyChanged(nameof(UnlockedTechniques));
         OnPropertyChanged(nameof(QuestShop));
         OnPropertyChanged(nameof(PurchasedQuests));
         OnPropertyChanged(nameof(PublishedQuests));
@@ -509,7 +490,6 @@ public class GameViewModel : INotifyPropertyChanged
         CurrentDay = _player.CurrentDay;
         DevPoints = _player.DevPoints;
         ActionsToday = _player.PlayerActionsToday;
-        Energy = _player.Energy;
 
         // ── Victory check ───────────────────────────────────────────────────
         if (!_trueTerminal.IsAchieved)

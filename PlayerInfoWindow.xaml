@@ -54,35 +54,6 @@
                 </Grid>
             </Border>
 
-            <!-- ENERGY -->
-            <TextBlock Text="ЭНЕРГИЯ" Style="{StaticResource SectionHeader}"/>
-            <Border Background="#161b22" BorderBrush="#30363d" BorderThickness="1"
-                    CornerRadius="4" Padding="10,8" Margin="0,0,0,2">
-                <StackPanel>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Энергия Терминала" Foreground="#c9d1d9"/>
-                        <TextBlock x:Name="EnergyValueLabel" Grid.Column="1" Foreground="#a5d6ff"/>
-                    </Grid>
-                    <Border Height="10" Background="#21262d" CornerRadius="5">
-                        <Border x:Name="EnergyBar" HorizontalAlignment="Left" Height="10"
-                                CornerRadius="5" MinWidth="2">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#1e6bb8" Offset="0"/>
-                                    <GradientStop Color="#58a6ff" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                        </Border>
-                    </Border>
-                    <TextBlock x:Name="EnergyRegenLabel" Foreground="#8b949e"
-                               FontSize="11" Margin="0,4,0,0"/>
-                </StackPanel>
-            </Border>
-
             <!-- TWO COLUMN SECTION -->
             <Grid Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
@@ -122,13 +93,6 @@
                     </Border>
                 </StackPanel>
             </Grid>
-
-            <!-- TECHNIQUES -->
-            <TextBlock Text="ТЕХНИКИ (разблокированы)" Style="{StaticResource SectionHeader}"/>
-            <Border Background="#161b22" BorderBrush="#30363d" BorderThickness="1"
-                    CornerRadius="4" Padding="6,4">
-                <StackPanel x:Name="TechPanel"/>
-            </Border>
 
             <!-- Close -->
             <Button Content="Закрыть" Height="30" Margin="0,12,0,0"

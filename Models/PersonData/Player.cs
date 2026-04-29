@@ -27,19 +27,9 @@ public class Technique
     /// <summary>Unique catalog key for INSERT OR IGNORE deduplication.</summary>
     public string CatalogKey { get; set; } = "";
 
-    // ── Player-level technique effects ────────────────────────────────
-    /// <summary>If true, costs Player.Energy (not NPC energy or ОР).</summary>
-    public bool IsPlayerTechnique { get; set; }
-    /// <summary>Trust bonus applied to all alive followers.</summary>
     public double TrustBoost { get; set; }
-    /// <summary>Fear reduction applied to all alive followers.</summary>
     public double FearClear { get; set; }
-    /// <summary>Stamina bonus applied to all alive followers.</summary>
     public double StaminaBoost { get; set; }
-    /// <summary>Threat damage dealt to the highest-threat monster faction.</summary>
-    public double ThreatDamage { get; set; }
-    /// <summary>ОР gained (scaled by followers' Logic/Creativity avg).</summary>
-    public double DevPointsBoost { get; set; }
 }
 
 public class Player
@@ -65,11 +55,6 @@ public class Player
     // ── Player action hour ────────────────────────────────────────────
     public int PlayerActionsToday { get; set; }
     public const int MaxPlayerActionsPerDay = 10;
-
-    // ── Divine energy ─────────────────────────────────────────────────
-    public double Energy { get; set; } = 100.0;
-    public int MaxEnergy => 50 + TerminalLevel * 10;
-    public int EnergyRegenPerDay => 10 + TerminalLevel * 3;
 
     // ── Derived ────────────────────────────────────────────────────────
     public long UpgradeCost => (long)(200 * Math.Pow(5, TerminalLevel - 1) * FactionCoeffs.CoeffTerminalUpgradeCost);
@@ -123,73 +108,4 @@ public class Player
         }
     }
 
-    // ── Techniques (unlocked every 2 levels) ──────────────────────────
-    public static readonly Technique[] AllTechniques =
-    {
-        new() { Name="Ученик базовый",        TerminalLevel=1,  OPCost=5,
-                TechLevel=TechniqueLevel.Initiate,    TechType=TechniqueType.Energy,
-                EnergyCost=5,   StaminaCost=2,  HealAmount=10,
-                Description="Базовая техника ученика. Даёт +10 здоровья одному НПС." },
-        new() { Name="Благословение",        TerminalLevel=2,  OPCost=10,
-                TechLevel=TechniqueLevel.Initiate,    TechType=TechniqueType.Energy,
-                EnergyCost=10,  StaminaCost=5,  HealAmount=20,
-                Description="Даёт +20 здоровья одному НПС." },
-        new() { Name="Исцеление",            TerminalLevel=4,  OPCost=20,
-                TechLevel=TechniqueLevel.Adept,       TechType=TechniqueType.Energy,
-                EnergyCost=20,  StaminaCost=10, HealAmount=100,
-                Description="Полностью восстанавливает здоровье одного НПС." },
-        new() { Name="Щит веры",             TerminalLevel=6,  OPCost=30,
-                TechLevel=TechniqueLevel.Warrior,     TechType=TechniqueType.Energy,
-                EnergyCost=30,  StaminaCost=15,
-                Description="Создаёт барьер вокруг алтаря на 3 дня." },
-        new() { Name="Откровение",           TerminalLevel=8,  OPCost=40,
-                TechLevel=TechniqueLevel.Master,      TechType=TechniqueType.Mental,
-                EnergyCost=40,  StaminaCost=20,
-                Description="Вскрывает все соседние локации на карте." },
-        new() { Name="Апокалиптический удар",TerminalLevel=10, OPCost=100,
-                TechLevel=TechniqueLevel.Apex,        TechType=TechniqueType.Physical,
-                EnergyCost=80,  StaminaCost=50,
-                Description="Мгновенно уничтожает одну враждебную группу." },
-
-        // ── Социальные (Mental, NPC Energy) ──────────────────────────
-        new() { Name="Проповедь",          TerminalLevel=1,
-                TechLevel=TechniqueLevel.Initiate, TechType=TechniqueType.Mental,
-                EnergyCost=20, OPCost=0, TrustBoost=6,
-                Description="Слово Терминала укрепляет веру. +6 Доверия цели (НПС с наименьшим Доверием)." },
-        new() { Name="Внушение",           TerminalLevel=3,
-                TechLevel=TechniqueLevel.Adept,    TechType=TechniqueType.Mental,
-                EnergyCost=30, OPCost=0, TrustBoost=18,
-                Description="Целенаправленное внушение. +18 Доверия цели (НПС с наименьшим Доверием)." },
-        new() { Name="Очищение разума",    TerminalLevel=5,
-                TechLevel=TechniqueLevel.Warrior,  TechType=TechniqueType.Mental,
-                EnergyCost=45, OPCost=0, TrustBoost=10, FearClear=100,
-                Description="Страх рассеивается. −100 Страха и +10 Доверия НПС с наибольшим Страхом." },
-
-        // ── Крафтинг (Energy, NPC Energy) ────────────────────────────
-        new() { Name="Ресурсный анализ",   TerminalLevel=2,
-                TechLevel=TechniqueLevel.Initiate, TechType=TechniqueType.Energy,
-                EnergyCost=15, OPCost=0,
-                Description="Настройка энергетических каналов НПС. Усиливает все энергетические характеристики." },
-        new() { Name="Силовое укрепление", TerminalLevel=4,
-                TechLevel=TechniqueLevel.Adept,    TechType=TechniqueType.Energy,
-                EnergyCost=25, OPCost=0, StaminaBoost=25,
-                Description="+25 Выносливости НПС с наименьшей Выносливостью." },
-        new() { Name="Синтез силы",        TerminalLevel=6,
-                TechLevel=TechniqueLevel.Warrior,  TechType=TechniqueType.Energy,
-                EnergyCost=50, OPCost=0,
-                Description="Мощный синтез энергий. Значительно усиливает все энергетические характеристики НПС." },
-
-        // ── Боевые (Physical, IsPlayerTechnique) ─────────────────────
-        new() { Name="Боевой дух",      TerminalLevel=2,  IsPlayerTechnique=true,
-                TechLevel=TechniqueLevel.Initiate, TechType=TechniqueType.Physical,
-                EnergyCost=20, StaminaBoost=20, TrustBoost=5,
-                Description="Боевой призыв. +20 Выносливости и +5 Доверия всем последователям." },
-        new() { Name="Удар возмездия",  TerminalLevel=7,  IsPlayerTechnique=true,
-                TechLevel=TechniqueLevel.Master,   TechType=TechniqueType.Physical,
-                EnergyCost=60, ThreatDamage=25,
-                Description="Мощный удар по угрозе. Снижает уровень угрозы опаснейшей фракции монстров на 25 (масштабируется от Силы последователей)." },
-    };
-
-    public IEnumerable<Technique> UnlockedTechniques =>
-        AllTechniques.Where(t => t.TerminalLevel <= TerminalLevel);
 }

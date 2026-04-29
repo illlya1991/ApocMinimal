@@ -119,7 +119,6 @@ public partial class GameWindow : Window
         ActionsLabel.Foreground = _viewModel.HasActionsLeft
             ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
             : (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;
-        EnergyLabel.Text = $"  {_viewModel.EnergyDisplay}";
     }
 
     // =========================================================

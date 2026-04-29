@@ -58,106 +58,12 @@ public partial class AltarWindow : Window
         FollowerLabel.Text = sb.ToString().TrimEnd();
 
         TechPanel.Children.Clear();
-        foreach (var tech in _vm.AllTechniques)
+        TechPanel.Children.Add(new System.Windows.Controls.TextBlock
         {
-            bool unlocked = tech.TerminalLevel <= _vm.TerminalLevel;
-            string costLabel;
-            bool canUse;
-            string category;
-            if (tech.IsPlayerTechnique)
-            {
-                costLabel = $"{tech.EnergyCost:F0} энергии";
-                canUse = unlocked && _vm.Energy >= tech.EnergyCost;
-                category = tech.TechType switch
-                {
-                    TechniqueType.Physical => "⚔ ",
-                    _                      => "⚔ ",
-                };
-            }
-            else if (tech.OPCost == 0)
-            {
-                costLabel = $"{tech.EnergyCost:F0} энергии НПС";
-                bool anyNpcHasEnergy = _vm.AliveNpcs.Any(n => n.Energy >= tech.EnergyCost);
-                canUse = unlocked && anyNpcHasEnergy;
-                category = tech.TechType switch
-                {
-                    TechniqueType.Mental => "👥 ",
-                    _                    => "⚙ ",
-                };
-            }
-            else
-            {
-                costLabel = $"{tech.OPCost:F0} ОР";
-                canUse = unlocked && _vm.DevPoints >= tech.OPCost;
-                category = "✨ ";
-            }
-            var btn = new Button
-            {
-                Content = $"{category}{tech.Name}  ({costLabel})",
-                Style = (Style)FindResource("ABtn"),
-                IsEnabled = canUse,
-                Opacity = unlocked ? 1.0 : 0.4,
-                ToolTip = tech.Description,
-                Tag = tech,
-            };
-            if (unlocked) btn.Click += TechBtn_Click;
-            TechPanel.Children.Add(btn);
-        }
-    }
-
-    private void TechBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button btn || btn.Tag is not Technique tech) return;
-
-        if (tech.IsPlayerTechnique)
-        {
-            if (_vm.Energy < tech.EnergyCost)
-            {
-                System.Windows.MessageBox.Show($"Недостаточно энергии: {_vm.Energy:F0}/{tech.EnergyCost:F0}", "Энергия");
-                return;
-            }
-            _vm.Energy -= tech.EnergyCost;
-            string log = TechniqueSystem.ApplyPlayerTechnique(
-                tech, _vm.GetPlayer(), _vm.AliveNpcs, _vm.MonsterFactions);
-            foreach (var npc in _vm.AliveNpcs.Where(n => n.FollowerLevel > 0))
-                _vm.SaveNpc(npc);
-            System.Windows.MessageBox.Show(log, tech.Name);
-        }
-        else if (tech.OPCost == 0)
-        {
-            // NPC-energy technique: pick smart target
-            var candidates = _vm.AliveNpcs.Where(n => n.Energy >= tech.EnergyCost).ToList();
-            if (candidates.Count == 0) return;
-            Npc? target = null;
-            if (tech.FearClear > 0)
-                target = candidates.OrderByDescending(n => n.Fear).FirstOrDefault();
-            else if (tech.TrustBoost > 0)
-                target = candidates.OrderBy(n => n.Trust).FirstOrDefault();
-            else if (tech.StaminaBoost > 0)
-                target = candidates.OrderBy(n => n.Stamina).FirstOrDefault();
-            else
-                target = candidates.OrderByDescending(n => n.Initiative).FirstOrDefault();
-            if (target == null) return;
-            if (TechniqueSystem.Apply(tech, target, out string log))
-            {
-                _vm.SaveNpc(target);
-                System.Windows.MessageBox.Show(log, tech.Name);
-            }
-        }
-        else
-        {
-            if (_vm.DevPoints < tech.OPCost) return;
-            _vm.DevPoints -= tech.OPCost;
-            var target = tech.HealAmount > 0
-                ? _vm.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
-                : _vm.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
-            if (target == null) return;
-            if (TechniqueSystem.Apply(tech, target, out string log))
-                _vm.SaveNpc(target);
-        }
-        _vm.SavePlayer();
-        _vm.Refresh();
-        Refresh();
+            Text = "Управление техниками — открыть через кнопку «Техники».",
+            Foreground = System.Windows.Media.Brushes.Gray,
+            Margin = new System.Windows.Thickness(8),
+        });
     }
 
     private void UpgradeAltarBtn_Click(object sender, RoutedEventArgs e)

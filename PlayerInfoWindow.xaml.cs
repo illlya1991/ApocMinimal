@@ -36,12 +36,6 @@ public partial class PlayerInfoWindow : Window
         int alive = _vm.AllNpcs.Count(n => n.IsAlive && n.FollowerLevel > 0);
         FollowersLabel.Text = $"Посл.: {alive}/{player.MaxActiveFollowers}";
 
-        // Energy
-        double energyPct = player.MaxEnergy > 0 ? player.Energy / player.MaxEnergy : 0;
-        EnergyValueLabel.Text = $"{player.Energy:F0} / {player.MaxEnergy}";
-        EnergyRegenLabel.Text = $"+{player.EnergyRegenPerDay} / день";
-        EnergyBar.Width = Math.Max(2, energyPct * 646); // ~container width
-
         // Faction coefficients
         AddCoeffRow(CoeffPanel, "ОР за НПС",                   player.FactionCoeffs.CoeffDevPerNpc,         1.0, isMultiplier: true);
         AddCoeffRow(CoeffPanel, "ОР за локацию (за шт.)",      player.FactionCoeffs.CoeffDevPerLocation,    0.0, isMultiplier: false);
@@ -87,14 +81,6 @@ public partial class PlayerInfoWindow : Window
             FollowerLimitsPanel.Children.Add(row);
         }
 
-        // Techniques
-        var unlocked = player.UnlockedTechniques.ToList();
-        var locked = Player.AllTechniques.Where(t => t.TerminalLevel > player.TerminalLevel).ToList();
-
-        foreach (var tech in unlocked)
-            AddTechRow(TechPanel, tech, true);
-        foreach (var tech in locked)
-            AddTechRow(TechPanel, tech, false);
     }
 
     private void AddCoeffRow(StackPanel panel, string label, double value, double neutral,
@@ -132,85 +118,6 @@ public partial class PlayerInfoWindow : Window
         row.Children.Add(tb);
     }
 
-    private static void AddTechRow(StackPanel panel, Technique tech, bool unlocked)
-    {
-        string icon = tech.TechType switch
-        {
-            Models.TechniqueData.TechniqueType.Physical => "⚔",
-            Models.TechniqueData.TechniqueType.Mental   => "👥",
-            _                                            => "⚙",
-        };
-
-        string costLabel = tech.IsPlayerTechnique
-            ? $"{tech.EnergyCost:F0} энергии"
-            : tech.OPCost == 0
-                ? $"{tech.EnergyCost:F0} энергии НПС"
-                : $"{tech.OPCost:F0} ОР";
-
-        string reqLabel = $"Терм. ур.{tech.TerminalLevel}";
-
-        var outer = new Border
-        {
-            Margin = new Thickness(0, 2, 0, 0),
-            Padding = new Thickness(6, 4, 6, 4),
-            Background = unlocked
-                ? (SolidColorBrush)new BrushConverter().ConvertFromString("#1c2128")!
-                : (SolidColorBrush)new BrushConverter().ConvertFromString("#0d1117")!,
-            Opacity = unlocked ? 1.0 : 0.45,
-        };
-
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-        var iconTb = new TextBlock { Text = icon, FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(iconTb, 0);
-
-        var nameBlock = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        nameBlock.Children.Add(new TextBlock
-        {
-            Text = tech.Name,
-            Foreground = unlocked
-                ? (SolidColorBrush)new BrushConverter().ConvertFromString("#c9d1d9")!
-                : Brushes.Gray,
-            FontSize = 12,
-        });
-        nameBlock.Children.Add(new TextBlock
-        {
-            Text = $"  {tech.Description}",
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e")!,
-            FontSize = 10,
-            VerticalAlignment = VerticalAlignment.Center,
-        });
-        Grid.SetColumn(nameBlock, 1);
-
-        var rightStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-        rightStack.Children.Add(new TextBlock
-        {
-            Text = costLabel,
-            Foreground = tech.IsPlayerTechnique
-                ? (SolidColorBrush)new BrushConverter().ConvertFromString("#a5d6ff")!
-                : tech.OPCost == 0
-                    ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
-                    : (SolidColorBrush)new BrushConverter().ConvertFromString("#d29922")!,
-            FontSize = 11,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        });
-        rightStack.Children.Add(new TextBlock
-        {
-            Text = reqLabel,
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString("#8b949e")!,
-            FontSize = 10,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        });
-        Grid.SetColumn(rightStack, 2);
-
-        grid.Children.Add(iconTb);
-        grid.Children.Add(nameBlock);
-        grid.Children.Add(rightStack);
-        outer.Child = grid;
-        panel.Children.Add(outer);
     }
 
     private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();

@@ -87,13 +87,7 @@ public static class GameLoopService
         ProcessDevPointsGeneration(result, player, npcs);
         ProcessDailyNeeds(result, player, npcs, resources, catalog);
         ProcessInjuryHealing(result, npcs);
-        ProcessEnergyRegen(player);
         return result;
-    }
-
-    private static void ProcessEnergyRegen(Player player)
-    {
-        player.Energy = Math.Min(player.MaxEnergy, player.Energy + player.EnergyRegenPerDay);
     }
 
     // ── Sub-methods ──────────────────────────────────────────────────────────
