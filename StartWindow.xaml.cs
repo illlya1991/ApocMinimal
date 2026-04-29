@@ -51,7 +51,8 @@ public partial class StartWindow : Window
                 // ResetDatabase: 0–70%
                 _db.ResetDatabase((percent, status, detail) =>
                 {
-                    worker.ReportProgress(percent * 70 / 100, status, detail);
+                    worker.ReportProgress(percent * 70 / 100,
+                        string.IsNullOrEmpty(detail) ? (object)status : (status, detail));
                 });
 
                 // Player setup
@@ -72,13 +73,13 @@ public partial class StartWindow : Window
                 state.LocationService.Initialize();
 
                 // TechniqueService: 88–100%
-                worker.ReportProgress(88, "Загрузка техник...",
-                    $"{state.LocationService.TotalLocations} локаций загружено");
+                worker.ReportProgress(88,
+                    ("Загрузка техник...", $"{state.LocationService.TotalLocations} локаций загружено"));
                 state.TechniqueService = new TechniqueService(_db);
                 state.TechniqueService.Initialize();
 
-                worker.ReportProgress(100, "Готово!",
-                    $"{state.TechniqueService.TotalTechniques} техник загружено");
+                worker.ReportProgress(100,
+                    ("Готово!", $"{state.TechniqueService.TotalTechniques} техник загружено"));
             },
             () => OpenGame(_db, state));
 
@@ -112,13 +113,13 @@ public partial class StartWindow : Window
                     state.LocationService.Initialize();
 
                     // TechniqueService: 65–95%
-                    worker.ReportProgress(65, "Загрузка техник...",
-                        $"{state.LocationService.TotalLocations} локаций загружено");
+                    worker.ReportProgress(65,
+                        ("Загрузка техник...", $"{state.LocationService.TotalLocations} локаций загружено"));
                     state.TechniqueService = new TechniqueService(_db);
                     state.TechniqueService.Initialize();
 
-                    worker.ReportProgress(100, "Готово!",
-                        $"{state.TechniqueService.TotalTechniques} техник загружено");
+                    worker.ReportProgress(100,
+                        ("Готово!", $"{state.TechniqueService.TotalTechniques} техник загружено"));
                 },
                 () => OpenGame(_db, state));
 
