@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using ApocMinimal.Database;
 using ApocMinimal.Models.PersonData;
+using ApocMinimal.Services;
 
 namespace ApocMinimal;
 
@@ -41,25 +42,45 @@ public partial class StartWindow : Window
         string chosenName = setupWindow.ChosenName;
         PlayerFaction chosenFaction = setupWindow.ChosenFaction;
 
+        var state = new GameInitState();
+
         var loading = new LoadingWindow(
             "Создание нового мира...",
             (worker, args) =>
             {
+                // ResetDatabase: 0–70%
                 _db.ResetDatabase((percent, status, detail) =>
                 {
-                    worker.ReportProgress(percent, (status, detail));
+                    worker.ReportProgress(percent * 70 / 100, status, detail);
                 });
+
+                // Player setup
+                worker.ReportProgress(71, "Настройка персонажа...");
                 var player = _db.GetPlayer();
                 if (player != null)
                 {
-                    player.Name = chosenName;
+                    player.Name   = chosenName;
                     player.Faction = chosenFaction;
                     _db.EnsureFactionCoeffsInGameConfig();
                     _db.ApplyFactionCoefficients(player);
                     _db.SavePlayer(player);
                 }
+
+                // LocationService: 75–88%
+                worker.ReportProgress(75, "Инициализация карты...");
+                state.LocationService = new LocationService(_db);
+                state.LocationService.Initialize();
+
+                // TechniqueService: 88–100%
+                worker.ReportProgress(88, "Загрузка техник...",
+                    $"{state.LocationService.TotalLocations} локаций загружено");
+                state.TechniqueService = new TechniqueService(_db);
+                state.TechniqueService.Initialize();
+
+                worker.ReportProgress(100, "Готово!",
+                    $"{state.TechniqueService.TotalTechniques} техник загружено");
             },
-            () => OpenGame(_db));
+            () => OpenGame(_db, state));
 
         loading.Owner = this;
         loading.ShowDialog();
@@ -75,27 +96,42 @@ public partial class StartWindow : Window
         {
             _db.ThisSave = saveWindow.SelectedSave;
 
+            var state = new GameInitState();
+
             var loading = new LoadingWindow(
                 "Загрузка сохранения...",
                 (worker, args) =>
                 {
-                    worker.ReportProgress(50, "Загрузка данных...");
-                    // Загрузка происходит в GameWindow
+                    // Open DB
+                    worker.ReportProgress(5, "Открытие базы данных...");
+                    _db.OpenCurrentSave();
+
+                    // LocationService: 10–65%
+                    worker.ReportProgress(10, "Загрузка карты...");
+                    state.LocationService = new LocationService(_db);
+                    state.LocationService.Initialize();
+
+                    // TechniqueService: 65–95%
+                    worker.ReportProgress(65, "Загрузка техник...",
+                        $"{state.LocationService.TotalLocations} локаций загружено");
+                    state.TechniqueService = new TechniqueService(_db);
+                    state.TechniqueService.Initialize();
+
+                    worker.ReportProgress(100, "Готово!",
+                        $"{state.TechniqueService.TotalTechniques} техник загружено");
                 },
-                () =>
-                {
-                    OpenGame(_db);
-                });
+                () => OpenGame(_db, state));
 
             loading.Owner = this;
             loading.ShowDialog();
         }
+
         CheckSave();
     }
 
-    private void OpenGame(DatabaseManager db)
+    private void OpenGame(DatabaseManager db, GameInitState? state = null)
     {
-        var game = new GameWindow(db);
+        var game = new GameWindow(db, state);
         game.Show();
         Close();
     }
