@@ -11,8 +11,8 @@ public enum DialogContext
     QuestComplete,
     QuestFailed,
     Injury,
-    LowFaith,
-    HighFaith,
+    LowDevotion,
+    HighDevotion,
     Combat,
     Death,
     NewDay,
@@ -87,14 +87,14 @@ public static class DialogSystem
             "Голова кружится после того удара.",
             "Нужны медикаменты. Это серьёзно.",
         },
-        [DialogContext.LowFaith] = new[]
+        [DialogContext.LowDevotion] = new[]
         {
             "Что-то я начинаю сомневаться. В тебе, в нас, во всём.",
             "Зачем мы вообще слушаем этого «жреца»?",
             "Мне нужны доказательства, а не обещания.",
             "Доверие — не бесконечный ресурс.",
         },
-        [DialogContext.HighFaith] = new[]
+        [DialogContext.HighDevotion] = new[]
         {
             "Я верю в то, что ты строишь. Пойду за тобой.",
             "Сила Терминала реальна. Я чувствую её.",
@@ -179,7 +179,7 @@ public static class DialogSystem
             DialogContext.Combat      => "#ef4444",
             DialogContext.LowFood or
             DialogContext.LowWater    => "#f97316",
-            DialogContext.HighFaith   => "#22c55e",
+            DialogContext.HighDevotion   => "#22c55e",
             DialogContext.QuestComplete => "#86efac",
             DialogContext.QuestFailed   => "#f87171",
             DialogContext.Injury       => "#fbbf24",
@@ -211,7 +211,7 @@ public static class DialogSystem
 
         return emo switch
         {
-            "Радость" or "Воодушевление"    => Generate(npc, DialogContext.HighFaith,   rnd).Text,
+            "Радость" or "Воодушевление"    => Generate(npc, DialogContext.HighDevotion,   rnd).Text,
             "Тревога" or "Страх"            => Generate(npc, DialogContext.Combat,       rnd).Text,
             "Усталость" or "Апатия"         => Generate(npc, DialogContext.NewDay,       rnd).Text,
             "Надежда" or "Спокойствие"      => Generate(npc, DialogContext.NewDay,       rnd).Text,
@@ -227,8 +227,8 @@ public static class DialogSystem
         if (npc.Hunger > 80) return DialogContext.LowFood;
         if (npc.Thirst > 80) return DialogContext.LowWater;
         if (npc.Injuries.Count > 0) return DialogContext.Injury;
-        if (npc.Devotion < 20) return DialogContext.LowFaith;
-        if (npc.Devotion > 80) return DialogContext.HighFaith;
+        if (npc.Devotion < 20) return DialogContext.LowDevotion;
+        if (npc.Devotion > 80) return DialogContext.HighDevotion;
         return DialogContext.Greeting;
     }
 }

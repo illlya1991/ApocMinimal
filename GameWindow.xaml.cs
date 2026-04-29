@@ -113,7 +113,7 @@ public partial class GameWindow : Window
         PlayerNameLabel.Text    = $"{_viewModel.PlayerName}";
         PlayerFactionLabel.Text = $"  |  {onePlayerFaction.Label}";
         DayLabel.Text           = $"  |  {_viewModel.DayDisplay}";
-        FaithLabel.Text         = $"  {_viewModel.DevPointsDisplay}";
+        DevPointsLabel.Text     = $"  {_viewModel.DevPointsDisplay}";
         AltarLabel.Text         = $"  {_viewModel.TerminalDisplay}";
         ActionsLabel.Text       = $"  {_viewModel.ActionsDisplay}";
         ActionsLabel.Foreground = _viewModel.HasActionsLeft

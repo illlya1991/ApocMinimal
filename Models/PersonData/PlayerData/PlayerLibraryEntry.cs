@@ -18,7 +18,7 @@ public class PlayerLibraryEntry
         get
         {
             if (Catalog == null) return "—";
-            return Catalog.RewardType == RewardType.Faith
+            return Catalog.RewardType == RewardType.DevPoints
                 ? $"{Catalog.RewardAmount:F0} ОР"
                 : "другое";
         }

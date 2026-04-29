@@ -2,7 +2,7 @@ namespace ApocMinimal.Models.PersonData.PlayerData;
 
 public enum QuestType { OneTime, Repeatable, Eternal }
 public enum CompleteType { Time, Resource, Action }
-public enum RewardType { Resource, Technique, Faith }
+public enum RewardType { Resource, Technique, DevPoints }
 
 public class QuestCatalogEntry
 {
@@ -62,7 +62,7 @@ public class QuestCatalogEntry
     public string RewardLabel => RewardType switch
     {
         RewardType.Resource => RewardAmount > 0 ? $"{RewardAmount:F0} {RewardResource}" : "—",
-        RewardType.Faith => $"{RewardAmount:F0} ОР",
+        RewardType.DevPoints => $"{RewardAmount:F0} ОР",
         RewardType.Technique => string.IsNullOrEmpty(RewardTechnique) ? "Техника" : RewardTechnique,
         _ => "—"
     };

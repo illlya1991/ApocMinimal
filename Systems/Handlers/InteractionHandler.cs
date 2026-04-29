@@ -220,7 +220,7 @@ public class InteractionHandler : BaseActionHandler
         target.Initiative = Math.Min(100, target.Initiative + 5);
         _db.SaveNpc(target);
 
-        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Божество вдохновило (преданность +{faithGain})"));
+        target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Мотивация координатора (преданность +{faithGain})"));
         _db.SaveNpc(target);
 
         Log($"Ты вдохновляешь {target.Name}:", LogEntry.ColorNormal);
