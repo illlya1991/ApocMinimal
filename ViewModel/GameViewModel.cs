@@ -22,6 +22,7 @@ public class GameViewModel : INotifyPropertyChanged
     private readonly ActionManager _actionManager;
     private readonly Random _rnd = new();
     private readonly LocationService _locationService;
+    private readonly TechniqueService _techniqueService;
 
     private Player _player = null!;
     private List<Npc> _npcs = new();
@@ -45,16 +46,18 @@ public class GameViewModel : INotifyPropertyChanged
     public GameViewModel(DatabaseManager db, Action<string, string> logAction)
     {
         _db = db;
-        // Инициализируем сервис локаций
         _locationService = new LocationService(_db);
         _locationService.Initialize();
+
+        _techniqueService = new TechniqueService(_db);
+        _techniqueService.Initialize();
 
         LoadData();
 
         // Обновляем кэш NPC
         _locationService.UpdateNpcCache(_npcs);
 
-        _actionManager = new ActionManager(_db, _rnd, logAction, _catalog, _gameConfig);
+        _actionManager = new ActionManager(_db, _techniqueService, _rnd, logAction, _catalog, _gameConfig);
         ActionGroups = _actionManager.GetGroups();
     }
 
@@ -689,7 +692,7 @@ public class GameViewModel : INotifyPropertyChanged
 
     // ── Tech catalog & inventory ─────────────────────────────────────────────
 
-    public List<Technique> GetTechniqueCatalog() => _db.GetTechniquesByFaction(_player.Faction.ToString(), 10);
+    public List<Technique> GetTechniqueCatalog() => _techniqueService.GetByFaction(_player.Faction.ToString(), 10);
 
     public Dictionary<string, int> TechInventoryCounts =>
         _techInventory.GroupBy(k => k).ToDictionary(g => g.Key, g => g.Count());
@@ -707,7 +710,7 @@ public class GameViewModel : INotifyPropertyChanged
         _player.DevPoints -= tech.OPCost;
         _db.SavePlayer(_player);
         _db.AddTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
-        _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
+        _techInventory.Add(tech.CatalogKey);
         RefreshInventoryTechniques();
         DevPoints = _player.DevPoints;
         return $"Куплено: «{tech.Name}» за {tech.OPCost:F0} ОР";
@@ -737,15 +740,14 @@ public class GameViewModel : INotifyPropertyChanged
 
         npc.LearnedTechIds.Add(tech.CatalogKey);
         _db.RemoveTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
-        _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
+        _techInventory.Remove(tech.CatalogKey);
         RefreshInventoryTechniques();
         _db.SaveNpc(npc);
         return $"«{npc.Name}» обучен технике «{tech.Name}»";
     }
 
     private void RefreshInventoryTechniques() =>
-        _inventoryTechniques = _db.GetAllTechniques()
-            .Where(t => _techInventory.Contains(t.CatalogKey)).ToList();
+        _inventoryTechniques = _techniqueService.Resolve(_techInventory);
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

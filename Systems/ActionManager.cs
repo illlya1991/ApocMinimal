@@ -7,6 +7,8 @@ using ApocMinimal.Models.GameActions;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
+using ApocMinimal.Models.TechniqueData;
+using ApocMinimal.Services;
 using ApocMinimal.Systems.Handlers;
 
 namespace ApocMinimal.Systems;
@@ -14,6 +16,7 @@ namespace ApocMinimal.Systems;
 public class ActionManager
 {
     private readonly DatabaseManager _db;
+    private readonly TechniqueService _techniqueService;
     private readonly Random _rnd;
     private readonly Dictionary<string, ResourceCatalogEntry> _catalog;
 
@@ -27,10 +30,12 @@ public class ActionManager
         public BaseActionHandler Handler { get; set; } = null!;
     }
 
-    public ActionManager(DatabaseManager db, Random rnd, Action<string, string> logAction,
+    public ActionManager(DatabaseManager db, TechniqueService techniqueService, Random rnd,
+        Action<string, string> logAction,
         Dictionary<string, ResourceCatalogEntry> catalog, Dictionary<string, double> gameConfig)
     {
         _db = db;
+        _techniqueService = techniqueService;
         _rnd = rnd;
         _catalog = catalog;
         LoadActions();
@@ -203,11 +208,9 @@ public class ActionManager
         }
         else if (sourceName == "available_techniques")
         {
-            List<Technique> techniques = _db.GetTechniquesByTerminalLevel(player.TerminalLevel);
+            var techniques = _techniqueService.GetByMaxLevel(player.TerminalLevel);
             for (int i = 0; i < techniques.Count; i++)
-            {
                 result.Add(techniques[i]);
-            }
         }
 
         return result;
