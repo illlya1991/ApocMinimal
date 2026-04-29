@@ -12,6 +12,7 @@ using ApocMinimal.Models.UIData;
 using ApocMinimal.Systems;
 using ApocMinimal.ViewModels;
 using ApocMinimal.Services;
+using ApocMinimal.Models.TechniqueData;
 
 namespace ApocMinimal.Controls;
 

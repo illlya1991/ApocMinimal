@@ -8,6 +8,7 @@ using ApocMinimal.Models.LocationData;
 using ApocMinimal.Systems;
 using ApocMinimal.ViewModels;
 using System.Windows.Media;
+using ApocMinimal.Models.TechniqueData;
 
 namespace ApocMinimal;
 
