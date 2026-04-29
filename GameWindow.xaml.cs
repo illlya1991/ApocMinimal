@@ -17,7 +17,7 @@ public partial class GameWindow : Window
     private readonly GameViewModel _viewModel;
     private readonly DatabaseManager _db;
 
-    public GameWindow(DatabaseManager db)
+    public GameWindow(DatabaseManager db, GameInitState? state = null)
     {
         InitializeComponent();
 
@@ -27,7 +27,7 @@ public partial class GameWindow : Window
         db.EnsurePlayerSchema();
         db.EnsureNpcTechSchema();
         db.EnsureGameLogTable();
-        _viewModel = new GameViewModel(db, LogPlayer);
+        _viewModel = new GameViewModel(db, LogPlayer, state);
         DataContext = _viewModel;
         _viewModel.PropertyChanged += (s, e) => RefreshHeader();
 

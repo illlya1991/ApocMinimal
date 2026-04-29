@@ -1,7 +1,7 @@
-﻿<Window x:Class="ApocMinimal.LoadingWindow"
+<Window x:Class="ApocMinimal.LoadingWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Загрузка" Height="180" Width="400"
+        Title="Загрузка" Height="200" Width="440"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         WindowStyle="None"
@@ -9,35 +9,60 @@
         Background="Transparent">
 
     <Border Background="#0d0d1a" CornerRadius="8" BorderBrush="#1e2a3a" BorderThickness="1">
-        <StackPanel VerticalAlignment="Center" Margin="20">
-            <TextBlock x:Name="TitleText" 
-                       Text="Создание нового мира..." 
-                       Foreground="#e0e0e0" 
-                       FontSize="14" 
+        <StackPanel VerticalAlignment="Center" Margin="24,20">
+
+            <!-- Title -->
+            <TextBlock x:Name="TitleText"
+                       Text="Загрузка..."
+                       Foreground="#e0e0e0"
+                       FontFamily="Consolas"
+                       FontSize="14"
                        FontWeight="SemiBold"
                        HorizontalAlignment="Center"
-                       Margin="0,0,0,15"/>
+                       Margin="0,0,0,16"/>
 
-            <TextBlock x:Name="StatusText" 
-                       Text="Инициализация..." 
-                       Foreground="#8b949e" 
-                       FontSize="11"
-                       HorizontalAlignment="Center"
-                       Margin="0,0,0,10"/>
+            <!-- Status row: text left, percent right -->
+            <Grid Margin="0,0,0,6">
+                <TextBlock x:Name="StatusText"
+                           Text="Инициализация..."
+                           Foreground="#8b949e"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="PercentText"
+                           Text="0%"
+                           Foreground="#60a5fa"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"/>
+            </Grid>
 
-            <ProgressBar x:Name="LoadingProgress" 
-                         Height="4" 
+            <!-- Progress bar -->
+            <ProgressBar x:Name="LoadingProgress"
+                         Height="6"
+                         Minimum="0" Maximum="100"
                          IsIndeterminate="True"
-                         Foreground="#60a5fa"
                          Background="#1e2a3a"
-                         BorderThickness="0"/>
+                         BorderThickness="0">
+                <ProgressBar.Foreground>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#3b82f6" Offset="0"/>
+                        <GradientStop Color="#60a5fa" Offset="1"/>
+                    </LinearGradientBrush>
+                </ProgressBar.Foreground>
+            </ProgressBar>
 
-            <TextBlock x:Name="DetailText" 
-                       Text="" 
-                       Foreground="#4b5563" 
+            <!-- Detail text -->
+            <TextBlock x:Name="DetailText"
+                       Text=""
+                       Foreground="#4b5563"
+                       FontFamily="Consolas"
                        FontSize="10"
-                       HorizontalAlignment="Center"
-                       Margin="0,10,0,0"/>
+                       HorizontalAlignment="Left"
+                       Margin="0,8,0,0"/>
         </StackPanel>
     </Border>
 </Window>

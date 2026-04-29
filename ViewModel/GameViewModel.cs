@@ -43,18 +43,17 @@ public class GameViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public GameViewModel(DatabaseManager db, Action<string, string> logAction)
+    public GameViewModel(DatabaseManager db, Action<string, string> logAction, GameInitState? state = null)
     {
         _db = db;
-        _locationService = new LocationService(_db);
-        _locationService.Initialize();
 
-        _techniqueService = new TechniqueService(_db);
-        _techniqueService.Initialize();
+        _locationService = state?.LocationService ?? new LocationService(_db);
+        if (state?.LocationService == null) _locationService.Initialize();
+
+        _techniqueService = state?.TechniqueService ?? new TechniqueService(_db);
+        if (state?.TechniqueService == null) _techniqueService.Initialize();
 
         LoadData();
-
-        // Обновляем кэш NPC
         _locationService.UpdateNpcCache(_npcs);
 
         _actionManager = new ActionManager(_db, _techniqueService, _rnd, logAction, _catalog, _gameConfig);

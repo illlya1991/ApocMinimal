@@ -1,7 +1,5 @@
-﻿using System;
 using System.ComponentModel;
 using System.Windows;
-using System.Windows.Threading;
 
 namespace ApocMinimal;
 
@@ -24,8 +22,8 @@ public partial class LoadingWindow : Window
             WorkerSupportsCancellation = false
         };
 
-        _worker.DoWork += Worker_DoWork;
-        _worker.ProgressChanged += Worker_ProgressChanged;
+        _worker.DoWork             += Worker_DoWork;
+        _worker.ProgressChanged    += Worker_ProgressChanged;
         _worker.RunWorkerCompleted += Worker_RunWorkerCompleted;
 
         Loaded += (s, e) => _worker.RunWorkerAsync();
@@ -38,20 +36,23 @@ public partial class LoadingWindow : Window
 
     private void Worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
     {
-        if (e.ProgressPercentage >= 0)
+        int pct = e.ProgressPercentage;
+        if (pct >= 0)
         {
             LoadingProgress.IsIndeterminate = false;
-            LoadingProgress.Value = e.ProgressPercentage;
+            LoadingProgress.Value = pct;
+            PercentText.Text = $"{pct}%";
         }
 
         if (e.UserState is string message)
         {
             StatusText.Text = message;
+            DetailText.Text = "";
         }
-        else if (e.UserState is (string status, string detail))
+        else if (e.UserState is ValueTuple<string, string> tuple)
         {
-            StatusText.Text = status;
-            DetailText.Text = detail;
+            StatusText.Text = tuple.Item1;
+            DetailText.Text = tuple.Item2;
         }
     }
 
