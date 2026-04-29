@@ -144,17 +144,6 @@ public class DatabaseManager
         cmd.Parameters.AddWithValue("@ck", t.CatalogKey);
     }
 
-    public void EnsureTechniqueColumns()
-    {
-        foreach (var sql in new[]
-        {
-            "ALTER TABLE Techniques ADD COLUMN HealAmount REAL NOT NULL DEFAULT 0",
-            "ALTER TABLE Techniques ADD COLUMN Faction TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE Techniques ADD COLUMN CatalogKey TEXT NOT NULL DEFAULT ''",
-        })
-        { try { ExecuteNQ(sql); } catch { } }
-        try { ExecuteNQ("CREATE UNIQUE INDEX IF NOT EXISTS idx_tech_ck ON Techniques(CatalogKey) WHERE CatalogKey != ''"); } catch { }
-    }
 
     private void SeedTemplateDB()
     {
@@ -162,7 +151,7 @@ public class DatabaseManager
         try
         {
             OpenConnection(_templateSave._connectionString);
-            EnsureTechniqueColumns();
+            EnsureFullTechniquesTable();
             long existing = (long)(ExecuteScalar("SELECT COUNT(*) FROM Techniques WHERE CatalogKey != ''") ?? 0L);
             if (existing < 1050)
             {
@@ -172,19 +161,44 @@ public class DatabaseManager
                 tx.Commit();
             }
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"SeedTemplateDB error: {ex.Message}");
-        }
         finally
         {
             OpenConnection("");
         }
     }
 
+    private void EnsureFullTechniquesTable()
+    {
+        // Create table with full schema if it doesn't exist
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS Techniques (
+            Id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            Name          TEXT    NOT NULL DEFAULT '',
+            Description   TEXT    NOT NULL DEFAULT '',
+            TerminalLevel INTEGER NOT NULL DEFAULT 1,
+            TechLevel     TEXT    NOT NULL DEFAULT 'Initiate',
+            TechType      TEXT    NOT NULL DEFAULT 'Energy',
+            OPCost        REAL    NOT NULL DEFAULT 0,
+            EnergyCost    REAL    NOT NULL DEFAULT 0,
+            StaminaCost   REAL    NOT NULL DEFAULT 0,
+            RequiredStats TEXT    NOT NULL DEFAULT '{}',
+            HealAmount    REAL    NOT NULL DEFAULT 0,
+            Faction       TEXT    NOT NULL DEFAULT '',
+            CatalogKey    TEXT    NOT NULL DEFAULT ''
+        )");
+        // Add columns that may be missing in pre-existing tables
+        foreach (var sql in new[]
+        {
+            "ALTER TABLE Techniques ADD COLUMN HealAmount  REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE Techniques ADD COLUMN Faction     TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE Techniques ADD COLUMN CatalogKey  TEXT NOT NULL DEFAULT ''",
+        })
+        { try { ExecuteNQ(sql); } catch { } }
+        try { ExecuteNQ("CREATE UNIQUE INDEX IF NOT EXISTS idx_tech_ck ON Techniques(CatalogKey) WHERE CatalogKey != ''"); } catch { }
+    }
+
     public void SeedTechniquesIfEmpty()
     {
-        EnsureTechniqueColumns();
+        EnsureFullTechniquesTable();
         long existing = (long)(ExecuteScalar("SELECT COUNT(*) FROM Techniques WHERE CatalogKey != ''") ?? 0L);
         if (existing >= 1050) return;
         using var tx = _conn.BeginTransaction();
