@@ -114,7 +114,7 @@ public partial class GameWindow : Window
         PlayerFactionLabel.Text = $"  |  {onePlayerFaction.Label}";
         DayLabel.Text           = $"  |  {_viewModel.DayDisplay}";
         DevPointsLabel.Text     = $"  {_viewModel.DevPointsDisplay}";
-        AltarLabel.Text         = $"  {_viewModel.TerminalDisplay}";
+        TerminalLabel.Text         = $"  {_viewModel.TerminalDisplay}";
         ActionsLabel.Text       = $"  {_viewModel.ActionsDisplay}";
         ActionsLabel.Foreground = _viewModel.HasActionsLeft
             ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
@@ -247,7 +247,7 @@ public partial class GameWindow : Window
         // Faith & survivors summary
         LogControl.AddSystemEntry(
             $"23:00 | ОР: {_viewModel.DevPoints:F0}  Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}  Терминал: ур.{_viewModel.TerminalLevel}",
-            LogEntry.ColorAltarColor);
+            LogEntry.ColorTerminalColor);
 
         // Follower table
         var sb = new System.Text.StringBuilder("Последователи: ");

@@ -99,7 +99,7 @@ public class ResourceHandler : BaseActionHandler
         {
             target.FollowerLevel++;
             _db.SaveNpc(target);
-            Log($"  {target.Name} повышен до {target.FollowerLabel}!", LogEntry.ColorAltarColor);
+            Log($"  {target.Name} повышен до {target.FollowerLabel}!", LogEntry.ColorTerminalColor);
         }
 
         return $"Ресурс передан {target.Name}";

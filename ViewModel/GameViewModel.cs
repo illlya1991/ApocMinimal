@@ -69,10 +69,16 @@ public class GameViewModel : INotifyPropertyChanged
     }
 
     private double _devPoints;
+    private int _baseUnits;
     public double DevPoints
     {
         get => _devPoints;
         set { _devPoints = value; OnPropertyChanged(); OnPropertyChanged(nameof(DevPointsDisplay)); OnPropertyChanged(nameof(CanUpgrade)); }
+    }
+    public int BaseUnits
+    {
+        get => _baseUnits;
+        set { _baseUnits = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanUpgrade)); }
     }
 
     private int _terminalLevel;
@@ -600,7 +606,9 @@ public class GameViewModel : INotifyPropertyChanged
 
     public List<int> ControlledZoneIds => _player?.ControlledZoneIds ?? new();
 
-    public int BaseUnits => _player?.BaseUnits ?? 0;
+    public int MaxBaseUnits => _player?.MaxBaseUnits ?? 0;
+
+    public int FreeBaseUnits => _player?.FreeBaseUnits ?? 0; 
 
     public string ProtectLocation(int locationId)
     {
@@ -610,23 +618,23 @@ public class GameViewModel : INotifyPropertyChanged
         if (_player.ControlledZoneIds.Contains(locationId))
             return $"«{loc.Name}» уже под защитой";
 
-        double cost = loc.Type switch
+        int cost = loc.Type switch
         {
-            LocationType.Apartment => 5,
-            LocationType.Floor => 10,
-            LocationType.Building => 20,
-            LocationType.Street => 50,
-            _ => 100
+            LocationType.Apartment => 1,
+            LocationType.Floor => 3,
+            LocationType.Building => 15,
+            LocationType.Street => 150,
+            _ => 300
         };
-        if (_player.DevPoints < cost)
-            return $"Недостаточно ОР (нужно {cost:F0})";
+        if (_player.FreeBaseUnits < cost)
+            return $"Недостаточно БЕ (нужно {cost:F0})";
 
-        _player.DevPoints -= cost;
+        _player.BaseUnits += cost;
         _player.ControlledZoneIds.Add(locationId);
         _player.TerritoryControl = _player.ControlledZoneIds.Count;
         _db.SavePlayer(_player);
         DevPoints = _player.DevPoints;
-        return $"«{loc.Name}» взята под защиту ({cost:F0} ОР)";
+        return $"«{loc.Name}» взята под защиту ({cost:F0} БЕ)";
     }
 
     public string UnprotectLocation(int locationId)

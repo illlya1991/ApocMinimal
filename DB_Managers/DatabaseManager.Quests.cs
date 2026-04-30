@@ -121,12 +121,12 @@ public partial class DatabaseManager
         cmd.ExecuteNonQuery();
     }
 
-    public List<QuestCatalogEntry> GetQuestCatalog(int altarLevel)
+    public List<QuestCatalogEntry> GetQuestCatalog(int TerminalLevel)
     {
         var list = new List<QuestCatalogEntry>();
         if (!IsTableExistsSafe("QuestCatalog")) return list;
         using var cmd = new SQLiteCommand("SELECT * FROM QuestCatalog WHERE MinTerminalLevel <= @al ORDER BY MinTerminalLevel, Id", _conn);
-        cmd.Parameters.AddWithValue("@al", altarLevel);
+        cmd.Parameters.AddWithValue("@al", TerminalLevel);
         using var rdr = cmd.ExecuteReader();
         while (rdr.Read())
         {

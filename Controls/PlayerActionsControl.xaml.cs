@@ -545,9 +545,9 @@ public partial class PlayerActionsControl : UserControl
         PanelMap.Visibility = TabMap.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void OpenAltarBtn_Click(object sender, RoutedEventArgs e)
+    private void OpenTerminalBtn_Click(object sender, RoutedEventArgs e)
     {
-        var win = new AltarWindow(_viewModel);
+        var win = new TerminalWindow(_viewModel);
         win.Owner = Window.GetWindow(this);
         win.ShowDialog();
         _viewModel.Refresh();

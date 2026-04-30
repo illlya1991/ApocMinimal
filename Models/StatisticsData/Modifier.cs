@@ -9,7 +9,7 @@ namespace ApocMinimal.Models.StatisticsData
     {
         public string Id { get; set; }
         public string Name { get; set; }
-        public string Source { get; set; }      // Источник (алтарь, техника, предмет)
+        public string Source { get; set; }      // Источник (Терминал, техника, предмет)
         public ModifierType Type { get; set; }   // Аддитивный или мультипликативный
         public double Value { get; set; }        // Значение (+20 или ×1.5)
 

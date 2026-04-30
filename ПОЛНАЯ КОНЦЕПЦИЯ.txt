@@ -28,7 +28,7 @@
 
 ### 2.3. Количество защитных зон (формула)
 ```
-BaseUnits = Level_Altar × (Level_Barrier × (Level_Barrier + 1)) / 2
+BaseUnits = Level_Terminal × (Level_Barrier × (Level_Barrier + 1)) / 2
 ```
 **Пересчёт:**  
 1 этаж = 2 квартиры  

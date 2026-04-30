@@ -78,7 +78,7 @@
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="#161b22">
                 <ToggleButton x:Name="TabActions" Content="Действия" Style="{StaticResource TabBtn}" IsChecked="True" Click="Tab_Click"/>
                 <ToggleButton x:Name="TabQuests" Content="Квесты" Style="{StaticResource TabBtn}" Click="Tab_Click" Visibility="Collapsed"/>
-                <Button x:Name="OpenAltarBtn" Content="⚡ Алтарь" Height="30" Padding="10,0" Background="#21262d" Foreground="#d2a8ff" BorderThickness="0" Cursor="Hand" Click="OpenAltarBtn_Click"/>
+                <Button x:Name="OpenTerminalBtn" Content="⚡ Терминал" Height="30" Padding="10,0" Background="#21262d" Foreground="#d2a8ff" BorderThickness="0" Cursor="Hand" Click="OpenTerminalBtn_Click"/>
                 <ToggleButton x:Name="TabMap" Content="Карта" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
             </StackPanel>
 

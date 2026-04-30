@@ -87,7 +87,7 @@ public class ManagementHandler : BaseActionHandler
         _db.SaveNpc(target);
 
         // Логирование
-        Log($"  {target.Name} повышен до {target.FollowerLabel}!", LogEntry.ColorAltarColor);
+        Log($"  {target.Name} повышен до {target.FollowerLabel}!", LogEntry.ColorTerminalColor);
         Log($"    Стоимость: {cost:F0} веры", LogEntry.ColorNormal);
         Log($"    Доверие: +10 (теперь {target.Trust:F0})", LogEntry.ColorSuccess);
 

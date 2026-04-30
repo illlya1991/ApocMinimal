@@ -56,8 +56,8 @@ public partial class DatabaseManager
                     item._active = currentDay > 1;
                     item._currentDay = (int)currentDay;
 
-                    object? altarResult = ExecuteScalar("SELECT TerminalLevel FROM Player Limit 1");
-                    if (altarResult != null) item._terminalLevel = (int)(long)altarResult;
+                    object? TerminalResult = ExecuteScalar("SELECT TerminalLevel FROM Player Limit 1");
+                    if (TerminalResult != null) item._terminalLevel = (int)(long)TerminalResult;
 
                     object? faithResult = ExecuteScalar("SELECT DevPoints FROM Player Limit 1");
                     if (faithResult != null) item._devPoints = Convert.ToDouble(faithResult);

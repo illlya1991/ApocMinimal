@@ -135,10 +135,10 @@
                         <DockPanel>
                             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
                                 <TextBlock Text="МАГАЗИН" Style="{StaticResource PanelTitle}" VerticalAlignment="Center"/>
-                                <ComboBox x:Name="AltarFilterCombo" DockPanel.Dock="Right"
+                                <ComboBox x:Name="TerminalFilterCombo" DockPanel.Dock="Right"
                                           Background="#21262d" Foreground="#c9d1d9" BorderBrush="#30363d"
                                           Height="22" MinWidth="80" FontSize="11"
-                                          SelectionChanged="AltarFilterCombo_SelectionChanged"/>
+                                          SelectionChanged="TerminalFilterCombo_SelectionChanged"/>
                             </DockPanel>
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0">
                                 <Button Content="Купить ×1" Style="{StaticResource ActionBtn}"

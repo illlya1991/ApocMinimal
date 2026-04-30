@@ -53,6 +53,6 @@ public static class TechniqueLevelExtensions
         _ => level.ToString(),
     };
 
-    /// <summary>Minimum altar level required to grant this technique.</summary>
+    /// <summary>Minimum Terminal level required to grant this technique.</summary>
     public static int MinTerminalLevel(this TechniqueLevel level) => (int)level + 1;
 }

@@ -53,7 +53,7 @@
                                Foreground="#8b949e" VerticalAlignment="Center" Margin="8,0"/>
                     <TextBlock x:Name="DevPointsLabel" Text="  0 ОР"
                                Foreground="#d29922" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="AltarLabel" Text="  Терминал: ур.1"
+                    <TextBlock x:Name="TerminalLabel" Text="  Терминал: ур.1"
                                Foreground="#58a6ff" VerticalAlignment="Center" Margin="8,0"/>
                     <TextBlock x:Name="ActionsLabel" Text="  Действий: 0/10"
                                Foreground="#56d364" VerticalAlignment="Center" Margin="8,0"/>

@@ -12,12 +12,12 @@ using ApocMinimal.Models.TechniqueData;
 
 namespace ApocMinimal;
 
-public partial class AltarWindow : Window
+public partial class TerminalWindow : Window
 {
     private readonly GameViewModel _vm;
     ListPlayerFactions listPlayerFactions;
 
-    public AltarWindow(GameViewModel vm)
+    public TerminalWindow(GameViewModel vm)
     {
         listPlayerFactions = new ListPlayerFactions();
         InitializeComponent();
@@ -27,22 +27,22 @@ public partial class AltarWindow : Window
 
     private void Refresh()
     {
-        RefreshAltarTab();
+        RefreshTerminalTab();
         RefreshBarrierTab();
         RefreshExchangesTab();
         RefreshShopTab();
         RefreshTerminalAbilTab();
     }
 
-    private void RefreshAltarTab()
+    private void RefreshTerminalTab()
     {
-        AltarInfoLabel.Text =
+        TerminalInfoLabel.Text =
             $"Уровень Терминала: {_vm.TerminalLevel} / 10\n" +
             $"ОР: {_vm.DevPoints:F0}\n" +
             $"Стоимость улучшения: {_vm.UpgradeCost:N0} ОР";
 
-        UpgradeAltarBtn.IsEnabled = _vm.CanUpgrade;
-        UpgradeAltarBtn.Content = _vm.TerminalLevel >= 10
+        UpgradeTerminalBtn.IsEnabled = _vm.CanUpgrade;
+        UpgradeTerminalBtn.Content = _vm.TerminalLevel >= 10
             ? "Максимальный уровень"
             : $"Улучшить ({_vm.UpgradeCost:N0} ОР)";
 
@@ -65,7 +65,7 @@ public partial class AltarWindow : Window
         });
     }
 
-    private void UpgradeAltarBtn_Click(object sender, RoutedEventArgs e)
+    private void UpgradeTerminalBtn_Click(object sender, RoutedEventArgs e)
     {
         if (!_vm.CanUpgrade) return;
         _vm.DevPoints -= _vm.UpgradeCost;
@@ -79,10 +79,11 @@ public partial class AltarWindow : Window
     {
         BarrierInfoLabel.Text =
             $"Уровень барьера: {_vm.BarrierLevel}  |  ОР: {_vm.DevPoints:F0}\n" +
-            $"Базовые единицы: {_vm.BaseUnits}  |  Защищено зон: {_vm.ControlledZoneIds.Count}";
+            $"Свободных базовых единицы: {_vm.FreeBaseUnits} из  {_vm.MaxBaseUnits} (БЕ)\n"  + 
+            $"Защищено зон: {_vm.ControlledZoneIds.Count}";
 
-        BarrierUpgradeBtn.IsEnabled = _vm.DevPoints >= 20;
-        BarrierHintLabel.Text = "Квартира: 5 ОР  |  Этаж: 10 ОР  |  Здание: 20 ОР  |  Улица: 50 ОР  (только зачищенные)";
+        BarrierUpgradeBtn.IsEnabled = _vm.DevPoints >= 20 * _vm.BarrierLevel;
+        BarrierHintLabel.Text = "Квартира: 1 БЕ  |  Этаж: 3 БЕ  |  Здание: 15 БЕ  |  Улица: 150 БЕ  |  район: 300 БЕ";
 
         BarrierMapPanel.Children.Clear();
 
@@ -197,14 +198,14 @@ public partial class AltarWindow : Window
     {
         double cost = loc.Type switch
         {
-            LocationType.Apartment => 5,
-            LocationType.Floor     => 10,
-            LocationType.Building  => 20,
-            LocationType.Street    => 50,
-            _                      => 100,
+            LocationType.Apartment => 1,
+            LocationType.Floor     => 3,
+            LocationType.Building  => 15,
+            LocationType.Street    => 150,
+            _                      => 300,
         };
 
-        bool canAfford   = _vm.DevPoints >= cost;
+        bool canAfford   = (_vm.FreeBaseUnits) >= cost;
         bool canProtect  = isCandidate && isAdjacent && !isProtected && canAfford;
         bool showProtect = isCandidate && !isProtected;
 
@@ -257,14 +258,14 @@ public partial class AltarWindow : Window
         {
             var btn = new Button
             {
-                Content   = $"+{cost:F0} ОР",
+                Content   = $"+{cost:F0} БЕ",
                 Style     = (Style)FindResource("ABtn"),
                 IsEnabled = canProtect,
                 Width = 60, Height = 20, FontSize = 9,
                 Tag = loc.Id,
                 ToolTip = !isAdjacent ? "Сначала защитите соседнюю локацию"
-                         : !canAfford ? $"Нужно {cost:F0} ОР"
-                         : $"Защитить за {cost:F0} ОР",
+                         : !canAfford ? $"Нужно {cost:F0} БЕ"
+                         : $"Защитить за {cost:F0} БЕ",
             };
             btn.Click += ProtectBtn_Click;
             row.Children.Add(btn);
@@ -569,7 +570,7 @@ public partial class AltarWindow : Window
         _vm.UnlockShopResource(name);
         _vm.Refresh();
         RefreshShopTab();
-        RefreshAltarTab();
+        RefreshTerminalTab();
     }
 
     private void ShopBuy_Click(object sender, RoutedEventArgs e)
@@ -578,6 +579,6 @@ public partial class AltarWindow : Window
         _vm.BuyShopResource(name);
         _vm.Refresh();
         RefreshShopTab();
-        RefreshAltarTab();
+        RefreshTerminalTab();
     }
 }

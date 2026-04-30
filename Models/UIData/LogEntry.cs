@@ -12,5 +12,5 @@ public class LogEntry
     public static string ColorDanger => "#f87171";  // красный
     public static string ColorDay => "#60a5fa";  // синий  — системное
     public static string ColorSpeech => "#e879f9";  // фиолетовый — речь НПС
-    public static string ColorAltarColor => "#facc15"; // золотой — алтарь
+    public static string ColorTerminalColor => "#facc15"; // золотой — Терминал
 }

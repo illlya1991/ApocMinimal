@@ -53,17 +53,17 @@ public partial class QuestWindow : Window
         InitializeComponent();
         _vm = viewModel;
         _log = log;
-        PopulateAltarFilter();
+        PopulateTerminalFilter();
         Refresh();
     }
 
-    private void PopulateAltarFilter()
+    private void PopulateTerminalFilter()
     {
-        AltarFilterCombo.Items.Clear();
-        AltarFilterCombo.Items.Add("Все уровни");
+        TerminalFilterCombo.Items.Clear();
+        TerminalFilterCombo.Items.Add("Все уровни");
         for (int i = 1; i <= 10; i++)
-            AltarFilterCombo.Items.Add($"Алтарь {i}+");
-        AltarFilterCombo.SelectedIndex = 0;
+            TerminalFilterCombo.Items.Add($"Терминал {i}+");
+        TerminalFilterCombo.SelectedIndex = 0;
     }
 
     private void Refresh()
@@ -79,7 +79,7 @@ public partial class QuestWindow : Window
 
     private void RefreshShop()
     {
-        int altarFilter = AltarFilterCombo.SelectedIndex;
+        int TerminalFilter = TerminalFilterCombo.SelectedIndex;
         var catalog = _vm.QuestShop;
 
         var ownedOneTime = new HashSet<int>();
@@ -90,9 +90,9 @@ public partial class QuestWindow : Window
             if (lib.QuestType == QuestType.Eternal) ownedEternal.Add(lib.CatalogId);
         }
 
-        _shopItems = altarFilter <= 0
+        _shopItems = TerminalFilter <= 0
             ? catalog
-            : catalog.Where(e => e.MinTerminalLevel == altarFilter).ToList();
+            : catalog.Where(e => e.MinTerminalLevel == TerminalFilter).ToList();
 
         _shopItems = _shopItems
             .Where(e => !ownedEternal.Contains(e.Id))
@@ -187,7 +187,7 @@ public partial class QuestWindow : Window
         }
     }
 
-    private void AltarFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void TerminalFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         RefreshShop();
     }

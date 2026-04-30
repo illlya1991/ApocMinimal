@@ -150,7 +150,7 @@ public class InteractionHandler : BaseActionHandler
 
         // Логирование
         Log($"{target.Name} делает пожертвование:", LogEntry.ColorSpeech);
-        Log($"  +{donationAmount:F0} ОР получено", LogEntry.ColorAltarColor);
+        Log($"  +{donationAmount:F0} ОР получено", LogEntry.ColorTerminalColor);
         Log($"  Преданность NPC: {target.Devotion + donationAmount:F0} → {target.Devotion:F0}", LogEntry.ColorNormal);
 
         return $"Пожертвование от {target.Name} получено";
@@ -224,7 +224,7 @@ public class InteractionHandler : BaseActionHandler
         _db.SaveNpc(target);
 
         Log($"Ты вдохновляешь {target.Name}:", LogEntry.ColorNormal);
-        Log($"  Преданность +{faithGain} (теперь {target.Devotion:F0})", LogEntry.ColorAltarColor);
+        Log($"  Преданность +{faithGain} (теперь {target.Devotion:F0})", LogEntry.ColorTerminalColor);
         Log($"  Инициатива +5 (теперь {target.Initiative:F0})", LogEntry.ColorSuccess);
 
         return $"{target.Name} вдохновлён";

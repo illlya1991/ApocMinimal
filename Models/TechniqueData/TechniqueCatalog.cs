@@ -24,7 +24,7 @@ public static class TechniqueCatalog
 {
     public static readonly TechniqueCatalogEntry[] Techniques =
     {
-        // ── Initiate (altar ≥ 1) ─────────────────────────────────────────
+        // ── Initiate (Terminal ≥ 1) ─────────────────────────────────────────
         new("tech_genin_strike",    "Удар силы",
             TechniqueLevel.Initiate,  TechniqueType.Physical, 150,
             "Базовый физический удар. +3 Сила, +2 Ловкость.",
@@ -40,7 +40,7 @@ public static class TechniqueCatalog
             "Краткое усиление концентрации. +3 Фокус, +2 Логика.",
             new() { [16]=3, [12]=2 }),
 
-        // ── Adept (altar ≥ 2) ────────────────────────────────────────────
+        // ── Adept (Terminal ≥ 2) ────────────────────────────────────────────
         new("tech_elite_genin_fireball", "Огненный шар",
             TechniqueLevel.Adept, TechniqueType.Energy, 200,
             "Техника огненной энергии. +5 Запас энергии, +3 Макс. выход.",
@@ -56,7 +56,7 @@ public static class TechniqueCatalog
             "Расширенное восприятие окружения. +5 Сенсорика, +3 Интуиция.",
             new() { [4]=5, [17]=3 }),
 
-        // ── Warrior (altar ≥ 3) ───────────────────────────────────────────
+        // ── Warrior (Terminal ≥ 3) ───────────────────────────────────────────
         new("tech_chunin_illusion",  "Иллюзия страха",
             TechniqueLevel.Warrior,  TechniqueType.Mental, 300,
             "Ментальная атака, вызывает панику. +7 Воля, +4 Соц. интеллект.",
@@ -72,7 +72,7 @@ public static class TechniqueCatalog
             "Тренировка рефлексов. +7 Рефлексы, +4 Ловкость.",
             new() { [7]=7, [2]=4 }),
 
-        // ── Veteran (altar ≥ 4) ───────────────────────────────────────────
+        // ── Veteran (Terminal ≥ 4) ───────────────────────────────────────────
         new("tech_elite_chunin_stone", "Каменная кожа",
             TechniqueLevel.Veteran, TechniqueType.Physical, 500,
             "Физическое укрепление тела. +10 Стойкость, +6 Выносливость.",
@@ -88,7 +88,7 @@ public static class TechniqueCatalog
             "Усиление аналитических способностей. +10 Логика, +6 Дедукция.",
             new() { [12]=10, [19]=6 }),
 
-        // ── Master (altar ≥ 5) ────────────────────────────────────────────
+        // ── Master (Terminal ≥ 5) ────────────────────────────────────────────
         new("tech_jonin_blast",  "Взрыв энергии",
             TechniqueLevel.Master, TechniqueType.Energy, 800,
             "Мощный выброс энергии. +15 Запас энергии, +8 Макс. выход.",
@@ -104,7 +104,7 @@ public static class TechniqueCatalog
             "Тело достигает высокой формы. +15 Сила, +8 Восстановление сил.",
             new() { [1]=15, [8]=8 }),
 
-        // ── GrandMaster (altar ≥ 6) ───────────────────────────────────────
+        // ── GrandMaster (Terminal ≥ 6) ───────────────────────────────────────
         new("tech_elite_jonin_perfect", "Совершенная форма",
             TechniqueLevel.GrandMaster, TechniqueType.Physical, 1000,
             "Тело достигает пика. +18 Сила, +10 Выносливость, +8 Стойкость.",
@@ -120,7 +120,7 @@ public static class TechniqueCatalog
             "Расширенное восприятие. +18 Интуиция, +10 Сенсорика.",
             new() { [17]=18, [4]=10 }),
 
-        // ── Phantom (altar ≥ 7) ───────────────────────────────────────────
+        // ── Phantom (Terminal ≥ 7) ───────────────────────────────────────────
         new("tech_anbu_clone",   "Энергетический клон",
             TechniqueLevel.Phantom,  TechniqueType.Energy, 1200,
             "Создание энергетических копий. +20 Запас энергии, +12 Макс. выход, +10 Контроль.",
@@ -136,7 +136,7 @@ public static class TechniqueCatalog
             "Усиление памяти и концентрации. +20 Память, +12 Фокус.",
             new() { [13]=20, [16]=12 }),
 
-        // ── Legend (altar ≥ 8) ────────────────────────────────────────────
+        // ── Legend (Terminal ≥ 8) ────────────────────────────────────────────
         new("tech_sannin_nature", "Природная сила",
             TechniqueLevel.Legend, TechniqueType.Energy, 1500,
             "Слияние с природной энергией. +25 Запас энергии, +15 Восст. энергии, +12 Энерг. восприятие.",
@@ -152,7 +152,7 @@ public static class TechniqueCatalog
             "Пробуждение умственных способностей. +25 Логика, +15 Математика, +12 Скорость обучения.",
             new() { [12]=25, [20]=15, [22]=12 }),
 
-        // ── Vessel (altar ≥ 9) ────────────────────────────────────────────
+        // ── Vessel (Terminal ≥ 9) ────────────────────────────────────────────
         new("tech_jinchuriki_beast", "Сила зверя",
             TechniqueLevel.Vessel, TechniqueType.Energy, 2000,
             "Управление огромной внутренней силой. +30 Запас энергии, +20 Макс. выход, +15 Энерг. стойкость.",
@@ -163,7 +163,7 @@ public static class TechniqueCatalog
             "Абсолютная физическая защита. +30 Стойкость, +20 Выносливость, +15 Регенерация.",
             new() { [9]=30, [3]=20, [5]=15 }),
 
-        // ── Apex (altar ≥ 10) ─────────────────────────────────────────────
+        // ── Apex (Terminal ≥ 10) ─────────────────────────────────────────────
         new("tech_kage_void",    "Бездна",
             TechniqueLevel.Apex,   TechniqueType.Mental, 3000,
             "Абсолютная ментальная пустота. +40 Воля, +25 Фокус, +20 Дедукция.",
@@ -182,7 +182,7 @@ public static class TechniqueCatalog
 
     public static readonly PassiveUpgrade[] Passives =
     {
-        // ── Initiate (+5 = 150 OV, altar ≥ 1) ───────────────────────────
+        // ── Initiate (+5 = 150 OV, Terminal ≥ 1) ───────────────────────────
         new("pass_genin_str",  "Усиление: Сила",          TechniqueLevel.Initiate, 1,  5, 150, "+5 Сила"),
         new("pass_genin_agi",  "Усиление: Ловкость",      TechniqueLevel.Initiate, 2,  5, 150, "+5 Ловкость"),
         new("pass_genin_end",  "Усиление: Выносливость",  TechniqueLevel.Initiate, 3,  5, 150, "+5 Выносливость"),
@@ -192,7 +192,7 @@ public static class TechniqueCatalog
         new("pass_genin_ce",   "Усиление: Запас энергии", TechniqueLevel.Initiate, 23, 5, 150, "+5 Запас энергии"),
         new("pass_genin_ctrl", "Усиление: Контроль",      TechniqueLevel.Initiate, 26, 5, 150, "+5 Контроль"),
 
-        // ── Adept (+10 = 200 OV, altar ≥ 2) ─────────────────────────────
+        // ── Adept (+10 = 200 OV, Terminal ≥ 2) ─────────────────────────────
         new("pass_egenin_str", "Усиление II: Сила",          TechniqueLevel.Adept, 1,  10, 200, "+10 Сила"),
         new("pass_egenin_agi", "Усиление II: Ловкость",      TechniqueLevel.Adept, 2,  10, 200, "+10 Ловкость"),
         new("pass_egenin_end", "Усиление II: Выносливость",  TechniqueLevel.Adept, 3,  10, 200, "+10 Выносливость"),
@@ -202,7 +202,7 @@ public static class TechniqueCatalog
         new("pass_egenin_ce",  "Усиление II: Запас энергии", TechniqueLevel.Adept, 23, 10, 200, "+10 Запас энергии"),
         new("pass_egenin_ctrl","Усиление II: Контроль",      TechniqueLevel.Adept, 26, 10, 200, "+10 Контроль"),
 
-        // ── Warrior (+15 = 300 OV, altar ≥ 3) ────────────────────────────
+        // ── Warrior (+15 = 300 OV, Terminal ≥ 3) ────────────────────────────
         new("pass_chunin_str", "Усиление III: Сила",          TechniqueLevel.Warrior, 1,  15, 300, "+15 Сила"),
         new("pass_chunin_agi", "Усиление III: Ловкость",      TechniqueLevel.Warrior, 2,  15, 300, "+15 Ловкость"),
         new("pass_chunin_end", "Усиление III: Выносливость",  TechniqueLevel.Warrior, 3,  15, 300, "+15 Выносливость"),
@@ -212,13 +212,13 @@ public static class TechniqueCatalog
         new("pass_chunin_ce",  "Усиление III: Запас энергии", TechniqueLevel.Warrior, 23, 15, 300, "+15 Запас энергии"),
         new("pass_chunin_ctrl","Усиление III: Контроль",      TechniqueLevel.Warrior, 26, 15, 300, "+15 Контроль"),
 
-        // ── Veteran (+20 = 500 OV, altar ≥ 4) ────────────────────────────
+        // ── Veteran (+20 = 500 OV, Terminal ≥ 4) ────────────────────────────
         new("pass_echunin_str","Усиление IV: Сила",            TechniqueLevel.Veteran, 1,  20, 500, "+20 Сила"),
         new("pass_echunin_end","Усиление IV: Выносливость",    TechniqueLevel.Veteran, 3,  20, 500, "+20 Выносливость"),
         new("pass_echunin_foc","Усиление IV: Фокус",           TechniqueLevel.Veteran, 16, 20, 500, "+20 Фокус"),
         new("pass_echunin_ce", "Усиление IV: Запас энергии",   TechniqueLevel.Veteran, 23, 20, 500, "+20 Запас энергии"),
 
-        // ── Master (+25 = 800 OV, altar ≥ 5) ─────────────────────────────
+        // ── Master (+25 = 800 OV, Terminal ≥ 5) ─────────────────────────────
         new("pass_jonin_str",  "Усиление V: Сила",             TechniqueLevel.Master, 1,  25, 800, "+25 Сила"),
         new("pass_jonin_end",  "Усиление V: Выносливость",     TechniqueLevel.Master, 3,  25, 800, "+25 Выносливость"),
         new("pass_jonin_will", "Усиление V: Воля",              TechniqueLevel.Master, 21, 25, 800, "+25 Воля"),
