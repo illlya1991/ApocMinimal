@@ -12,13 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="DataBase\apoc_minimal_template.db" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="DataBase\apoc_minimal_template.db">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Resources\earth_after_the_end.ico" />
   </ItemGroup>
 
