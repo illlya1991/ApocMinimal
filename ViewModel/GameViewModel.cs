@@ -171,7 +171,10 @@ public class GameViewModel : INotifyPropertyChanged
 
         // Player
         System.Diagnostics.Debug.WriteLine("  Загрузка Player...");
-        _player = _db.GetPlayer()!;
+        try { _player = _db.GetPlayer()!; }
+        catch (Exception ex) { throw new Exception($"GetPlayer() выбросил исключение: {ex.GetType().Name}: {ex.Message}", ex); }
+        if (_player == null)
+            throw new Exception($"Player не найден в БД. SaveId={_db.CurrentSaveId}. Проверь таблицу Player в шаблоне.");
         System.Diagnostics.Debug.WriteLine($"    Player загружен за {memSw.ElapsedMilliseconds} мс");
         memSw.Restart();
 
