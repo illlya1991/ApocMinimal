@@ -119,6 +119,16 @@ public partial class DatabaseManager : IDisposable
         Report(15, "Подключение к базе...");
         OpenConnection(_thisSave._connectionString);
 
+        // ВРЕМЕННАЯ ЗАПЛАТКА: оставляем только первые 10 000 НПС
+        Report(18, "Обрезка НПС до 10 000...");
+        long totalNpcs = (long)(ExecuteScalar("SELECT COUNT(*) FROM Npcs") ?? 0L);
+        if (totalNpcs > 10000)
+        {
+            ExecuteNQ(@"DELETE FROM NpcModifiers WHERE NpcId NOT IN (SELECT Id FROM Npcs ORDER BY Id LIMIT 10000)");
+            ExecuteNQ(@"DELETE FROM Npcs WHERE Id NOT IN (SELECT Id FROM Npcs ORDER BY Id LIMIT 10000)");
+            ExecuteNQ("VACUUM");
+        }
+
         Report(30, "Загрузка локаций...");
         var locations = GetAllLocations();
         var rnd = new Random();
