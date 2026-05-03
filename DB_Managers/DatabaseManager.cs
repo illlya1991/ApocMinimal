@@ -91,7 +91,57 @@ public partial class DatabaseManager : IDisposable
     public void OpenCurrentSave()
     {
         if (!string.IsNullOrEmpty(_thisSave._connectionString))
+        {
             OpenConnection(_thisSave._connectionString);
+            EnsureTables();
+        }
+    }
+
+    private void EnsureTables()
+    {
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS AppliedExchanges (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SaveId TEXT NOT NULL,
+            ExchangeId INTEGER NOT NULL,
+            UNIQUE(SaveId, ExchangeId))");
+
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS ResourceShop (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SaveId TEXT NOT NULL,
+            ResourceName TEXT NOT NULL,
+            UNIQUE(SaveId, ResourceName))");
+
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS GameLog (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SaveId TEXT NOT NULL,
+            DayNumber INTEGER NOT NULL,
+            Section TEXT NOT NULL DEFAULT '',
+            Text TEXT NOT NULL,
+            Color TEXT NOT NULL DEFAULT '#c9d1d9',
+            IsAction INTEGER NOT NULL DEFAULT 0)");
+
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS QuestHistory (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SaveId TEXT NOT NULL,
+            CatalogId INTEGER NOT NULL DEFAULT 0,
+            QuestTitle TEXT NOT NULL DEFAULT '',
+            NpcName TEXT NOT NULL DEFAULT '',
+            DayTaken INTEGER NOT NULL DEFAULT 0,
+            DayCompleted INTEGER NOT NULL DEFAULT 0,
+            RewardGiven TEXT NOT NULL DEFAULT '')");
+
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS PlayerQuestLibrary (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SaveId TEXT NOT NULL,
+            CatalogId INTEGER NOT NULL,
+            PublishesLeft INTEGER NOT NULL DEFAULT 1,
+            TimesCompleted INTEGER NOT NULL DEFAULT 0,
+            QuestType TEXT NOT NULL DEFAULT 'OneTime')");
+
+        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS PlayerTechInventory (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SaveId TEXT NOT NULL,
+            TechKey TEXT NOT NULL)");
     }
 
     public void DeleteSave(OneSave value)
