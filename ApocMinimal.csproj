@@ -12,6 +12,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Шаблон БД слишком большой для git, копируем только если файл есть локально -->
+    <Content Include="DataBase\apoc_minimal_template.db"
+             Condition="Exists('DataBase\apoc_minimal_template.db')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Resources\earth_after_the_end.ico" />
   </ItemGroup>
 
