@@ -1,5 +1,5 @@
+// StartWindow.xaml.cs (исправленная версия)
 using System.Windows;
-using System.Windows.Controls;
 using ApocMinimal.Database;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Services;
@@ -24,12 +24,16 @@ public partial class StartWindow : Window
             ContinueButton.Background = System.Windows.Media.Brushes.Gray;
     }
 
-    private void NewGame_Click(object sender, RoutedEventArgs e)
+    private async void NewGame_Click(object sender, RoutedEventArgs e)
     {
         var saveWindow = new SaveSelectionWindow(_db.ListSaves, "new", _db);
         bool? saveResult = saveWindow.ShowDialog();
         if (saveResult != true || saveWindow.IsCanceled || saveWindow.SelectedSave == null)
             return;
+
+        // Очищаем кэши перед новой игрой
+        DatabaseManager.ClearAllCaches();
+        _db.ResetForNewSave();
 
         _db.ThisSave = saveWindow.SelectedSave;
 
@@ -43,39 +47,38 @@ public partial class StartWindow : Window
         PlayerFaction chosenFaction = setupWindow.ChosenFaction;
 
         var state = new GameInitState();
+        state.LocationService = new LocationService(_db);
+        state.TechniqueService = new TechniqueService(_db);
 
         var loading = new LoadingWindow(
             "Создание нового мира...",
             (worker, args) =>
             {
-                // ResetDatabase: 0–70%
+                // Сброс БД
                 _db.ResetDatabase((percent, status, detail) =>
                 {
-                    worker.ReportProgress(percent * 70 / 100,
+                    worker.ReportProgress(percent,
                         string.IsNullOrEmpty(detail) ? (object)status : (status, detail));
                 });
 
-                // Player setup
-                worker.ReportProgress(71, "Настройка персонажа...");
+                // Настройка игрока
+                worker.ReportProgress(70, "Настройка персонажа...");
                 var player = _db.GetPlayer();
                 if (player != null)
                 {
-                    player.Name   = chosenName;
+                    player.Name = chosenName;
                     player.Faction = chosenFaction;
-                    _db.EnsureFactionCoeffsInGameConfig();
                     _db.ApplyFactionCoefficients(player);
                     _db.SavePlayer(player);
                 }
 
-                // LocationService: 75–88%
-                worker.ReportProgress(75, "Инициализация карты...");
-                state.LocationService = new LocationService(_db);
+                // Синхронная загрузка локаций (но с прогрессом через worker)
+                worker.ReportProgress(75, "Загрузка карты...");
                 state.LocationService.Initialize();
 
-                // TechniqueService: 88–100%
+                // Синхронная загрузка техник
                 worker.ReportProgress(88,
                     ("Загрузка техник...", $"{state.LocationService.TotalLocations} локаций загружено"));
-                state.TechniqueService = new TechniqueService(_db);
                 state.TechniqueService.Initialize();
 
                 worker.ReportProgress(100,
@@ -87,7 +90,7 @@ public partial class StartWindow : Window
         loading.ShowDialog();
     }
 
-    private void Continue_Click(object sender, RoutedEventArgs e)
+    private async void Continue_Click(object sender, RoutedEventArgs e)
     {
         var activeSaves = _db.ListSaves.FindAll(save => save._active);
         var saveWindow = new SaveSelectionWindow(activeSaves, "continue", _db);
@@ -95,27 +98,31 @@ public partial class StartWindow : Window
 
         if (result == true && !saveWindow.IsCanceled && saveWindow.SelectedSave != null)
         {
+            // Очищаем кэши перед новой игрой
+            DatabaseManager.ClearAllCaches();
+            _db.ResetForNewSave();
+
             _db.ThisSave = saveWindow.SelectedSave;
 
             var state = new GameInitState();
+            state.LocationService = new LocationService(_db);
+            state.TechniqueService = new TechniqueService(_db);
 
             var loading = new LoadingWindow(
                 "Загрузка сохранения...",
                 (worker, args) =>
                 {
-                    // Open DB
+                    // Открываем БД
                     worker.ReportProgress(5, "Открытие базы данных...");
                     _db.OpenCurrentSave();
 
-                    // LocationService: 10–65%
+                    // Загрузка локаций
                     worker.ReportProgress(10, "Загрузка карты...");
-                    state.LocationService = new LocationService(_db);
                     state.LocationService.Initialize();
 
-                    // TechniqueService: 65–95%
+                    // Загрузка техник
                     worker.ReportProgress(65,
                         ("Загрузка техник...", $"{state.LocationService.TotalLocations} локаций загружено"));
-                    state.TechniqueService = new TechniqueService(_db);
                     state.TechniqueService.Initialize();
 
                     worker.ReportProgress(100,

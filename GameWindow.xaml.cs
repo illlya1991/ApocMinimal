@@ -9,6 +9,8 @@ using ApocMinimal.Models.UIData;
 using ApocMinimal.Systems;
 using ApocMinimal.ViewModels;
 using ApocMinimal.Controls;
+using System.Windows.Controls;
+using ApocMinimal.Services;
 
 namespace ApocMinimal;
 
@@ -16,82 +18,273 @@ public partial class GameWindow : Window
 {
     private readonly GameViewModel _viewModel;
     private readonly DatabaseManager _db;
+    private Border? _progressOverlay;
+    private TextBlock? _progressText;
+    private System.Windows.Controls.ProgressBar? _progressBar;
 
     public GameWindow(DatabaseManager db, GameInitState? state = null)
     {
-        InitializeComponent();
+        System.Diagnostics.Debug.WriteLine("=== GameWindow: НАЧАЛО КОНСТРУКТОРА ===");
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        _db = db;
-        db.OpenCurrentSave();
-        db.EnsureNpcModifiersSchema();
-        db.EnsurePlayerSchema();
-        db.EnsureNpcTechSchema();
-        db.EnsureGameLogTable();
-        _viewModel = new GameViewModel(db, LogPlayer, state);
-        DataContext = _viewModel;
-        _viewModel.PropertyChanged += (s, e) => RefreshHeader();
-
-        PlayerActionsControl.SetViewModel(_viewModel);
-        PlayerActionsControl.LogAction += LogPlayer;
-        NpcListControl.NpcSelected += OnNpcSelected;
-
-        RefreshAll();
-        Title = $"Apocalypse Simulation — {_viewModel.PlayerName}";
-
-        if (_viewModel.CurrentDay == 1)
+        try
         {
-            _viewModel.SetupDayExchanges(1);
+            InitializeComponent();
 
-            for (int d = 1; d <= 9; d++)
-            {
-                LogControl.NewDay($"═══ ДЕНЬ {d} ══════════════════════");
-                var npcRes = _viewModel.ProcessNpcDay();
-                LogNpcDay(npcRes);
-                var endRes = _viewModel.AdvanceToNextDay();
-                LogSystemSummary(endRes);
-                _viewModel.SaveAll();
-            }
-            var day10Exchanges = _viewModel.SetupAndApplyDayExchanges(10);
+            _db = db;
+            db.OpenCurrentSave();
 
-            LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-            LogControl.AddSystemEntry("День 10 — первый день участия игрока.", "#8b949e");
+            _viewModel = new GameViewModel(db, LogPlayer, state);
+            DataContext = _viewModel;
+            _viewModel.PropertyChanged += (s, e) => RefreshHeader();
 
-            foreach (var ex in day10Exchanges)
-                LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
+            PlayerActionsControl.SetViewModel(_viewModel);
+            PlayerActionsControl.LogAction += LogPlayer;
+            NpcListControl.NpcSelected += OnNpcSelected;
 
-            var day10Result = _viewModel.ProcessNpcDay();
-            LogNpcDay(day10Result);
-            LogSystemSummary(day10Result);
+            RefreshAll();
+            Title = $"Apocalypse Simulation — {_viewModel.PlayerName}";
 
-            _viewModel.SaveAll();
+            sw.Stop();
+            System.Diagnostics.Debug.WriteLine($"=== GameWindow: КОНСТРУКТОР ЗА {sw.ElapsedMilliseconds} мс ===");
+
+            _ = LoadInitialDaysAsync();
         }
-        else
+        catch (Exception ex)
         {
-            // Load saved log history from DB
-            LoadSavedLogs();
+            System.Diagnostics.Debug.WriteLine($"!!! ОШИБКА В КОНСТРУКТОРЕ: {ex.Message}");
+            throw;
+        }
+    }
 
-            bool alreadyProcessed = _viewModel.AllNpcs
-                .Any(n => n.Memory.Any(m => m.Day == _viewModel.CurrentDay && m.Type == MemoryType.Action));
+    private async Task LoadInitialDaysAsync()
+    {
+        var totalSw = System.Diagnostics.Stopwatch.StartNew();
+        System.Diagnostics.Debug.WriteLine($"=== LoadInitialDaysAsync: НАЧАЛО ===");
 
-            LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-
-            if (!alreadyProcessed)
+        try
+        {
+            if (_viewModel.CurrentDay == 1)
             {
-                var dayResult = _viewModel.ProcessNpcDay();
-                LogNpcDay(dayResult);
-                LogSystemSummary(dayResult);
+                System.Diagnostics.Debug.WriteLine("  [1] Установка обменов дня 1...");
+                _viewModel.SetupDayExchanges(1);
+
+                LogControl.NewDay($"═══ ДЕНЬ 1 ══════════════════════");
+                LogControl.AddSystemEntry("День 1 — мир создан.", "#8b949e");
+
+                System.Diagnostics.Debug.WriteLine("  [2] Генерация дней 2-10...");
+
+                for (int day = 2; day <= 10; day++)
+                {
+                    System.Diagnostics.Debug.WriteLine($"    Обработка дня {day - 1} -> переход к дню {day}");
+
+                    // Обрабатываем конец предыдущего дня
+                    var endResult = _viewModel.AdvanceToNextDay();
+                    LogSystemSummary(endResult);
+
+                    // Сохраняем лог предыдущего дня
+                    SaveCurrentDayLog(day - 1);
+
+                    // Создаём новый день
+                    LogControl.NewDay($"═══ ДЕНЬ {day} ══════════════════════");
+
+                    // Обрабатываем NPC для нового дня с прогрессом
+                    // alertsOnly=true: не собираем 150к записей UI для авто-генерации
+                    var progress = CreateProgressHandler();
+                    StatusTextBlock.Text = $"Обработка дня {day}...";
+                    StatusTextBlock.Visibility = Visibility.Visible;
+
+                    var dayStartTime = DateTime.Now;
+                    System.Diagnostics.Debug.WriteLine($"      Запуск ProcessNpcDayOptimizedAsync для дня {day}");
+
+                    var npcResult = await _viewModel.ProcessNpcDayOptimizedAsync(progress, alertsOnly: true);
+
+                    System.Diagnostics.Debug.WriteLine($"      ProcessNpcDayOptimizedAsync завершён за {(DateTime.Now - dayStartTime).TotalMilliseconds:F0} мс");
+
+                    LogNpcDay(npcResult);
+
+                    StatusTextBlock.Text = "";
+                    StatusTextBlock.Visibility = Visibility.Collapsed;
+
+                    LogControl.AddSystemEntry($"--- День {day} обработан ---", "#60a5fa");
+
+                    // Даём UI время обновиться
+                    await Task.Delay(10);
+
+                    System.Diagnostics.Debug.WriteLine($"    День {day} полностью завершён");
+                }
+
+                System.Diagnostics.Debug.WriteLine("  [3] Применение обменов дня 10...");
+                var day10Exchanges = _viewModel.SetupAndApplyDayExchanges(10);
+
+                LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
+                LogControl.AddSystemEntry("День 10 — первый день участия игрока.", "#8b949e");
+
+                foreach (var ex in day10Exchanges)
+                    LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
+
+                LogControl.AddSystemEntry("👉 Игрок может начинать действовать!", "#56d364");
             }
             else
             {
-                LogControl.AddSystemEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
+                LoadSavedLogs();
+
+                bool alreadyProcessed = _viewModel.AllNpcs
+                    .Any(n => n.Memory.Any(m => m.Day == _viewModel.CurrentDay && m.Type == MemoryType.Action));
+
+                LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
+
+                if (!alreadyProcessed)
+                {
+                    LogControl.AddSystemEntry("Симуляция дня...", "#8b949e");
+                    var dayResult = await _viewModel.ProcessNpcDayOptimizedAsync();
+                    LogNpcDay(dayResult);
+                    LogSystemSummary(dayResult);
+                }
+                else
+                {
+                    LogControl.AddSystemEntry($"Мир загружен. Выживших: {_viewModel.AliveNpcsCount}", LogEntry.ColorNormal);
+                }
+
+                var todayExchanges = _viewModel.SetupAndApplyDayExchanges(_viewModel.CurrentDay);
+                foreach (var ex in todayExchanges)
+                    LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
             }
 
-            var todayExchanges = _viewModel.SetupAndApplyDayExchanges(_viewModel.CurrentDay);
-            foreach (var ex in todayExchanges)
-                LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
+            PlayerActionsControl.Refresh();
+
+            totalSw.Stop();
+            System.Diagnostics.Debug.WriteLine($"=== LoadInitialDaysAsync: ВСЕГО {totalSw.ElapsedMilliseconds} мс ===");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"!!! ОШИБКА В LoadInitialDaysAsync: {ex.Message}");
+            LogControl.AddSystemEntry($"Ошибка: {ex.Message}", "#f87171");
+        }
+    }
+
+    private Progress<(int current, int total)> CreateProgressHandler()
+    {
+        int lastPercent = 0;
+        var lastTime = DateTime.Now;
+
+        return new Progress<(int current, int total)>(p =>
+        {
+            if (p.total > 0)
+            {
+                int percent = (int)(p.current * 100.0 / p.total);
+                var now = DateTime.Now;
+
+                if (percent != lastPercent && (percent % 10 == 0 || p.current == p.total))
+                {
+                    var elapsed = (now - lastTime).TotalMilliseconds;
+                    System.Diagnostics.Debug.WriteLine($"        Прогресс: {percent}% ({p.current}/{p.total}) - за {elapsed:F0} мс");
+                    lastTime = now;
+                    lastPercent = percent;
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    StatusTextBlock.Text = $"День: {p.current}/{p.total} ({percent}%)";
+
+                    if (p.current == p.total)
+                    {
+                        Task.Delay(1000).ContinueWith(_ =>
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                if (StatusTextBlock.Text.Contains("100%"))
+                                {
+                                    StatusTextBlock.Text = "";
+                                    StatusTextBlock.Visibility = Visibility.Collapsed;
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    private void SaveCurrentDayLog(int dayNumber)
+    {
+        var dayRaw = LogControl.GetDayRaw(dayNumber);
+        if (dayRaw == null) return;
+
+        Task.Run(() =>
+        {
+            _db.SaveDayLog(_db.CurrentSaveId, dayNumber,
+                dayRaw.Entries.Select(e => (e.Section, e.Text, e.Color, e.IsAction)));
+        });
+    }
+
+    private void LoadSavedLogs()
+    {
+        var allRows = _db.GetAllLogs(_db.CurrentSaveId);
+        if (allRows.Count == 0) return;
+
+        var rawDays = allRows
+            .GroupBy(r => r.DayNumber)
+            .OrderBy(g => g.Key)
+            .Select(g => new ApocMinimal.Controls.LogDayData
+            {
+                DayNumber = g.Key,
+                Entries = g.Select(r => new ApocMinimal.Controls.LogEntryData
+                {
+                    Section = r.Section,
+                    Text = r.Text,
+                    Color = r.Color,
+                    IsAction = r.IsAction,
+                }).ToList()
+            })
+            .ToList();
+
+        LogControl.RebuildFromRaw(rawDays);
+    }
+
+    private void LogNpcDay(ApocMinimal.Systems.DayResult dayResult)
+    {
+        System.Diagnostics.Debug.WriteLine($"      LogNpcDay: начало, {dayResult.NpcResults.Count} результатов");
+
+        foreach (var npcResult in dayResult.NpcResults)
+        {
+            var entries = npcResult.Actions;
+            if (entries.Count == 0) continue;
+
+            LogControl.BeginNpcSection(npcResult.Npc.Name);
+            foreach (var entry in entries)
+            {
+                bool isAction = !entry.IsAlert;
+                LogControl.AddNpcEntry($"  [{entry.Time}] {entry.Text}",
+                    entry.IsAlert ? "#f87171" : entry.Color,
+                    isAction);
+            }
         }
 
-        PlayerActionsControl.Refresh();
+        System.Diagnostics.Debug.WriteLine($"      LogNpcDay: завершено");
+    }
+
+    private void LogSystemSummary(ApocMinimal.Systems.DayResult dayResult)
+    {
+        foreach (var (text, isAlert) in dayResult.Logs)
+            LogControl.AddSystemEntry(text, isAlert ? "#f87171" : "#8b949e");
+
+        foreach (var (npc, q) in dayResult.QuestRewards)
+        {
+            var res = _viewModel.Resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
+            LogControl.AddSystemEntry(
+                $"✓ Квест «{q.Title}» — {npc.Name} → +{q.RewardAmount:F0} {res?.Name}",
+                "#22c55e");
+        }
+
+        LogControl.AddSystemEntry(
+            $"23:00 | ОР: {_viewModel.DevPoints:F0}  Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}  Терминал: ур.{_viewModel.TerminalLevel}",
+            LogEntry.ColorTerminalColor);
+    }
+
+    private void LogPlayer(string text, string color)
+    {
+        LogControl.AddEntry(text, color);
     }
 
     private void OnNpcSelected(Npc npc)
@@ -110,44 +303,34 @@ public partial class GameWindow : Window
     {
         ListPlayerFactions listPlayerFactions = new ListPlayerFactions();
         OnePlayerFaction onePlayerFaction = listPlayerFactions.factions.FirstOrDefault(pf => pf.Faction == _viewModel.PlayerFaction);
-        PlayerNameLabel.Text    = $"{_viewModel.PlayerName}";
+        PlayerNameLabel.Text = $"{_viewModel.PlayerName}";
         PlayerFactionLabel.Text = $"  |  {onePlayerFaction.Label}";
-        DayLabel.Text           = $"  |  {_viewModel.DayDisplay}";
-        DevPointsLabel.Text     = $"  {_viewModel.DevPointsDisplay}";
-        TerminalLabel.Text         = $"  {_viewModel.TerminalDisplay}";
-        ActionsLabel.Text       = $"  {_viewModel.ActionsDisplay}";
+        DayLabel.Text = $"  |  {_viewModel.DayDisplay}";
+        DevPointsLabel.Text = $"  {_viewModel.DevPointsDisplay}";
+        TerminalLabel.Text = $"  {_viewModel.TerminalDisplay}";
+        ActionsLabel.Text = $"  {_viewModel.ActionsDisplay}";
         ActionsLabel.Foreground = _viewModel.HasActionsLeft
-            ? (SolidColorBrush)new BrushConverter().ConvertFromString("#56d364")!
-            : (SolidColorBrush)new BrushConverter().ConvertFromString("#f87171")!;
+            ? BrushCache.GetBrush("#56d364")!
+            : BrushCache.GetBrush("#f87171")!;
     }
 
-    // =========================================================
-    // End of Day
-    // =========================================================
-
-    private void EndDayBtn_Click(object sender, RoutedEventArgs e)
+    private async void EndDayBtn_Click(object sender, RoutedEventArgs e)
     {
         SettingsOverlay.Visibility = Visibility.Collapsed;
 
-        var scaleAnim = new DoubleAnimation
-        {
-            From = 1, To = 0.95,
-            Duration = TimeSpan.FromMilliseconds(50),
-            AutoReverse = true
-        };
-        EndDayBtn.RenderTransform = new ScaleTransform();
-        EndDayBtn.RenderTransformOrigin = new Point(0.5, 0.5);
-        EndDayBtn.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
-        EndDayBtn.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
-
-        // End current day: quests, needs, faith
         var endResult = _viewModel.AdvanceToNextDay();
         _viewModel.SaveAll();
 
-        // Start new day header first — system summary goes into the NEW day's Система section
         LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
         LogSystemSummary(endResult);
-        LogNpcDay(_viewModel.ProcessNpcDay());
+
+        ShowProgress($"Обработка дня {_viewModel.CurrentDay}...");
+        var progress = CreateProgressHandler();
+
+        var npcResult = await _viewModel.ProcessNpcDayOptimizedAsync(progress);
+        HideProgress();
+
+        LogNpcDay(npcResult);
 
         var newExchanges = _viewModel.SetupAndApplyDayExchanges(_viewModel.CurrentDay);
         foreach (var ex in newExchanges)
@@ -156,43 +339,83 @@ public partial class GameWindow : Window
         _viewModel.Refresh();
         RefreshAll();
 
-        // Save completed day log to DB
         SaveCurrentDayLog(_viewModel.CurrentDay - 1);
 
         if (_viewModel.IsVictory || _viewModel.IsDefeat)
             ShowResultWindow();
     }
 
-    private void SaveCurrentDayLog(int dayNumber)
+    private void ShowProgress(string message)
     {
-        var dayRaw = LogControl.GetDayRaw(dayNumber);
-        if (dayRaw == null) return;
-        _db.SaveDayLog(_db.CurrentSaveId, dayNumber,
-            dayRaw.Entries.Select(e => (e.Section, e.Text, e.Color, e.IsAction)));
+        if (_progressOverlay != null) return;
+
+        _progressOverlay = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(220, 13, 17, 23)),
+            CornerRadius = new CornerRadius(8),
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#60a5fa")),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Width = 300,
+            Height = 80,
+        };
+
+        var stack = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(16)
+        };
+
+        var msgText = new TextBlock
+        {
+            Text = message,
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#c9d1d9")),
+            FontSize = 12,
+            Margin = new Thickness(0, 0, 0, 8),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        stack.Children.Add(msgText);
+
+        _progressBar = new System.Windows.Controls.ProgressBar
+        {
+            Minimum = 0,
+            Maximum = 100,
+            Height = 6,
+            Width = 200,
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#60a5fa")),
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#21262d"))
+        };
+        stack.Children.Add(_progressBar);
+
+        _progressText = new TextBlock
+        {
+            Text = "0%",
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8b949e")),
+            FontSize = 10,
+            Margin = new Thickness(0, 4, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        stack.Children.Add(_progressText);
+
+        _progressOverlay.Child = stack;
+        var mainGrid = (Grid)Content;
+        mainGrid.Children.Add(_progressOverlay);
+        Canvas.SetZIndex(_progressOverlay, 1000);
     }
 
-    private void LoadSavedLogs()
+    private void HideProgress()
     {
-        var allRows = _db.GetAllLogs(_db.CurrentSaveId);
-        if (allRows.Count == 0) return;
-
-        var rawDays = allRows
-            .GroupBy(r => r.DayNumber)
-            .OrderBy(g => g.Key)
-            .Select(g => new ApocMinimal.Controls.LogDayData
-            {
-                DayNumber = g.Key,
-                Entries   = g.Select(r => new ApocMinimal.Controls.LogEntryData
-                {
-                    Section  = r.Section,
-                    Text     = r.Text,
-                    Color    = r.Color,
-                    IsAction = r.IsAction,
-                }).ToList()
-            })
-            .ToList();
-
-        LogControl.RebuildFromRaw(rawDays);
+        if (_progressOverlay != null)
+        {
+            var mainGrid = (Grid)Content;
+            if (mainGrid.Children.Contains(_progressOverlay))
+                mainGrid.Children.Remove(_progressOverlay);
+            _progressOverlay = null;
+            _progressBar = null;
+            _progressText = null;
+        }
     }
 
     private void ShowResultWindow()
@@ -207,69 +430,6 @@ public partial class GameWindow : Window
         win.Owner = this;
         win.ShowDialog();
     }
-
-    // =========================================================
-    // Log routing helpers
-    // =========================================================
-
-    /// <summary>Log all NPC results into the NPC section.</summary>
-    private void LogNpcDay(ApocMinimal.Systems.DayResult dayResult)
-    {
-        foreach (var npcResult in dayResult.NpcResults)
-        {
-            LogControl.BeginNpcSection(npcResult.Npc.Name);
-            foreach (var entry in npcResult.Actions)
-            {
-                bool isAction = !entry.IsAlert;
-                LogControl.AddNpcEntry($"  [{entry.Time}] {entry.Text}",
-                    entry.IsAlert ? "#f87171" : entry.Color,
-                    isAction);
-            }
-        }
-    }
-
-    /// <summary>Log end-of-day system info (resources, faith, followers, quests).</summary>
-    private void LogSystemSummary(ApocMinimal.Systems.DayResult dayResult)
-    {
-        // System logs (resources consumed, leader bonus, injuries)
-        foreach (var (text, isAlert) in dayResult.Logs)
-            LogControl.AddSystemEntry(text, isAlert ? "#f87171" : "#8b949e");
-
-        // Quest completions
-        foreach (var (npc, q) in dayResult.QuestRewards)
-        {
-            var res = _viewModel.Resources.FirstOrDefault(r => r.Id == q.RewardResourceId);
-            LogControl.AddSystemEntry(
-                $"✓ Квест «{q.Title}» — {npc.Name} → +{q.RewardAmount:F0} {res?.Name}",
-                "#22c55e");
-        }
-
-        // Faith & survivors summary
-        LogControl.AddSystemEntry(
-            $"23:00 | ОР: {_viewModel.DevPoints:F0}  Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}  Терминал: ур.{_viewModel.TerminalLevel}",
-            LogEntry.ColorTerminalColor);
-
-        // Follower table
-        var sb = new System.Text.StringBuilder("Последователи: ");
-        for (int fl = 1; fl <= 5; fl++)
-        {
-            int lim = _viewModel.GetFollowerLimit(fl);
-            if (lim == 0) continue;
-            int cur = _viewModel.GetFollowerCountAtLevel(fl);
-            sb.Append($"[ур.{fl}: {cur}/{(lim == -1 ? "∞" : lim.ToString())}]  ");
-        }
-        LogControl.AddSystemEntry(sb.ToString().TrimEnd(), "#60a5fa");
-    }
-
-    /// <summary>Route player action log lines to the "Действия игрока" section.</summary>
-    private void LogPlayer(string text, string color)
-    {
-        LogControl.AddEntry(text, color);
-    }
-
-    // =========================================================
-    // Other windows
-    // =========================================================
 
     private void FullscreenInfo_Click(object sender, RoutedEventArgs e)
     {
@@ -298,10 +458,6 @@ public partial class GameWindow : Window
         _viewModel.Refresh();
         RefreshAll();
     }
-
-    // =========================================================
-    // Settings
-    // =========================================================
 
     private void SettingsBtn_Click(object sender, RoutedEventArgs e)
     {

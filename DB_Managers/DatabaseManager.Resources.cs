@@ -75,16 +75,6 @@ public partial class DatabaseManager
         return config;
     }
 
-    public void EnsureResourceShopTable()
-    {
-        ExecuteNQ(@"CREATE TABLE IF NOT EXISTS ResourceShop (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            SaveId TEXT NOT NULL,
-            ResourceName TEXT NOT NULL,
-            UNIQUE(SaveId, ResourceName)
-        )");
-    }
-
     public List<string> GetShopUnlocks(string saveId)
     {
         var list = new List<string>();
@@ -98,7 +88,6 @@ public partial class DatabaseManager
 
     public void UnlockShopResource(string saveId, string resourceName)
     {
-        EnsureResourceShopTable();
         using var cmd = new SQLiteCommand("INSERT OR IGNORE INTO ResourceShop(SaveId, ResourceName) VALUES(@s,@r)", _conn);
         cmd.Parameters.AddWithValue("@s", saveId);
         cmd.Parameters.AddWithValue("@r", resourceName);
@@ -107,7 +96,6 @@ public partial class DatabaseManager
 
     public List<int> GetAppliedExchanges(string saveId)
     {
-        EnsureAppliedExchangesTable();
         var list = new List<int>();
         using var cmd = new SQLiteCommand("SELECT ExchangeId FROM AppliedExchanges WHERE SaveId=@s", _conn);
         cmd.Parameters.AddWithValue("@s", saveId);
@@ -118,20 +106,9 @@ public partial class DatabaseManager
 
     public void SaveAppliedExchange(string saveId, int exchangeId)
     {
-        EnsureAppliedExchangesTable();
         using var cmd = new SQLiteCommand("INSERT OR IGNORE INTO AppliedExchanges(SaveId,ExchangeId) VALUES(@s,@e)", _conn);
         cmd.Parameters.AddWithValue("@s", saveId);
         cmd.Parameters.AddWithValue("@e", exchangeId);
         cmd.ExecuteNonQuery();
-    }
-
-    private void EnsureAppliedExchangesTable()
-    {
-        new SQLiteCommand(@"
-            CREATE TABLE IF NOT EXISTS AppliedExchanges(
-                SaveId TEXT NOT NULL,
-                ExchangeId INTEGER NOT NULL,
-                PRIMARY KEY(SaveId, ExchangeId)
-            )", _conn).ExecuteNonQuery();
     }
 }

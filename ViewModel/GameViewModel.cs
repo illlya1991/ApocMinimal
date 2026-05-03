@@ -43,6 +43,10 @@ public class GameViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    private readonly OptimizedGameLoopService _optimizedLoop = new();
+    public NpcCacheService NpcCache { get; private set; }
+    public LocationCacheService LocationCache { get; private set; }
+
     public GameViewModel(DatabaseManager db, Action<string, string> logAction, GameInitState? state = null)
     {
         _db = db;
@@ -58,6 +62,12 @@ public class GameViewModel : INotifyPropertyChanged
 
         _actionManager = new ActionManager(_db, _techniqueService, _rnd, logAction, _catalog, _gameConfig);
         ActionGroups = _actionManager.GetGroups();
+
+        // После загрузки данных:
+        NpcCache = new NpcCacheService();
+        NpcCache.LoadAll(_npcs);
+        LocationCache = new LocationCacheService();
+        LocationCache.Initialize(_locations);
     }
 
     // Observable properties
@@ -101,7 +111,6 @@ public class GameViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HasActionsLeft));
         }
     }
-
     public string DayDisplay => $"День {CurrentDay}";
     public string DevPointsDisplay => $"ОР: {DevPoints:F0}";
     public string TerminalDisplay => $"Терминал: ур.{TerminalLevel}";
@@ -154,46 +163,124 @@ public class GameViewModel : INotifyPropertyChanged
     }
     private void LoadData()
     {
-        _player = _db.GetPlayer()!;
-        _npcs = _db.GetAllNpcs();
-        // Миграция: обновить потребности и статы у НПС с устаревшей структурой
-        bool needsMigration = _npcs.Count > 0 && _npcs.Any(n =>
-            n.Needs.Count(nd => nd.Category == NeedCategory.Special) > 5 ||
-            !n.Needs.Any(nd => nd.Name == "Самосовершенствование"));
-        if (needsMigration)
-        {
-            foreach (var npc in _npcs)
-            {
-                NpcGenerator.RefreshStatsAndNeeds(npc, _rnd);
-                _db.SaveNpc(npc);
-            }
-        }
-        _resources = _db.GetAllResources();
-        _quests = _db.GetAllQuests();
-        _locations = _db.GetAllLocations();
+        System.Diagnostics.Debug.WriteLine("=== LoadData: НАЧАЛО ===");
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var memSw = System.Diagnostics.Stopwatch.StartNew();
 
+        System.Diagnostics.Debug.WriteLine($"  Память до загрузки: {GC.GetTotalMemory(true) / (1024 * 1024)} МБ");
+
+        // Player
+        System.Diagnostics.Debug.WriteLine("  Загрузка Player...");
+        _player = _db.GetPlayer()!;
+        System.Diagnostics.Debug.WriteLine($"    Player загружен за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // NPC
+        System.Diagnostics.Debug.WriteLine("  Загрузка NPC...");
+        _npcs = _db.GetAllNpcsOptimized();
+        System.Diagnostics.Debug.WriteLine($"    NPC загружено: {_npcs.Count} шт. за {memSw.ElapsedMilliseconds} мс, память: {GC.GetTotalMemory(false) / (1024 * 1024)} МБ");
+        memSw.Restart();
+
+        // Resources
+        System.Diagnostics.Debug.WriteLine("  Загрузка ресурсов...");
+        _resources = _db.GetAllResources();
+        System.Diagnostics.Debug.WriteLine($"    Ресурсов: {_resources.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // Quests
+        System.Diagnostics.Debug.WriteLine("  Загрузка квестов...");
+        _quests = _db.GetAllQuests();
+        System.Diagnostics.Debug.WriteLine($"    Квестов: {_quests.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // Locations
+        System.Diagnostics.Debug.WriteLine("  Загрузка локаций...");
+        _locations = _db.GetAllLocations();
+        System.Diagnostics.Debug.WriteLine($"    Локаций: {_locations.Count} шт. за {memSw.ElapsedMilliseconds} мс, память: {GC.GetTotalMemory(false) / (1024 * 1024)} МБ");
+        memSw.Restart();
+
+        // Resource catalog
+        System.Diagnostics.Debug.WriteLine("  Загрузка каталога ресурсов...");
         var catalogList = _db.GetResourceCatalog();
         _catalog = new Dictionary<string, ResourceCatalogEntry>(catalogList.Count);
         for (int i = 0; i < catalogList.Count; i++)
             _catalog[catalogList[i].Name] = catalogList[i];
+        System.Diagnostics.Debug.WriteLine($"    Каталог ресурсов: {catalogList.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
 
+        // Game config
+        System.Diagnostics.Debug.WriteLine("  Загрузка конфигурации...");
         _gameConfig = _db.GetGameConfig();
+        System.Diagnostics.Debug.WriteLine($"    Конфигурация: {_gameConfig.Count} ключей за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // Quest catalog
+        System.Diagnostics.Debug.WriteLine("  Загрузка каталога квестов...");
         _questCatalog = _db.GetQuestCatalog(999);
+        System.Diagnostics.Debug.WriteLine($"    Каталог квестов: {_questCatalog.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // Player library
+        System.Diagnostics.Debug.WriteLine("  Загрузка библиотеки квестов...");
         _playerLibrary = _db.GetPlayerLibrary(_db.CurrentSaveId);
+        System.Diagnostics.Debug.WriteLine($"    Библиотека: {_playerLibrary.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // Shop unlocks
+        System.Diagnostics.Debug.WriteLine("  Загрузка магазина...");
         _shopUnlocks = _db.GetShopUnlocks(_db.CurrentSaveId);
+        System.Diagnostics.Debug.WriteLine($"    Магазин: {_shopUnlocks.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // Applied exchanges
+        System.Diagnostics.Debug.WriteLine("  Загрузка обменов...");
         _appliedExchangeIds = _db.GetAppliedExchanges(_db.CurrentSaveId);
+        System.Diagnostics.Debug.WriteLine($"    Обменов: {_appliedExchangeIds.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
+
+        // Tech inventory
+        System.Diagnostics.Debug.WriteLine("  Загрузка техник...");
         _techInventory = _db.GetTechInventory(_db.CurrentSaveId);
         RefreshInventoryTechniques();
+        System.Diagnostics.Debug.WriteLine($"    Техник в инвентаре: {_techInventory.Count} шт. за {memSw.ElapsedMilliseconds} мс");
+        memSw.Restart();
 
+        // Миграция потребностей NPC
+        System.Diagnostics.Debug.WriteLine("  Проверка миграции NPC...");
+        bool needsMigration = _npcs.Count > 0 && _npcs.Any(n =>
+            n.Needs.Count(nd => nd.Category == NeedCategory.Special) > 5 ||
+            !n.Needs.Any(nd => nd.Name == "Самосовершенствование"));
+
+        if (needsMigration)
+        {
+            System.Diagnostics.Debug.WriteLine("    Выполняется миграция NPC...");
+            int migrated = 0;
+            foreach (var npc in _npcs)
+            {
+                NpcGenerator.RefreshStatsAndNeeds(npc, _rnd);
+                _db.SaveNpc(npc);
+                migrated++;
+                if (migrated % 100 == 0)
+                    System.Diagnostics.Debug.WriteLine($"      Мигрировано {migrated}/{_npcs.Count} NPC");
+            }
+            System.Diagnostics.Debug.WriteLine($"    Мигрировано {migrated} NPC");
+        }
+        memSw.Restart();
+
+        // Set UI properties
         CurrentDay = _player.CurrentDay;
         DevPoints = _player.DevPoints;
         TerminalLevel = _player.TerminalLevel;
         ActionsToday = _player.PlayerActionsToday;
 
+        // Monster factions
         if (_monsterFactions.Count == 0)
             _monsterFactions = MonsterFactionFactory.CreateDefault();
-    }
 
+        sw.Stop();
+        System.Diagnostics.Debug.WriteLine($"=== LoadData: ВСЕГО {sw.ElapsedMilliseconds} мс ===");
+        System.Diagnostics.Debug.WriteLine($"=== ИТОГОВАЯ ПАМЯТЬ: {GC.GetTotalMemory(true) / (1024 * 1024)} МБ ===");
+    }
     public void ReloadQuestLibrary()
     {
         _questCatalog = _db.GetQuestCatalog(999);
@@ -458,13 +545,6 @@ public class GameViewModel : INotifyPropertyChanged
         _db.SaveNpc(npc);
     }
 
-    /// <summary>Process NPC actions for CurrentDay. Does NOT advance the day.</summary>
-    public DayResult ProcessNpcDay()
-    {
-        var ctx = new ActionContext { Resources = _resources, Locations = _locations, Npcs = _npcs };
-        return GameLoopService.ProcessNpcActionsOnly(_player, _npcs, _rnd, ctx);
-    }
-
     /// <summary>Process end-of-day (quests, needs, faith) and advance CurrentDay. Returns results for logging.</summary>
     public DayResult AdvanceToNextDay()
     {
@@ -650,28 +730,8 @@ public class GameViewModel : INotifyPropertyChanged
         return $"«{loc?.Name ?? $"#{locationId}"}» снята с защиты";
     }
 
-    public List<PresidentialExchangeEntry> SetupAndApplyDayExchanges(int day)
-    {
-        if (!ExchangeCatalog.IsCriticalDay(day))
-            return new List<PresidentialExchangeEntry>();
-
-        var exchanges = ExchangeCatalog.GetForDay(day, _appliedExchangeIds, _rnd);
-        foreach (var ex in exchanges)
-        {
-            if (_appliedExchangeIds.Contains(ex.Id)) continue;
-            ExchangeSystem.Apply(ex, _npcs, _resources);
-            _appliedExchangeIds.Add(ex.Id);
-            _db.SaveAppliedExchange(_db.CurrentSaveId, ex.Id);
-            foreach (var npc in _npcs)
-                if (npc.IsAlive) _db.SaveNpc(npc);
-        }
-        PendingExchanges = new List<PresidentialExchangeEntry>();
-        OnPropertyChanged(nameof(PendingExchanges));
-        OnPropertyChanged(nameof(AppliedExchangesList));
-        return exchanges;
-    }
-
     public void SetupDayExchanges(int day) => SetupAndApplyDayExchanges(day);
+
 
     public string ApplyExchange(PresidentialExchangeEntry ex)
     {
@@ -758,4 +818,84 @@ public class GameViewModel : INotifyPropertyChanged
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    public async Task<DayResult> ProcessNpcDayAsync(IProgress<(int current, int total)>? progress = null)
+    {
+        return await _optimizedLoop.ProcessNpcDaysParallelAsync(
+            _player, _npcs, _resources, _locations, _player.CurrentDay,
+            _player.FactionCoeffs.CoeffStatGrowth, progress);
+    }
+
+    public async Task<DayResult> ProcessNpcDayOptimizedAsync(IProgress<(int, int)>? progress = null, bool alertsOnly = false)
+    {
+        return await _optimizedLoop.ProcessNpcDaysParallelAsync(
+            _player,
+            _npcs,
+            _resources,
+            _locations,
+            _player.CurrentDay,
+            _player.FactionCoeffs.CoeffStatGrowth,
+            progress,
+            alertsOnly);
+    }
+
+    // Добавьте этот метод для быстрого применения обменов
+    public List<PresidentialExchangeEntry> SetupAndApplyDayExchanges(int day)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        System.Diagnostics.Debug.WriteLine($"      SetupAndApplyDayExchanges: день {day} START");
+
+        if (!ExchangeCatalog.IsCriticalDay(day))
+        {
+            return new List<PresidentialExchangeEntry>();
+        }
+
+        var exchanges = ExchangeCatalog.GetForDay(day, _appliedExchangeIds, _rnd);
+
+        if (exchanges.Count == 0)
+            return exchanges;
+
+        // Применяем обмены быстро (без сохранения)
+        foreach (var ex in exchanges)
+        {
+            if (_appliedExchangeIds.Contains(ex.Id)) continue;
+
+            ExchangeSystem.ApplyFast(ex, _npcs, _resources);
+            _appliedExchangeIds.Add(ex.Id);
+            _db.SaveAppliedExchange(_db.CurrentSaveId, ex.Id);
+        }
+
+        // Сохраняем всех NPC одной транзакцией
+        var saveSw = System.Diagnostics.Stopwatch.StartNew();
+        using (var transaction = _db.GetConnection().BeginTransaction())
+        {
+            try
+            {
+                foreach (var npc in _npcs)
+                    if (npc.IsAlive)
+                        _db.SaveNpcInTransaction(npc, transaction);
+
+                transaction.Commit();
+                System.Diagnostics.Debug.WriteLine($"      Сохранено NPC за {saveSw.ElapsedMilliseconds} мс");
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                System.Diagnostics.Debug.WriteLine($"      Ошибка сохранения: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Сохраняем ресурсы
+        foreach (var res in _resources)
+            _db.SaveResource(res);
+
+        PendingExchanges = new List<PresidentialExchangeEntry>();
+        OnPropertyChanged(nameof(PendingExchanges));
+        OnPropertyChanged(nameof(AppliedExchangesList));
+
+        sw.Stop();
+        System.Diagnostics.Debug.WriteLine($"      SetupAndApplyDayExchanges: ВСЕГО {sw.ElapsedMilliseconds} мс");
+        return exchanges;
+    }
 }

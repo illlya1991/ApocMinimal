@@ -1,5 +1,6 @@
 using ApocMinimal.Database;
 using ApocMinimal.Models.PersonData;
+using ApocMinimal.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -53,7 +54,7 @@ namespace ApocMinimal
                 SavesPanel.Children.Add(new TextBlock
                 {
                     Text = "Нет доступных сохранений",
-                    Foreground = (Brush)new BrushConverter().ConvertFromString("#8b949e"),
+                    Foreground = BrushCache.GetBrush("#8b949e"),
                     FontSize = 12,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 16, 0, 0)
@@ -79,8 +80,8 @@ namespace ApocMinimal
                 // Основная кнопка
                 var saveBtn = new Border
                 {
-                    Background = (Brush)new BrushConverter().ConvertFromString(bgColor),
-                    BorderBrush = (Brush)new BrushConverter().ConvertFromString(borderColor),
+                    Background = BrushCache.GetBrush(bgColor),
+                    BorderBrush = BrushCache.GetBrush(borderColor),
                     BorderThickness = new Thickness(isOccupied ? 2 : 1),
                     CornerRadius = new CornerRadius(4),
                     Cursor = Cursors.Hand,
@@ -97,7 +98,7 @@ namespace ApocMinimal
                 var nameBlock = new TextBlock
                 {
                     Text = isOccupied ? $"⚠ {slotName}" : slotName,
-                    Foreground = (Brush)new BrushConverter().ConvertFromString(nameColor),
+                    Foreground = BrushCache.GetBrush(nameColor),
                     FontSize = 13,
                     FontWeight = FontWeights.SemiBold
                 };
@@ -105,7 +106,7 @@ namespace ApocMinimal
                 var statusBlock = new TextBlock
                 {
                     Text = isOccupied ? "занято" : (save._active ? "активно" : "пусто"),
-                    Foreground = (Brush)new BrushConverter().ConvertFromString(isOccupied ? "#d97706" : (save._active ? "#4ade80" : "#555")),
+                    Foreground = BrushCache.GetBrush(isOccupied ? "#d97706" : (save._active ? "#4ade80" : "#555")),
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -120,7 +121,7 @@ namespace ApocMinimal
                     saveContent.Children.Add(new TextBlock
                     {
                         Text = $"День {save._currentDay}  |  Терминал ур.{save._terminalLevel}  |  ОР: {save._devPoints:F0}",
-                        Foreground = (Brush)new BrushConverter().ConvertFromString(isOccupied ? "#92400e" : "#4b7a4b"),
+                        Foreground = BrushCache.GetBrush(isOccupied ? "#92400e" : "#4b7a4b"),
                         FontSize = 10,
                         Margin = new Thickness(0, 3, 0, 0)
                     });
@@ -128,7 +129,7 @@ namespace ApocMinimal
                         saveContent.Children.Add(new TextBlock
                         {
                             Text = "Будет перезаписано!",
-                            Foreground = (Brush)new BrushConverter().ConvertFromString("#b45309"),
+                            Foreground = BrushCache.GetBrush("#b45309"),
                             FontSize = 10,
                             FontStyle = FontStyles.Italic
                         });
@@ -146,8 +147,8 @@ namespace ApocMinimal
                     {
                         Content = "Удалить сохранение",
                         Height = 26, FontSize = 11,
-                        Background = (Brush)new BrushConverter().ConvertFromString("#1e1010"),
-                        Foreground = (Brush)new BrushConverter().ConvertFromString("#f87171"),
+                        Background = BrushCache.GetBrush("#1e1010"),
+                        Foreground = BrushCache.GetBrush("#f87171"),
                         BorderThickness = new Thickness(0),
                         Cursor = Cursors.Hand,
                         Margin = new Thickness(0, 2, 0, 0),

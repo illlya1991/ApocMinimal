@@ -22,120 +22,149 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Стиль для индикатора сохранения -->
+        <Style x:Key="SavingIndicatorStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#56d364"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
-    <DockPanel>
-        <!-- TOP HEADER -->
-        <Border DockPanel.Dock="Top" 
-                BorderBrush="#30363d" 
-                BorderThickness="0,0,0,1" 
-                Padding="12,8">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#161b22" Offset="0"/>
-                    <GradientStop Color="#1a1a2e" Offset="0.5"/>
-                    <GradientStop Color="#161b22" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
+        <DockPanel>
+            <!-- TOP HEADER -->
+            <Border DockPanel.Dock="Top" 
+                    BorderBrush="#30363d" 
+                    BorderThickness="0,0,0,1" 
+                    Padding="12,8">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#161b22" Offset="0"/>
+                        <GradientStop Color="#1a1a2e" Offset="0.5"/>
+                        <GradientStop Color="#161b22" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock x:Name="PlayerNameLabel" Text="Игрок" FontSize="15"
+                                   Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="PlayerFactionLabel" Text="  |  Землянин" FontSize="15"
+                                   Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="DayLabel" Text="  |  День 1"
+                                   Foreground="#8b949e" VerticalAlignment="Center" Margin="8,0"/>
+                        <TextBlock x:Name="DevPointsLabel" Text="  0 ОР"
+                                   Foreground="#d29922" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TerminalLabel" Text="  Терминал: ур.1"
+                                   Foreground="#58a6ff" VerticalAlignment="Center" Margin="8,0"/>
+                        <TextBlock x:Name="ActionsLabel" Text="  Действий: 0/10"
+                                   Foreground="#56d364" VerticalAlignment="Center" Margin="8,0"/>
+                        <!-- Индикатор сохранения -->
+                        <TextBlock x:Name="StatusTextBlock" 
+                                   Text=""
+                                   Style="{StaticResource SavingIndicatorStyle}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="PlayerInfoBtn" Content="👤 Игрок"
+                                Style="{StaticResource ActionBtn}"
+                                Background="#1a2a3a" Foreground="#a5d6ff"
+                                Width="90" Margin="0,0,8,0" Click="PlayerInfoBtn_Click"/>
+                        <Button x:Name="QuestsBtn" Content="📜 КВЕСТЫ"
+                                Style="{StaticResource ActionBtn}"
+                                Background="#1a3a2a" Foreground="#56d364"
+                                Width="110" Margin="0,0,8,0" Click="QuestsBtn_Click"/>
+                        <Button x:Name="TechniquesBtn" Content="⚡ ТЕХНИКИ"
+                                Style="{StaticResource ActionBtn}"
+                                Background="#1a2a3a" Foreground="#79c0ff"
+                                Width="110" Margin="0,0,8,0" Click="TechniquesBtn_Click"/>
+                        <Button x:Name="FullscreenInfoBtn" Content="📊 ПОЛНЫЙ ОБЗОР"
+                                Style="{StaticResource ActionBtn}"
+                                Background="#2d1b69" Foreground="#d2a8ff"
+                                Width="130" Click="FullscreenInfo_Click"/>
+                        <Button x:Name="SettingsBtn" Content="⚙"
+                                Style="{StaticResource ActionBtn}"
+                                Background="#21262d" Foreground="#8b949e"
+                                Width="36" Margin="8,0,0,0" FontSize="15"
+                                Click="SettingsBtn_Click"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="2" x:Name="EndDayBtn" Content="КОНЕЦ ДНЯ"
+                            Style="{StaticResource ActionBtn}"
+                            Background="#1f4e8c" Foreground="#a5d6ff"
+                            Width="130" Margin="8,0,0,0" Click="EndDayBtn_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- LEFT PANEL: NPC LIST -->
+            <local:NpcListControl x:Name="NpcListControl" DockPanel.Dock="Left" Width="260"/>
+
+            <!-- CENTER + RIGHT: Grid — sidebar не перекрывает панель действий -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="310"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <TextBlock x:Name="PlayerNameLabel" Text="Игрок" FontSize="15"
-                               Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="PlayerFactionLabel" Text="  |  Землянин" FontSize="15"
-                                Foreground="#f0f6fc" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="DayLabel" Text="  |  День 1"
-                               Foreground="#8b949e" VerticalAlignment="Center" Margin="8,0"/>
-                    <TextBlock x:Name="DevPointsLabel" Text="  0 ОР"
-                               Foreground="#d29922" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TerminalLabel" Text="  Терминал: ур.1"
-                               Foreground="#58a6ff" VerticalAlignment="Center" Margin="8,0"/>
-                    <TextBlock x:Name="ActionsLabel" Text="  Действий: 0/10"
-                               Foreground="#56d364" VerticalAlignment="Center" Margin="8,0"/>
-
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="PlayerInfoBtn" Content="👤 Игрок"
-                            Style="{StaticResource ActionBtn}"
-                            Background="#1a2a3a" Foreground="#a5d6ff"
-                            Width="90" Margin="0,0,8,0" Click="PlayerInfoBtn_Click"/>
-                    <Button x:Name="QuestsBtn" Content="📜 КВЕСТЫ"
-                            Style="{StaticResource ActionBtn}"
-                            Background="#1a3a2a" Foreground="#56d364"
-                            Width="110" Margin="0,0,8,0" Click="QuestsBtn_Click"/>
-                    <Button x:Name="TechniquesBtn" Content="⚡ ТЕХНИКИ"
-                            Style="{StaticResource ActionBtn}"
-                            Background="#1a2a3a" Foreground="#79c0ff"
-                            Width="110" Margin="0,0,8,0" Click="TechniquesBtn_Click"/>
-                    <Button x:Name="FullscreenInfoBtn" Content="📊 ПОЛНЫЙ ОБЗОР"
-                            Style="{StaticResource ActionBtn}"
-                            Background="#2d1b69" Foreground="#d2a8ff"
-                            Width="130" Click="FullscreenInfo_Click"/>
-                    <Button x:Name="SettingsBtn" Content="⚙"
-                            Style="{StaticResource ActionBtn}"
-                            Background="#21262d" Foreground="#8b949e"
-                            Width="36" Margin="8,0,0,0" FontSize="15"
-                            Click="SettingsBtn_Click"/>
-                </StackPanel>
-                <Button Grid.Column="2" x:Name="EndDayBtn" Content="КОНЕЦ ДНЯ"
-                        Style="{StaticResource ActionBtn}"
-                        Background="#1f4e8c" Foreground="#a5d6ff"
-                        Width="130" Margin="8,0,0,0" Click="EndDayBtn_Click"/>
+                <local:LogControl           x:Name="LogControl"           Grid.Column="0"/>
+                <local:NpcSidebarControl    x:Name="NpcSidebarControl"    Grid.Column="1"/>
+                <local:PlayerActionsControl x:Name="PlayerActionsControl" Grid.Column="2"/>
             </Grid>
+        </DockPanel>
+
+        <!-- Settings Overlay -->
+        <Border x:Name="SettingsOverlay"
+                Visibility="Collapsed"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="0,44,8,0"
+                Width="260"
+                Background="#0d0d1a"
+                BorderBrush="#1e2a3a" BorderThickness="1"
+                CornerRadius="6"
+                Panel.ZIndex="100">
+            <StackPanel Margin="12,10">
+                <Button Content="Вернуться в меню"
+                        Height="34" FontSize="12"
+                        Background="#161b22" Foreground="#c9d1d9"
+                        BorderBrush="#30363d" BorderThickness="1"
+                        Cursor="Hand" Margin="0,0,0,6"
+                        Click="MenuNoSave_Click"/>
+                <Button Content="Сохранить и выйти в меню"
+                        Height="34" FontSize="12"
+                        Background="#1a3a2a" Foreground="#56d364"
+                        BorderBrush="#2a6040" BorderThickness="1"
+                        Cursor="Hand" Margin="0,0,0,6"
+                        Click="MenuSave_Click"/>
+                <Button Content="Выйти из игры"
+                        Height="34" FontSize="12"
+                        Background="#1e1010" Foreground="#f87171"
+                        BorderBrush="#4a1010" BorderThickness="1"
+                        Cursor="Hand"
+                        Click="ExitGame_Click"/>
+            </StackPanel>
         </Border>
 
-        <!-- LEFT PANEL: NPC LIST -->
-        <local:NpcListControl x:Name="NpcListControl" DockPanel.Dock="Left" Width="260"/>
-
-        <!-- CENTER + RIGHT: Grid — sidebar не перекрывает панель действий -->
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="310"/>
-            </Grid.ColumnDefinitions>
-            <local:LogControl           x:Name="LogControl"           Grid.Column="0"/>
-            <local:NpcSidebarControl    x:Name="NpcSidebarControl"    Grid.Column="1"/>
-            <local:PlayerActionsControl x:Name="PlayerActionsControl" Grid.Column="2"/>
-        </Grid>
-    </DockPanel>
-
-    <!-- Settings Overlay -->
-    <Border x:Name="SettingsOverlay"
-            Visibility="Collapsed"
-            HorizontalAlignment="Right" VerticalAlignment="Top"
-            Margin="0,44,8,0"
-            Width="260"
-            Background="#0d0d1a"
-            BorderBrush="#1e2a3a" BorderThickness="1"
-            CornerRadius="6"
-            Panel.ZIndex="100">
-        <StackPanel Margin="12,10">
-            <Button Content="Вернуться в меню"
-                    Height="34" FontSize="12"
-                    Background="#161b22" Foreground="#c9d1d9"
-                    BorderBrush="#30363d" BorderThickness="1"
-                    Cursor="Hand" Margin="0,0,0,6"
-                    Click="MenuNoSave_Click"/>
-            <Button Content="Сохранить и выйти в меню"
-                    Height="34" FontSize="12"
-                    Background="#1a3a2a" Foreground="#56d364"
-                    BorderBrush="#2a6040" BorderThickness="1"
-                    Cursor="Hand" Margin="0,0,0,6"
-                    Click="MenuSave_Click"/>
-            <Button Content="Выйти из игры"
-                    Height="34" FontSize="12"
-                    Background="#1e1010" Foreground="#f87171"
-                    BorderBrush="#4a1010" BorderThickness="1"
-                    Cursor="Hand"
-                    Click="ExitGame_Click"/>
-        </StackPanel>
-    </Border>
-
+        <!-- Анимация сохранения (крутящийся индикатор) -->
+        <Border x:Name="SavingOverlay"
+                Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="#1a1a2e" CornerRadius="8"
+                BorderBrush="#60a5fa" BorderThickness="1"
+                Padding="20,15"
+                Panel.ZIndex="200">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="SavingSpinner" Text="⏳" FontSize="16" Foreground="#60a5fa" 
+                           RenderTransformOrigin="0.5,0.5" Margin="0,0,10,0"/>
+                <TextBlock Text="Сохранение игры..." Foreground="#c9d1d9" FontSize="12"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

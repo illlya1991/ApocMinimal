@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ApocMinimal.Models;
+using ApocMinimal.Services;
 
 namespace ApocMinimal.Controls;
 
@@ -605,8 +606,7 @@ public partial class LogControl : UserControl
             arrow.Text = isExpanded ? "▼ " : "▶ ";
     }
 
-    private static SolidColorBrush GetBrush(string hex) =>
-        (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
+    private static SolidColorBrush GetBrush(string hex) => BrushCache.GetBrush(hex);
 
     private void Clear_Click(object sender, RoutedEventArgs e)      => Clear();
     private void CollapseAll_Click(object sender, RoutedEventArgs e) => CollapseAll();

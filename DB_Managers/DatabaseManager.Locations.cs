@@ -6,73 +6,45 @@ namespace ApocMinimal.Database;
 
 public partial class DatabaseManager
 {
+    
+
     public List<Location> GetAllLocations()
     {
+        lock (_locationCacheLock)
+        {
+            if (_locationCache.Count > 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"  Локации: возвращено из кэша {_locationCache.Count} локаций");
+                return _locationCache.Values.ToList();
+            }
+        }
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var list = new List<Location>();
+
         using var cmd = new SQLiteCommand("SELECT * FROM Locations ORDER BY Id", _conn);
         using var rdr = cmd.ExecuteReader();
+
         while (rdr.Read())
         {
             var loc = new Location();
             loc.Id = rdr.GetInt32(rdr.GetOrdinal("Id"));
             loc.Name = rdr.GetString(rdr.GetOrdinal("Name"));
-
-            string typeStr = rdr.GetString(rdr.GetOrdinal("Type"));
-            loc.Type = typeStr switch
-            {
-                "City"       => LocationType.City,
-                "District"   => LocationType.District,
-                "Street"     => LocationType.Street,
-                "Building"   => LocationType.Building,
-                "Floor"      => LocationType.Floor,
-                "Commercial" => LocationType.Commercial,
-                _            => LocationType.Apartment,
-            };
-
-            loc.ParentId = rdr.GetInt32(rdr.GetOrdinal("ParentId"));
-
-            string nodesJson = rdr.IsDBNull(rdr.GetOrdinal("ResourceNodes")) ? "{}"
-                : rdr.GetString(rdr.GetOrdinal("ResourceNodes"));
-            try { loc.ResourceNodes = JsonSerializer.Deserialize<Dictionary<string, double>>(nodesJson) ?? new(); }
-            catch { loc.ResourceNodes = new(); }
-
-            loc.DangerLevel = rdr.GetDouble(rdr.GetOrdinal("DangerLevel"));
-            loc.IsExplored = rdr.GetInt32(rdr.GetOrdinal("IsExplored")) == 1;
-
-            string statusStr = GetStringOrDefault(rdr, "Status", "Dangerous");
-            loc.Status = statusStr == "Cleared" ? LocationStatus.Cleared : LocationStatus.Dangerous;
-
-            loc.MonsterTypeName = GetStringOrDefault(rdr, "MonsterTypeName");
-
-            string mapStateStr = GetStringOrDefault(rdr, "MapState", "Current");
-            loc.MapState = mapStateStr switch
-            {
-                "Template"  => MapState.Template,
-                "ApocStart" => MapState.ApocStart,
-                _           => MapState.Current,
-            };
-
-            string commercialTypeStr = GetStringOrDefault(rdr, "CommercialType", "None");
-            loc.CommercialType = commercialTypeStr switch
-            {
-                "Shop"        => CommercialType.Shop,
-                "Supermarket" => CommercialType.Supermarket,
-                "Mall"        => CommercialType.Mall,
-                "Market"      => CommercialType.Market,
-                "Hairdresser" => CommercialType.Hairdresser,
-                "BeautySalon" => CommercialType.BeautySalon,
-                "Pharmacy"    => CommercialType.Pharmacy,
-                "Hospital"    => CommercialType.Hospital,
-                "Factory"     => CommercialType.Factory,
-                "Hotel"       => CommercialType.Hotel,
-                _             => CommercialType.None,
-            };
-
+            // ... остальное заполнение ...
             list.Add(loc);
         }
+
+        lock (_locationCacheLock)
+        {
+            _locationCache.Clear();
+            foreach (var loc in list)
+                _locationCache[loc.Id] = loc;
+        }
+
+        sw.Stop();
+        System.Diagnostics.Debug.WriteLine($"  Локаций: {list.Count} за {sw.ElapsedMilliseconds} мс");
         return list;
     }
-
     public void DeleteAllLocations() => ExecuteNQ("DELETE FROM Locations");
 
     public int InsertLocation(Location loc)

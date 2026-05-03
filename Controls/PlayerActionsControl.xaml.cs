@@ -210,8 +210,7 @@ public partial class PlayerActionsControl : UserControl
         return border;
     }
 
-    private static System.Windows.Media.SolidColorBrush MkBrush(string hex) =>
-        (System.Windows.Media.SolidColorBrush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
+    private static System.Windows.Media.SolidColorBrush MkBrush(string hex) => BrushCache.GetBrush(hex);
 
     private void RefreshTechniquePanel()
     {

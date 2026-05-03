@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
+using ApocMinimal.Services;
 using ApocMinimal.ViewModels;
 
 namespace ApocMinimal;
@@ -28,7 +29,7 @@ public partial class PlayerInfoWindow : Window
         // Header
         NameLabel.Text    = player.Name;
         FactionLabel.Text = fInfo.Label;
-        FactionLabel.Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(fInfo.Color)!;
+        FactionLabel.Foreground = BrushCache.GetBrush(fInfo.Color)!;
         FactionDesc.Text  = fInfo.Description;
         DayLabel.Text     = $"День {player.CurrentDay}";
         TerminalLabel.Text = $"Терминал: ур.{player.TerminalLevel}";
@@ -96,7 +97,7 @@ public partial class PlayerInfoWindow : Window
         string color = better ? "#56d364" : worse ? "#f87171" : "#8b949e";
 
         var lbl = new TextBlock { Text = label, Foreground = Brushes.LightGray, FontSize = 11, Padding = new Thickness(4, 2, 0, 2) };
-        var val = new TextBlock { Text = display, Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(color)!, FontSize = 11, Padding = new Thickness(4, 2, 4, 2), HorizontalAlignment = HorizontalAlignment.Right };
+        var val = new TextBlock { Text = display, Foreground = BrushCache.GetBrush(color)!, FontSize = 11, Padding = new Thickness(4, 2, 4, 2), HorizontalAlignment = HorizontalAlignment.Right };
 
         Grid.SetColumn(lbl, 0);
         Grid.SetColumn(val, 1);
@@ -110,7 +111,7 @@ public partial class PlayerInfoWindow : Window
         var tb = new TextBlock
         {
             Text = text,
-            Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(color)!,
+            Foreground = BrushCache.GetBrush(color)!,
             Padding = new Thickness(4, 2, 4, 2),
             FontSize = 11,
         };

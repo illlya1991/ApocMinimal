@@ -45,6 +45,24 @@ namespace ApocMinimal.Services
         public int TotalApartments { get; private set; }
         public int TotalCommercial { get; private set; }
 
+        /// <summary>
+        /// Инициализация сервиса. Загружает все локации из базы данных.
+        /// </summary>
+        public void Initialize()
+        {
+            if (_isInitialized) return;
+
+            Console.WriteLine("LocationService: Начало загрузки локаций...");
+            DateTime start = DateTime.Now;
+
+            LoadAllLocations();
+            BuildIndexes();
+
+            _isInitialized = true;
+
+            DateTime end = DateTime.Now;
+            System.Diagnostics.Debug.WriteLine($"LocationService: Загружено {TotalLocations} локаций за {(end - start).TotalMilliseconds:F0} мс");
+        }
         public LocationService(DatabaseManager db)
         {
             _db = db;
@@ -64,32 +82,6 @@ namespace ApocMinimal.Services
             {
                 _commercialByType[ctype] = new List<int>();
             }
-        }
-
-        /// <summary>
-        /// Инициализация сервиса. Загружает все локации из базы данных.
-        /// </summary>
-        public void Initialize()
-        {
-            if (_isInitialized) return;
-
-            Console.WriteLine("LocationService: Начало загрузки локаций...");
-            DateTime start = DateTime.Now;
-
-            LoadAllLocations();
-            BuildIndexes();
-
-            _isInitialized = true;
-
-            DateTime end = DateTime.Now;
-            Console.WriteLine($"LocationService: Загружено {TotalLocations} локаций за {(end - start).TotalMilliseconds:F0} мс");
-            Console.WriteLine($"  Городов: {TotalCities}");
-            Console.WriteLine($"  Районов: {TotalDistricts}");
-            Console.WriteLine($"  Улиц: {TotalStreets}");
-            Console.WriteLine($"  Зданий: {TotalBuildings}");
-            Console.WriteLine($"  Этажей: {TotalFloors}");
-            Console.WriteLine($"  Квартир: {TotalApartments}");
-            Console.WriteLine($"  Коммерческих: {TotalCommercial}");
         }
 
         /// <summary>
@@ -639,6 +631,28 @@ namespace ApocMinimal.Services
                 loc.ResourceNodes = resourceNodes;
                 // IsDirty уже установится автоматически через свойство
             }
+        }
+        /// <summary>
+        /// Асинхронная инициализация сервиса с прогрессом.
+        /// </summary>
+        public async Task InitializeAsync(IProgress<(int percent, string status, string detail)>? progress = null)
+        {
+            if (_isInitialized) return;
+
+            progress?.Report((0, "Загрузка локаций...", "Подготовка"));
+
+            await Task.Run(() =>
+            {
+                LoadAllLocations();
+
+                progress?.Report((40, "Загрузка локаций...", $"Загружено {TotalLocations} локаций"));
+
+                BuildIndexes();
+
+                _isInitialized = true;
+            });
+
+            progress?.Report((100, "Локации загружены", $"{TotalLocations} локаций, {TotalCities} городов, {TotalBuildings} зданий"));
         }
     }
 }

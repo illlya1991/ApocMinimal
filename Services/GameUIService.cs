@@ -20,6 +20,8 @@ public class GameUIService
 
     public Border BuildNpcCard(Npc npc)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         var card = new Border
         {
             Background = GetStatusBrush(npc),
@@ -32,9 +34,16 @@ public class GameUIService
 
         var panel = new StackPanel();
 
-        // Name row
+        // Name row with follower level badge
         var nameRow = CreateNameRow(npc);
         panel.Children.Add(nameRow);
+
+        // Добавляем уровень последователя как бейдж
+        if (npc.FollowerLevel > 0)
+        {
+            var levelBadge = CreateFollowerLevelBadge(npc.FollowerLevel);
+            panel.Children.Add(levelBadge);
+        }
 
         if (!npc.IsAlive)
         {
@@ -61,9 +70,50 @@ public class GameUIService
             panel.Children.Add(CreateTaskText(npc));
 
         card.Child = panel;
+
+        if (sw.ElapsedMilliseconds > 5)
+            System.Diagnostics.Debug.WriteLine($"        BuildNpcCard для {npc.Name}: {sw.ElapsedMilliseconds} мс");
+
         return card;
     }
+    private static Border CreateFollowerLevelBadge(int level)
+    {
+        string levelText = level switch
+        {
+            1 => "Послушник",
+            2 => "Последователь",
+            3 => "Верный",
+            4 => "Преданный",
+            5 => "Фанатик",
+            _ => $"Ур.{level}"
+        };
 
+        string levelColor = level switch
+        {
+            1 => "#8b949e",
+            2 => "#56d364",
+            3 => "#e3b341",
+            4 => "#f97316",
+            5 => "#f87171",
+            _ => "#8b949e"
+        };
+
+        return new Border
+        {
+            Background = BrushCache.GetBrush("#1a1a2e"),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(6, 2, 6, 2),
+            Margin = new Thickness(0, 2, 0, 4),
+            Child = new TextBlock
+            {
+                Text = levelText,
+                Foreground = BrushCache.GetBrush(levelColor),
+                FontSize = 9,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center
+            }
+        };
+    }
     public Expander CreateDayExpander(string header, bool isExpanded = true)
     {
         return new Expander
@@ -174,8 +224,7 @@ public class GameUIService
         FontSize = 10,
     };
 
-    private static SolidColorBrush GetBrush(string hex) =>
-        new((Color)ColorConverter.ConvertFromString(hex));
+    private static SolidColorBrush GetBrush(string hex) => BrushCache.GetBrush(hex);
 
     private static SolidColorBrush GetStatusBrush(Npc npc) => GetBrush(npc.StatusColor);
 

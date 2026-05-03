@@ -10,10 +10,14 @@ public partial class DatabaseManager
 
     public List<Technique> GetAllTechniques()
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var list = new List<Technique>();
         using var cmd = new SQLiteCommand("SELECT * FROM Techniques ORDER BY TerminalLevel, Id", _conn);
         using var rdr = cmd.ExecuteReader();
         while (rdr.Read()) list.Add(ReadTechnique(rdr));
+
+        sw.Stop();
+        System.Diagnostics.Debug.WriteLine($"GetAllTechniques: {list.Count} техник за {sw.ElapsedMilliseconds} мс");
         return list;
     }
 
@@ -128,40 +132,117 @@ public partial class DatabaseManager
         string tl = GetStringOrDefault(rdr, "TechLevel", "Initiate");
         t.TechLevel = tl switch
         {
-            "Adept"       => TechniqueLevel.Adept,
-            "Warrior"     => TechniqueLevel.Warrior,
-            "Veteran"     => TechniqueLevel.Veteran,
-            "Master"      => TechniqueLevel.Master,
+            "Adept" => TechniqueLevel.Adept,
+            "Warrior" => TechniqueLevel.Warrior,
+            "Veteran" => TechniqueLevel.Veteran,
+            "Master" => TechniqueLevel.Master,
             "GrandMaster" => TechniqueLevel.GrandMaster,
-            "Phantom"     => TechniqueLevel.Phantom,
-            "Legend"      => TechniqueLevel.Legend,
-            "Vessel"      => TechniqueLevel.Vessel,
-            "Apex"        => TechniqueLevel.Apex,
-            _             => TechniqueLevel.Initiate,
+            "Phantom" => TechniqueLevel.Phantom,
+            "Legend" => TechniqueLevel.Legend,
+            "Vessel" => TechniqueLevel.Vessel,
+            "Apex" => TechniqueLevel.Apex,
+            _ => TechniqueLevel.Initiate,
         };
 
         string tt = GetStringOrDefault(rdr, "TechType", "Energy");
         t.TechType = tt switch
         {
             "Physical" => TechniqueType.Physical,
-            "Mental"   => TechniqueType.Mental,
-            _          => TechniqueType.Energy,
+            "Mental" => TechniqueType.Mental,
+            _ => TechniqueType.Energy,
         };
 
-        t.OPCost       = GetDoubleOrDefault(rdr, "OPCost");
-        t.EnergyCost   = GetDoubleOrDefault(rdr, "EnergyCost");
-        t.StaminaCost  = GetDoubleOrDefault(rdr, "StaminaCost");
-        t.HealAmount   = GetDoubleOrDefault(rdr, "HealAmount");
+        t.OPCost = GetDoubleOrDefault(rdr, "OPCost");
+        t.EnergyCost = GetDoubleOrDefault(rdr, "EnergyCost");
+        t.StaminaCost = GetDoubleOrDefault(rdr, "StaminaCost");
+        t.HealAmount = GetDoubleOrDefault(rdr, "HealAmount");
         t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new();
-        t.Faction      = GetStringOrDefault(rdr, "Faction");
-        t.CatalogKey   = GetStringOrDefault(rdr, "CatalogKey");
+        t.Faction = GetStringOrDefault(rdr, "Faction");
+        t.CatalogKey = GetStringOrDefault(rdr, "CatalogKey");
+
+        // ⚡ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: не пытаемся десериализовать битые данные
         try
         {
             string amJson = GetStringOrDefault(rdr, "ActivationModes", "[]");
-            t.ActivationModes = JsonSerializer.Deserialize<List<ActivationMode>>(amJson, JsonOptsPolymorphic) ?? new();
+
+            // Проверка на пустую строку или null
+            if (string.IsNullOrWhiteSpace(amJson) || amJson == "null")
+            {
+                t.ActivationModes = new List<ActivationMode>();
+            }
+            else
+            {
+                // Пробуем десериализовать с обработкой ошибок
+                var modes = JsonSerializer.Deserialize<List<ActivationMode>>(amJson, JsonOptsPolymorphic);
+                t.ActivationModes = modes ?? new List<ActivationMode>();
+            }
         }
-        catch { t.ActivationModes = new(); }
+        catch (Exception ex)
+        {
+            // Подавляем ошибку и не выводим тысячи сообщений
+            // System.Diagnostics.Debug.WriteLine($"  Ошибка десериализации {t.Name}: {ex.Message}");
+            t.ActivationModes = new List<ActivationMode>();
+        }
 
         return t;
+    }
+    public List<Technique> GetAllTechniquesFast()
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var list = new List<Technique>();
+
+        using var cmd = new SQLiteCommand(
+            "SELECT Id, Name, Description, TerminalLevel, TechLevel, TechType, OPCost, EnergyCost, StaminaCost, RequiredStats, HealAmount, Faction, CatalogKey FROM Techniques ORDER BY TerminalLevel, Id",
+            _conn);
+        using var rdr = cmd.ExecuteReader();
+
+        while (rdr.Read())
+        {
+            var t = new Technique();
+            t.Id = rdr.GetInt32(rdr.GetOrdinal("Id"));
+            t.Name = rdr.GetString(rdr.GetOrdinal("Name"));
+            t.Description = GetStringOrDefault(rdr, "Description");
+            t.TerminalLevel = rdr.GetInt32(rdr.GetOrdinal("TerminalLevel"));
+
+            string tl = GetStringOrDefault(rdr, "TechLevel", "Initiate");
+            t.TechLevel = tl switch
+            {
+                "Adept" => TechniqueLevel.Adept,
+                "Warrior" => TechniqueLevel.Warrior,
+                "Veteran" => TechniqueLevel.Veteran,
+                "Master" => TechniqueLevel.Master,
+                "GrandMaster" => TechniqueLevel.GrandMaster,
+                "Phantom" => TechniqueLevel.Phantom,
+                "Legend" => TechniqueLevel.Legend,
+                "Vessel" => TechniqueLevel.Vessel,
+                "Apex" => TechniqueLevel.Apex,
+                _ => TechniqueLevel.Initiate,
+            };
+
+            string tt = GetStringOrDefault(rdr, "TechType", "Energy");
+            t.TechType = tt switch
+            {
+                "Physical" => TechniqueType.Physical,
+                "Mental" => TechniqueType.Mental,
+                _ => TechniqueType.Energy,
+            };
+
+            t.OPCost = GetDoubleOrDefault(rdr, "OPCost");
+            t.EnergyCost = GetDoubleOrDefault(rdr, "EnergyCost");
+            t.StaminaCost = GetDoubleOrDefault(rdr, "StaminaCost");
+            t.HealAmount = GetDoubleOrDefault(rdr, "HealAmount");
+            t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new();
+            t.Faction = GetStringOrDefault(rdr, "Faction");
+            t.CatalogKey = GetStringOrDefault(rdr, "CatalogKey");
+
+            // Пропускаем ActivationModes при быстрой загрузке
+            t.ActivationModes = new List<ActivationMode>();
+
+            list.Add(t);
+        }
+
+        sw.Stop();
+        System.Diagnostics.Debug.WriteLine($"GetAllTechniquesFast: {list.Count} техник за {sw.ElapsedMilliseconds} мс");
+        return list;
     }
 }

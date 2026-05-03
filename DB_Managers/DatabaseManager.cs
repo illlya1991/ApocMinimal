@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.SQLite;
 using System.IO;
 using System.Text.Json;
+using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.TechniqueData;
@@ -9,7 +10,7 @@ using ApocMinimal.Systems;
 
 namespace ApocMinimal.Database;
 
-public partial class DatabaseManager
+public partial class DatabaseManager : IDisposable
 {
     private const int MaxSavesCount = 3;
     private OneSave _thisSave;
@@ -17,6 +18,17 @@ public partial class DatabaseManager
     private List<OneSave> _ListSaves;
     private static SQLiteConnection _conn = new SQLiteConnection();
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
+
+    // Статические кэши
+    private static Dictionary<int, Npc> _npcCache = new();
+    private static Dictionary<int, Location> _locationCache = new();
+    private static Dictionary<string, Technique> _techniqueCache = new();
+    private static readonly object _cacheLock = new object();
+    private static DateTime _lastCacheClear = DateTime.Now;
+    private static readonly object _locationCacheLock = new();
+    private static readonly object _npcCacheLock = new();
+    private static DateTime _lastNpcLoad = DateTime.MinValue;
+    private static readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(5);
 
     public DatabaseManager()
     {
@@ -107,11 +119,6 @@ public partial class DatabaseManager
         Report(15, "Подключение к базе...");
         OpenConnection(_thisSave._connectionString);
 
-        Report(20, "Проверка схемы БД...");
-        EnsureNpcLocationColumn();
-        EnsureNpcModifiersSchema();
-        EnsurePlayerSchema();
-
         Report(30, "Загрузка локаций...");
         var locations = GetAllLocations();
         var rnd = new Random();
@@ -147,133 +154,11 @@ public partial class DatabaseManager
     }
 
     // ── Schema migrations ────────────────────────────────────────────────────
-
-    private void EnsureNpcLocationColumn()
-    {
-        try { ExecuteNQ("ALTER TABLE Npcs ADD COLUMN LocationId INTEGER NOT NULL DEFAULT 0"); } catch { }
-    }
-
-    public void EnsureNpcModifiersSchema()
-    {
-        string[] alters =
-        {
-            "ALTER TABLE NpcModifiers ADD COLUMN ModifierClass TEXT NOT NULL DEFAULT 'Permanent'",
-            "ALTER TABLE NpcModifiers ADD COLUMN IsActive INTEGER NOT NULL DEFAULT 1",
-            "ALTER TABLE NpcModifiers ADD COLUMN TimeUnit INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE NpcModifiers ADD COLUMN Duration INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE NpcModifiers ADD COLUMN Remaining INTEGER NOT NULL DEFAULT 0",
-        };
-        foreach (var sql in alters) { try { ExecuteNQ(sql); } catch { } }
-    }
-
-    public void EnsurePlayerSchema()
-    {
-        string[] alters =
-        {
-            "ALTER TABLE Player ADD COLUMN BarrierLevel INTEGER NOT NULL DEFAULT 1",
-            "ALTER TABLE Player ADD COLUMN ControlledZoneIds TEXT NOT NULL DEFAULT '[]'",
-            "ALTER TABLE Player ADD COLUMN FactionCoeffs TEXT NOT NULL DEFAULT '{}'",
-        };
-        foreach (var sql in alters) { try { ExecuteNQ(sql); } catch { } }
-        EnsureFactionCoeffsInGameConfig();
-    }
-
-    public void EnsureFactionCoeffsInGameConfig()
-    {
-        if (!IsTableExistsSafe("GameConfig")) return;
-        var rows = new (string Key, string Value)[]
-        {
-            ("faction_ElementMages_dev_per_npc",      "1.15"),
-            ("faction_ElementMages_dev_per_location", "0"),
-            ("faction_ElementMages_donation",         "1.15"),
-            ("faction_ElementMages_terminal_cost",    "1"),
-            ("faction_ElementMages_stat_growth",      "1"),
-            ("faction_ElementMages_shop_cost",        "1"),
-            ("faction_ElementMages_max_dev_per_npc",  "1"),
-            ("faction_ElementMages_barrier_units",    "1"),
-            ("faction_PathBlades_dev_per_npc",        "1"),
-            ("faction_PathBlades_dev_per_location",   "0"),
-            ("faction_PathBlades_donation",           "1"),
-            ("faction_PathBlades_terminal_cost",      "1.25"),
-            ("faction_PathBlades_stat_growth",        "1"),
-            ("faction_PathBlades_shop_cost",          "1"),
-            ("faction_PathBlades_max_dev_per_npc",    "1"),
-            ("faction_PathBlades_barrier_units",      "1"),
-            ("faction_MirrorHealers_dev_per_npc",     "1"),
-            ("faction_MirrorHealers_dev_per_location","0"),
-            ("faction_MirrorHealers_donation",        "1"),
-            ("faction_MirrorHealers_terminal_cost",   "1"),
-            ("faction_MirrorHealers_stat_growth",     "1"),
-            ("faction_MirrorHealers_shop_cost",       "0.8"),
-            ("faction_MirrorHealers_max_dev_per_npc", "1.1"),
-            ("faction_MirrorHealers_barrier_units",   "1"),
-            ("faction_DeepSmiths_dev_per_npc",        "1"),
-            ("faction_DeepSmiths_dev_per_location",   "0"),
-            ("faction_DeepSmiths_donation",           "1"),
-            ("faction_DeepSmiths_terminal_cost",      "1"),
-            ("faction_DeepSmiths_stat_growth",        "1"),
-            ("faction_DeepSmiths_shop_cost",          "0.75"),
-            ("faction_DeepSmiths_max_dev_per_npc",    "1"),
-            ("faction_DeepSmiths_barrier_units",      "1.25"),
-            ("faction_GuardHeralds_dev_per_npc",      "0.9"),
-            ("faction_GuardHeralds_dev_per_location", "2"),
-            ("faction_GuardHeralds_donation",         "1"),
-            ("faction_GuardHeralds_terminal_cost",    "1"),
-            ("faction_GuardHeralds_stat_growth",      "1"),
-            ("faction_GuardHeralds_shop_cost",        "1"),
-            ("faction_GuardHeralds_max_dev_per_npc",  "1"),
-            ("faction_GuardHeralds_barrier_units",    "1"),
-        };
-        using var tx = _conn.BeginTransaction();
-        foreach (var (key, val) in rows)
-        {
-            using var cmd = new SQLiteCommand("INSERT OR IGNORE INTO GameConfig (Key, Value) VALUES (@k, @v)", _conn, tx);
-            cmd.Parameters.AddWithValue("@k", key);
-            cmd.Parameters.AddWithValue("@v", val);
-            cmd.ExecuteNonQuery();
-        }
-        tx.Commit();
-    }
-
     public void ApplyFactionCoefficients(Player player)
     {
         var config = GetGameConfig();
         player.FactionCoeffs = FactionCoefficients.ForFaction(player.Faction, config);
     }
-
-    public void EnsureNpcTechSchema()
-    {
-        string[] alters =
-        {
-            "ALTER TABLE Npcs ADD COLUMN LearnedTechIds TEXT NOT NULL DEFAULT '[]'",
-            "ALTER TABLE Techniques ADD COLUMN ActivationModes TEXT NOT NULL DEFAULT '[]'",
-        };
-        foreach (var sql in alters) { try { ExecuteNQ(sql); } catch { } }
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS PlayerTechInventory (
-                Id       INTEGER PRIMARY KEY AUTOINCREMENT,
-                SaveId   TEXT    NOT NULL,
-                TechKey  TEXT    NOT NULL
-            )");
-    }
-
-    // ── GameLog ──────────────────────────────────────────────────────────────
-
-    public void EnsureGameLogTable()
-    {
-        ExecuteNQ(@"
-            CREATE TABLE IF NOT EXISTS GameLog (
-                Id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                SaveId    TEXT    NOT NULL,
-                DayNumber INTEGER NOT NULL,
-                Section   TEXT    NOT NULL,
-                Text      TEXT    NOT NULL,
-                Color     TEXT    NOT NULL DEFAULT '#c9d1d9',
-                IsAction  INTEGER NOT NULL DEFAULT 0
-            )");
-        try { ExecuteNQ("CREATE INDEX IF NOT EXISTS idx_gamelog_save_day ON GameLog(SaveId, DayNumber)"); } catch { }
-    }
-
     public void SaveDayLog(string saveId, int dayNumber, IEnumerable<(string section, string text, string color, bool isAction)> entries)
     {
         ExecuteNQ($"DELETE FROM GameLog WHERE SaveId='{saveId}' AND DayNumber={dayNumber}");
@@ -357,6 +242,91 @@ public partial class DatabaseManager
         GC.Collect();
         GC.WaitForPendingFinalizers();
     }
+    /// <summary>
+    /// Полная очистка всех кэшей
+    /// </summary>
+    public static void ClearAllCaches()
+    {
+        lock (_cacheLock)
+        {
+            _npcCache.Clear();
+            _locationCache.Clear();
+            _techniqueCache.Clear();
+            _lastCacheClear = DateTime.Now;
+
+            System.Diagnostics.Debug.WriteLine($"[Cache] Все кэши очищены в {_lastCacheClear:HH:mm:ss.fff}");
+
+            // Принудительный сбор мусора после очистки
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+    }
+
+    /// <summary>
+    /// Очистка кэша NPC (при изменении данных)
+    /// </summary>
+    public static void InvalidateNpcCache()
+    {
+        lock (_cacheLock)
+        {
+            int count = _npcCache.Count;
+            _npcCache.Clear();
+            System.Diagnostics.Debug.WriteLine($"[Cache] Очищен кэш NPC ({count} записей)");
+        }
+    }
+    public SQLiteConnection GetConnection()
+    {
+        return _conn;
+    }
+    /// <summary>
+    /// Очистка кэша локаций (при изменении данных)
+    /// </summary>
+    public static void InvalidateLocationCache()
+    {
+        lock (_cacheLock)
+        {
+            int count = _locationCache.Count;
+            _locationCache.Clear();
+            System.Diagnostics.Debug.WriteLine($"[Cache] Очищен кэш локаций ({count} записей)");
+        }
+    }
+
+    /// <summary>
+    /// Очистка старых кэшей (вызывать при переключении сохранений)
+    /// </summary>
+    public void ResetForNewSave()
+    {
+        // Закрываем текущее соединение
+        CloseConnection();
+
+        // Очищаем все кэши
+        ClearAllCaches();
+
+        // Сбрасываем статические поля
+        _conn?.Dispose();
+        _conn = new SQLiteConnection();
+
+        System.Diagnostics.Debug.WriteLine("[Database] Сброшено для нового сохранения");
+    }
+
+    /// <summary>
+    /// Закрытие соединения с БД
+    /// </summary>
+    public void CloseConnection()
+    {
+        try
+        {
+            if (_conn != null && _conn.State == ConnectionState.Open)
+            {
+                _conn.Close();
+                System.Diagnostics.Debug.WriteLine("[Database] Соединение закрыто");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Database] Ошибка закрытия соединения: {ex.Message}");
+        }
+    }
 
     private static void ExecuteNQ(string sql)
     {
@@ -409,6 +379,21 @@ public partial class DatabaseManager
             return rdr.IsDBNull(ord) ? def : rdr.GetInt32(ord);
         }
         catch { return def; }
+    }
+
+    private bool _disposed = false;
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            CloseConnection();
+            _conn?.Dispose();
+            ClearAllCaches();
+            _disposed = true;
+
+            System.Diagnostics.Debug.WriteLine("[Database] DatabaseManager освобождён");
+        }
     }
 }
 

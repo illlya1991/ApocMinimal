@@ -1,3 +1,4 @@
+// Systems/GameLoopService.cs
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.NpcData;
 using ApocMinimal.Models.PersonData.PlayerData;
@@ -27,6 +28,10 @@ public class DayResult
     public int FollowerCount { get; set; }
 }
 
+/// <summary>
+/// Оптимизированный игровой цикл для 10 000+ NPC.
+/// Использует параллельную обработку с прогресс-отчётами.
+/// </summary>
 public static class GameLoopService
 {
     private static readonly string[] PositiveEmotionsArray =
@@ -35,6 +40,10 @@ public static class GameLoopService
         "Воодушевление", "Гордость", "Благодарность",
     };
 
+    // ThreadLocal для изоляции Random в параллельных потоках
+    private static readonly ThreadLocal<Random> _threadLocalRng =
+        new(() => new Random(Guid.NewGuid().GetHashCode()));
+
     private static bool IsPositiveEmotion(string emotionName)
     {
         for (int i = 0; i < PositiveEmotionsArray.Length; i++)
@@ -42,18 +51,22 @@ public static class GameLoopService
         return false;
     }
 
-    public static DayResult ProcessDay(
+    /// <summary>
+    /// Полный день: NPC действия + конец дня
+    /// </summary>
+    public static async Task<DayResult> ProcessDayAsync(
         Player player,
         List<Npc> npcs,
         List<Resource> resources,
         List<Quest> quests,
         Random rnd,
+        IProgress<(int current, int total)>? progress = null,
         Dictionary<string, ResourceCatalogEntry>? catalog = null)
     {
         catalog ??= new Dictionary<string, ResourceCatalogEntry>();
         DayResult result = new DayResult();
 
-        ProcessNpcActions(result, npcs, player, rnd, null);
+        await ProcessNpcActionsAsync(result, npcs, player, rnd, progress);
         ProcessQuests(result, quests, npcs, resources, rnd);
         ProcessLeaderBonus(result, npcs);
         ProcessDevPointsGeneration(result, player, npcs);
@@ -63,15 +76,24 @@ public static class GameLoopService
         return result;
     }
 
-    /// <summary>NPC actions only — used at the start of each player turn.</summary>
-    public static DayResult ProcessNpcActionsOnly(Player player, List<Npc> npcs, Random rnd, ActionContext? ctx = null)
+    /// <summary>
+    /// Только NPC действия — используется в начале дня игрока
+    /// </summary>
+    public static async Task<DayResult> ProcessNpcActionsOnlyAsync(
+        Player player,
+        List<Npc> npcs,
+        Random rnd,
+        IProgress<(int current, int total)>? progress = null,
+        ActionContext? ctx = null)
     {
         var result = new DayResult();
-        ProcessNpcActions(result, npcs, player, rnd, ctx);
+        await ProcessNpcActionsAsync(result, npcs, player, rnd, progress, ctx);
         return result;
     }
 
-    /// <summary>End-of-day processing (quests, needs, faith) — used when player clicks End Day.</summary>
+    /// <summary>
+    /// Только конец дня (квесты, нужды, вера) — синхронный, быстрый
+    /// </summary>
     public static DayResult ProcessDayEnd(
         Player player,
         List<Npc> npcs,
@@ -90,11 +112,22 @@ public static class GameLoopService
         return result;
     }
 
-    // ── Sub-methods ──────────────────────────────────────────────────────────
+    // =========================================================
+    // Параллельная обработка NPC действий
+    // =========================================================
 
-    private static void ProcessNpcActions(DayResult result, List<Npc> npcs, Player player, Random rnd, ActionContext? ctx = null)
+    private static async Task ProcessNpcActionsAsync(
+        DayResult result,
+        List<Npc> npcs,
+        Player player,
+        Random rnd,
+        IProgress<(int current, int total)>? progress = null,
+        ActionContext? ctx = null)
     {
-        // Initialize social pairing context
+        var aliveNpcs = npcs.Where(n => n.IsAlive).ToList();
+        if (aliveNpcs.Count == 0) return;
+
+        // Инициализация контекста для социальных действий
         if (ctx != null)
         {
             ctx.Npcs = npcs;
@@ -102,34 +135,85 @@ public static class GameLoopService
             ctx.SocialPairedToday = new HashSet<int>();
         }
 
-        // Pass 1: build each NPC's own log (social actions inject into partner NpcLogs)
-        var ownLogs = new Dictionary<int, List<ActionLogEntry>>(npcs.Count);
+        int total = aliveNpcs.Count;
+        int processed = 0;
+        int batchSize = Environment.ProcessorCount * 4;
+        double statGrowthCoeff = player.FactionCoeffs.CoeffStatGrowth;
+
+        var npcResults = new List<NpcDayResult>(total);
         var systemAlerts = new List<ActionLogEntry>();
-        for (int i = 0; i < npcs.Count; i++)
+
+        // Разбиваем на батчи для лучшей загрузки CPU
+        for (int i = 0; i < aliveNpcs.Count; i += batchSize)
         {
-            if (!npcs[i].IsAlive) continue;
-            ownLogs[npcs[i].Id] = ActionSystem.ProcessDayActions(npcs[i], rnd, player.CurrentDay, ctx, systemAlerts, player.FactionCoeffs.CoeffStatGrowth);
+            var batch = aliveNpcs.Skip(i).Take(batchSize).ToList();
+
+            var batchTasks = batch.Select(npc => Task.Run(() =>
+            {
+                var localRng = _threadLocalRng.Value!;
+                var actions = ActionSystem.ProcessDayActionsOptimized(
+                    npc, localRng, player.CurrentDay, ctx, null, statGrowthCoeff);
+                return (npc, actions);
+            })).ToArray();
+
+            var batchResults = await Task.WhenAll(batchTasks);
+
+            foreach (var (npc, actions) in batchResults)
+            {
+                npcResults.Add(new NpcDayResult(npc, actions));
+
+                // Сбор критических нужд для алертов
+                for (int j = 0; j < npc.Needs.Count; j++)
+                {
+                    var need = npc.Needs[j];
+                    if (need.IsCritical)
+                    {
+                        lock (systemAlerts)
+                        {
+                            systemAlerts.Add(new ActionLogEntry
+                            {
+                                Time = "23:00",
+                                Text = $"[!] {npc.Name}: критическая нужда «{need.Name}» ({need.Value:F0}%)",
+                                Color = "#f87171",
+                                IsAlert = true,
+                            });
+                        }
+                        break; // один критический алерт на NPC достаточно
+                    }
+                }
+            }
+
+            processed += batch.Count;
+            progress?.Report((processed, total));
         }
-        foreach (var alert in systemAlerts)
-            result.Logs.Add((alert.Text, true));
 
-        // Pass 2: merge externally-injected entries (all NPCs processed, injections complete)
-        for (int i = 0; i < npcs.Count; i++)
+        // Мердж внешних логов (социальные действия)
+        for (int i = 0; i < npcResults.Count; i++)
         {
-            if (!npcs[i].IsAlive) continue;
-            var actions = ownLogs[npcs[i].Id];
+            var npcResult = npcResults[i];
+            var actions = npcResult.Actions.ToList();
 
-            if (ctx != null && ctx.NpcLogs.TryGetValue(npcs[i].Id, out var external) && external.Count > 0)
+            if (ctx != null && ctx.NpcLogs.TryGetValue(npcResult.Npc.Id, out var external) && external.Count > 0)
             {
                 var injectedTimes = new HashSet<string>(external.Select(e => e.Time));
                 actions.RemoveAll(a => injectedTimes.Contains(a.Time));
                 actions.AddRange(external);
                 actions.Sort((a, b) => string.Compare(a.Time, b.Time, StringComparison.Ordinal));
-            }
 
-            result.NpcResults.Add(new NpcDayResult(npcs[i], actions));
+                // Обновляем результат
+                npcResults[i] = new NpcDayResult(npcResult.Npc, actions);
+            }
         }
+
+        // Добавляем все результаты и алерты
+        result.NpcResults.AddRange(npcResults);
+        foreach (var alert in systemAlerts)
+            result.Logs.Add((alert.Text, true));
     }
+
+    // =========================================================
+    // Синхронные методы (быстрые операции)
+    // =========================================================
 
     private static void ProcessQuests(DayResult result, List<Quest> quests, List<Npc> npcs,
         List<Resource> resources, Random rnd)
@@ -173,7 +257,7 @@ public static class GameLoopService
 
     private static void ProcessDevPointsGeneration(DayResult result, Player player, List<Npc> npcs)
     {
-        double faithTotal = 0;
+        double devTotal = 0;
         int followerCount = 0;
         double maxDevPerNpc = Player.MaxDevPointsPerNpcPerDay * player.FactionCoeffs.CoeffMaxDevPerNpc;
 
@@ -200,10 +284,10 @@ public static class GameLoopService
                 if (IsPositiveEmotion(npc.Emotions[j].Name)) posSum += npc.Emotions[j].Percentage;
             double emoMod = 0.5 + posSum / 200.0;
 
-            faithTotal += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
+            devTotal += Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod);
         }
 
-        double npcContrib = faithTotal * player.FactionCoeffs.CoeffDevPerNpc;
+        double npcContrib = devTotal * player.FactionCoeffs.CoeffDevPerNpc;
         double locationBonus = player.ControlledZoneIds.Count * player.FactionCoeffs.CoeffDevPerLocation;
         player.DevPoints += npcContrib + locationBonus;
         result.DevPointsGained = npcContrib + locationBonus;

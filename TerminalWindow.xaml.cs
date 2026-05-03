@@ -9,6 +9,7 @@ using ApocMinimal.Systems;
 using ApocMinimal.ViewModels;
 using System.Windows.Media;
 using ApocMinimal.Models.TechniqueData;
+using ApocMinimal.Services;
 
 namespace ApocMinimal;
 
@@ -437,8 +438,7 @@ public partial class TerminalWindow : Window
         Margin = new Thickness(0, 8, 0, 4),
     };
 
-    private static System.Windows.Media.SolidColorBrush MakeBrush(string hex) =>
-        (System.Windows.Media.SolidColorBrush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
+    private static SolidColorBrush MakeBrush(string hex) => BrushCache.GetBrush(hex);
 
     private void RefreshExchangesTab()
     {

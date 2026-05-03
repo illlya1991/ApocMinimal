@@ -29,13 +29,10 @@ public static class NpcInfoBuilder
     public static SolidColorBrush GetStatColorBrush(int value)
     {
         string hex = GetStatColor(value);
-        return (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
+        return BrushCache.GetBrush(hex)!;
     }
 
-    private static SolidColorBrush GetBrush(string hex)
-    {
-        return (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
-    }
+    private static SolidColorBrush GetBrush(string hex) => BrushCache.GetBrush(hex);
 
     // ============================================================
     // Базовые UI элементы

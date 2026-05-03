@@ -6,12 +6,58 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="260">
 
+    <UserControl.Resources>
+        <Style x:Key="PageButton" TargetType="Button">
+            <Setter Property="Background" Value="#21262d"/>
+            <Setter Property="Foreground" Value="#8b949e"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363d"/>
+                    <Setter Property="Foreground" Value="#c9d1d9"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ActivePageButton" TargetType="Button" BasedOn="{StaticResource PageButton}">
+            <Setter Property="Background" Value="#1f4e8c"/>
+            <Setter Property="Foreground" Value="#60a5fa"/>
+            <Setter Property="BorderBrush" Value="#60a5fa"/>
+        </Style>
+    </UserControl.Resources>
+
     <Border Background="#0d1117" BorderBrush="#30363d" BorderThickness="0,0,1,0">
         <DockPanel>
             <Border DockPanel.Dock="Top" Padding="10,6" Background="#161b22"
                     BorderBrush="#30363d" BorderThickness="0,0,0,1">
-                <TextBlock Text="ВЫЖИВШИЕ" Foreground="#8b949e" FontSize="11"/>
+                <Grid>
+                    <TextBlock Text="ПОСЛЕДОВАТЕЛИ" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="FollowerCountLabel" 
+                               Text="0/0" 
+                               Foreground="#60a5fa" 
+                               FontSize="10"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"/>
+                </Grid>
             </Border>
+
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" 
+                        HorizontalAlignment="Center" Margin="0,8,0,8">
+                <Button x:Name="PrevPageBtn" Content="◀" Style="{StaticResource PageButton}"
+                        Click="PrevPage_Click" IsEnabled="False"/>
+                <TextBlock x:Name="PageInfoLabel" Text="стр. 1" 
+                           Foreground="#8b949e" FontSize="11" 
+                           VerticalAlignment="Center" Margin="8,0"/>
+                <Button x:Name="NextPageBtn" Content="▶" Style="{StaticResource PageButton}"
+                        Click="NextPage_Click"/>
+            </StackPanel>
+
             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
                 <StackPanel x:Name="NpcPanel"/>
             </ScrollViewer>

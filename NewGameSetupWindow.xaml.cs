@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ApocMinimal.Models.PersonData;
+using ApocMinimal.Services;
 
 namespace ApocMinimal;
 
@@ -31,7 +32,7 @@ public partial class NewGameSetupWindow : Window
             {
                 Content = itemFaction.Label,
                 Tag = itemFaction.Faction,
-                Foreground = (Brush)new BrushConverter().ConvertFromString(itemFaction.Color)!,
+                Foreground = BrushCache.GetBrush(itemFaction.Color)!,
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Padding = new Thickness(10, 6, 10, 6),
@@ -52,7 +53,7 @@ public partial class NewGameSetupWindow : Window
         OnePlayerFaction onePlayerFaction = listPlayerFactions.factions.FirstOrDefault(pf => pf.Faction == faction);
         FactionDescText.Text = onePlayerFaction.Description;
         if (onePlayerFaction != default)
-            FactionDescText.Foreground = (Brush)new BrushConverter().ConvertFromString(onePlayerFaction.Color)!;
+            FactionDescText.Foreground = BrushCache.GetBrush(onePlayerFaction.Color)!;
     }
 
     private void Confirm_Click(object sender, RoutedEventArgs e)

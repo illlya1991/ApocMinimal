@@ -9,15 +9,6 @@ namespace ApocMinimal.Database;
 
 public partial class DatabaseManager
 {
-    public List<Npc> GetAllNpcs()
-    {
-        var list = new List<Npc>();
-        using var cmd = new SQLiteCommand("SELECT * FROM Npcs ORDER BY Id", _conn);
-        using var rdr = cmd.ExecuteReader();
-        while (rdr.Read()) list.Add(ReadNpc(rdr));
-        return list;
-    }
-
     public void RegenerateAllNpcs(List<Npc> newNpcs)
     {
         using var tx = _conn.BeginTransaction();
@@ -29,6 +20,96 @@ public partial class DatabaseManager
             tx.Commit();
         }
         catch { tx.Rollback(); throw; }
+    }
+    public void SaveNpcInTransaction(Npc n, SQLiteTransaction transaction)
+    {
+        using var cmd = new SQLiteCommand(@"
+        UPDATE Npcs SET
+            Health=@hp, Devotion=@fa, Stamina=@st, Energy=@ck,
+            Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl,
+            CharTraits=@ct, Specializations=@sp, Emotions=@em,
+            Goal=@gl, Dream=@dr, Desire=@de,
+            Needs=@nd, Memory=@me, Statistics=@stat, LocationId=@li,
+            LearnedTechIds=@lti
+        WHERE Id=@id", _conn, transaction);
+
+        cmd.Parameters.AddWithValue("@hp", n.Health);
+        cmd.Parameters.AddWithValue("@fa", n.Devotion);
+        cmd.Parameters.AddWithValue("@st", n.Stamina);
+        cmd.Parameters.AddWithValue("@ck", n.Energy);
+        cmd.Parameters.AddWithValue("@fr", n.Fear);
+        cmd.Parameters.AddWithValue("@tr", n.Trust);
+        cmd.Parameters.AddWithValue("@in", n.Initiative);
+        cmd.Parameters.AddWithValue("@ci", n.CombatInitiative);
+        cmd.Parameters.AddWithValue("@fl", n.FollowerLevel);
+
+        cmd.Parameters.AddWithValue("@ct", JsonSerializer.Serialize(n.CharTraits.Select(t => t.ToString()).ToList(), JsonOpts));
+        cmd.Parameters.AddWithValue("@sp", JsonSerializer.Serialize(n.Specializations, JsonOpts));
+        cmd.Parameters.AddWithValue("@em", JsonSerializer.Serialize(n.Emotions, JsonOpts));
+        cmd.Parameters.AddWithValue("@gl", n.Goal ?? "");
+        cmd.Parameters.AddWithValue("@dr", n.Dream ?? "");
+        cmd.Parameters.AddWithValue("@de", n.Desire ?? "");
+        cmd.Parameters.AddWithValue("@nd", JsonSerializer.Serialize(n.Needs, JsonOpts));
+        cmd.Parameters.AddWithValue("@me", JsonSerializer.Serialize(n.Memory, JsonOpts));
+        cmd.Parameters.AddWithValue("@stat", JsonSerializer.Serialize(n.Stats, JsonOpts));
+        cmd.Parameters.AddWithValue("@id", n.Id);
+        cmd.Parameters.AddWithValue("@li", n.LocationId);
+        cmd.Parameters.AddWithValue("@lti", JsonSerializer.Serialize(n.LearnedTechIds, JsonOpts));
+
+        cmd.ExecuteNonQuery();
+
+        // Сохраняем модификаторы в той же транзакции
+        SaveModifiersForNpcInTransaction(n.Id, n.Stats, transaction);
+    }
+
+    private void SaveModifiersForNpcInTransaction(int npcId, Statistics stats, SQLiteTransaction transaction)
+    {
+        // Удаляем старые модификаторы
+        using var delCmd = new SQLiteCommand("DELETE FROM NpcModifiers WHERE NpcId=@id", _conn, transaction);
+        delCmd.Parameters.AddWithValue("@id", npcId);
+        delCmd.ExecuteNonQuery();
+
+        // Вставляем новые модификаторы
+        for (int i = 0; i < stats.AllStats.Count; i++)
+        {
+            Characteristic stat = stats.AllStats[i];
+
+            foreach (var mod in stat.GetModifiersByType<PermanentModifier>())
+            {
+                using var cmd = new SQLiteCommand(@"
+                INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, ModifierType, Value, ModifierClass, IsActive)
+                VALUES (@nid,@sid,@mid,@nm,@src,@mty,@val,'Permanent',@act)", _conn, transaction);
+
+                cmd.Parameters.AddWithValue("@nid", npcId);
+                cmd.Parameters.AddWithValue("@sid", stat.Id);
+                cmd.Parameters.AddWithValue("@mid", mod.Id);
+                cmd.Parameters.AddWithValue("@nm", mod.Name);
+                cmd.Parameters.AddWithValue("@src", mod.Source);
+                cmd.Parameters.AddWithValue("@mty", (int)mod.Type);
+                cmd.Parameters.AddWithValue("@val", mod.Value);
+                cmd.Parameters.AddWithValue("@act", mod.IsActiveFlag ? 1 : 0);
+                cmd.ExecuteNonQuery();
+            }
+
+            foreach (var mod in stat.GetModifiersByType<IndependentModifier>())
+            {
+                using var cmd = new SQLiteCommand(@"
+                INSERT INTO NpcModifiers (NpcId, StatId, ModifierId, Name, Source, ModifierType, Value, ModifierClass, TimeUnit, Duration, Remaining)
+                VALUES (@nid,@sid,@mid,@nm,@src,@mty,@val,'Independent',@tu,@dur,@rem)", _conn, transaction);
+
+                cmd.Parameters.AddWithValue("@nid", npcId);
+                cmd.Parameters.AddWithValue("@sid", stat.Id);
+                cmd.Parameters.AddWithValue("@mid", mod.Id);
+                cmd.Parameters.AddWithValue("@nm", mod.Name);
+                cmd.Parameters.AddWithValue("@src", mod.Source);
+                cmd.Parameters.AddWithValue("@mty", (int)mod.Type);
+                cmd.Parameters.AddWithValue("@val", mod.Value);
+                cmd.Parameters.AddWithValue("@tu", (int)mod.TimeUnit);
+                cmd.Parameters.AddWithValue("@dur", mod.Duration);
+                cmd.Parameters.AddWithValue("@rem", mod.Remaining);
+                cmd.ExecuteNonQuery();
+            }
+        }
     }
 
     private void InsertNpcTx(Npc n, SQLiteTransaction tx)
@@ -290,4 +371,240 @@ public partial class DatabaseManager
 
         return npc;
     }
+
+    public List<Npc> GetAllNpcsOptimized()
+    {
+        // Проверяем кэш
+        lock (_npcCacheLock)
+        {
+            if (_npcCache.Count > 0 && (DateTime.Now - _lastNpcLoad) < _cacheExpiry)
+            {
+                System.Diagnostics.Debug.WriteLine($"  NPC: возвращено из кэша {_npcCache.Count} NPC");
+                return _npcCache.Values.ToList();
+            }
+        }
+
+        var totalSw = System.Diagnostics.Stopwatch.StartNew();
+        var npcs = new List<Npc>();
+
+        // Оптимизация: читаем только нужные колонки
+        using var cmd = new SQLiteCommand(@"
+        SELECT Id, Name, Age, Gender, Profession, Description, 
+               Health, Devotion, Stamina, Energy, Fear, Trust, 
+               Initiative, CombatInitiative, Trait, FollowerLevel,
+               Goal, Dream, Desire, ActiveTask, TaskDaysLeft,
+               TaskRewardResId, TaskRewardAmt, Statistics, CharTraits,
+               Specializations, Emotions, Needs, Memory, LocationId, LearnedTechIds
+        FROM Npcs ORDER BY Id", _conn);
+
+        using var rdr = cmd.ExecuteReader();
+
+        while (rdr.Read())
+        {
+            var npc = ReadNpcFast(rdr);
+            npcs.Add(npc);
+        }
+
+        // Загружаем модификаторы одним запросом
+        LoadAllModifiersBatch(npcs);
+
+        // Сохраняем в кэш
+        lock (_npcCacheLock)
+        {
+            _npcCache.Clear();
+            foreach (var npc in npcs)
+                _npcCache[npc.Id] = npc;
+            _lastNpcLoad = DateTime.Now;
+        }
+
+        totalSw.Stop();
+        System.Diagnostics.Debug.WriteLine($"=== GetAllNpcsOptimized: {npcs.Count} NPC за {totalSw.ElapsedMilliseconds} мс ===");
+
+        return npcs;
+    }
+
+    // Метод для инвалидации кэша при изменении NPC
+    private Npc ReadNpcFast(SQLiteDataReader rdr)
+    {
+        var npc = new Npc();
+
+        // Используем GetOrdinal один раз для каждого поля
+        var idOrdinal = rdr.GetOrdinal("Id");
+        var nameOrdinal = rdr.GetOrdinal("Name");
+        var ageOrdinal = rdr.GetOrdinal("Age");
+        var genderOrdinal = rdr.GetOrdinal("Gender");
+        var professionOrdinal = rdr.GetOrdinal("Profession");
+        var descriptionOrdinal = rdr.GetOrdinal("Description");
+        var healthOrdinal = rdr.GetOrdinal("Health");
+        var devotionOrdinal = rdr.GetOrdinal("Devotion");
+        var staminaOrdinal = rdr.GetOrdinal("Stamina");
+        var energyOrdinal = rdr.GetOrdinal("Energy");
+        var fearOrdinal = rdr.GetOrdinal("Fear");
+        var trustOrdinal = rdr.GetOrdinal("Trust");
+        var initiativeOrdinal = rdr.GetOrdinal("Initiative");
+        var combatInitOrdinal = rdr.GetOrdinal("CombatInitiative");
+        var traitOrdinal = rdr.GetOrdinal("Trait");
+        var followerLevelOrdinal = rdr.GetOrdinal("FollowerLevel");
+        var goalOrdinal = rdr.GetOrdinal("Goal");
+        var dreamOrdinal = rdr.GetOrdinal("Dream");
+        var desireOrdinal = rdr.GetOrdinal("Desire");
+        var activeTaskOrdinal = rdr.GetOrdinal("ActiveTask");
+        var taskDaysLeftOrdinal = rdr.GetOrdinal("TaskDaysLeft");
+        var taskRewardResIdOrdinal = rdr.GetOrdinal("TaskRewardResId");
+        var taskRewardAmtOrdinal = rdr.GetOrdinal("TaskRewardAmt");
+        var statisticsOrdinal = rdr.GetOrdinal("Statistics");
+        var charTraitsOrdinal = rdr.GetOrdinal("CharTraits");
+        var specializationsOrdinal = rdr.GetOrdinal("Specializations");
+        var emotionsOrdinal = rdr.GetOrdinal("Emotions");
+        var needsOrdinal = rdr.GetOrdinal("Needs");
+        var memoryOrdinal = rdr.GetOrdinal("Memory");
+        var locationIdOrdinal = rdr.GetOrdinal("LocationId");
+        var learnedTechIdsOrdinal = rdr.GetOrdinal("LearnedTechIds");
+
+        npc.Id = rdr.GetInt32(idOrdinal);
+        npc.Name = rdr.GetString(nameOrdinal);
+        npc.Age = rdr.GetInt32(ageOrdinal);
+
+        string genderStr = rdr.IsDBNull(genderOrdinal) ? "Male" : rdr.GetString(genderOrdinal);
+        npc.Gender = genderStr == "Female" ? Gender.Female : Gender.Male;
+
+        npc.Profession = rdr.IsDBNull(professionOrdinal) ? "" : rdr.GetString(professionOrdinal);
+        npc.Description = rdr.IsDBNull(descriptionOrdinal) ? "" : rdr.GetString(descriptionOrdinal);
+        npc.Health = rdr.GetDouble(healthOrdinal);
+        npc.Devotion = rdr.IsDBNull(devotionOrdinal) ? 20 : rdr.GetDouble(devotionOrdinal);
+        npc.Stamina = rdr.IsDBNull(staminaOrdinal) ? 100 : rdr.GetDouble(staminaOrdinal);
+        npc.Energy = rdr.IsDBNull(energyOrdinal) ? 50 : rdr.GetDouble(energyOrdinal);
+        npc.Fear = rdr.IsDBNull(fearOrdinal) ? 10 : rdr.GetDouble(fearOrdinal);
+        npc.Trust = rdr.IsDBNull(trustOrdinal) ? 50 : rdr.GetDouble(trustOrdinal);
+        npc.Initiative = rdr.IsDBNull(initiativeOrdinal) ? 50 : rdr.GetDouble(initiativeOrdinal);
+        npc.CombatInitiative = rdr.IsDBNull(combatInitOrdinal) ? 50 : rdr.GetDouble(combatInitOrdinal);
+
+        string traitStr = rdr.IsDBNull(traitOrdinal) ? "None" : rdr.GetString(traitOrdinal);
+        npc.Trait = traitStr switch
+        {
+            "Leader" => NpcTrait.Leader,
+            "Coward" => NpcTrait.Coward,
+            "Loner" => NpcTrait.Loner,
+            _ => NpcTrait.None,
+        };
+
+        npc.FollowerLevel = rdr.IsDBNull(followerLevelOrdinal) ? 0 : rdr.GetInt32(followerLevelOrdinal);
+        npc.Goal = rdr.IsDBNull(goalOrdinal) ? "" : rdr.GetString(goalOrdinal);
+        npc.Dream = rdr.IsDBNull(dreamOrdinal) ? "" : rdr.GetString(dreamOrdinal);
+        npc.Desire = rdr.IsDBNull(desireOrdinal) ? "" : rdr.GetString(desireOrdinal);
+        npc.ActiveTask = rdr.IsDBNull(activeTaskOrdinal) ? "" : rdr.GetString(activeTaskOrdinal);
+        npc.TaskDaysLeft = rdr.IsDBNull(taskDaysLeftOrdinal) ? 0 : rdr.GetInt32(taskDaysLeftOrdinal);
+        npc.TaskRewardResId = rdr.IsDBNull(taskRewardResIdOrdinal) ? 0 : rdr.GetInt32(taskRewardResIdOrdinal);
+        npc.TaskRewardAmt = rdr.IsDBNull(taskRewardAmtOrdinal) ? 0 : rdr.GetDouble(taskRewardAmtOrdinal);
+
+        // Загрузка JSON полей (отложенная, только если нужно)
+        string statsJson = rdr.IsDBNull(statisticsOrdinal) ? "{}" : rdr.GetString(statisticsOrdinal);
+        try
+        {
+            var loadedStats = JsonSerializer.Deserialize<Statistics>(statsJson);
+            if (loadedStats != null) npc.Stats = loadedStats;
+        }
+        catch { }
+
+        // Модификаторы будут загружены позже
+        npc.Needs = LoadJsonList<Need>(rdr, needsOrdinal);
+        npc.Emotions = LoadJsonList<Emotion>(rdr, emotionsOrdinal);
+        npc.Specializations = LoadJsonList<string>(rdr, specializationsOrdinal);
+        npc.Memory = LoadJsonList<MemoryEntry>(rdr, memoryOrdinal);
+        npc.LearnedTechIds = LoadJsonList<string>(rdr, learnedTechIdsOrdinal);
+
+        var charTraitStrings = LoadJsonList<string>(rdr, charTraitsOrdinal);
+        npc.CharTraits = new List<CharacterTrait>();
+        foreach (var s in charTraitStrings)
+        {
+            if (Enum.TryParse<CharacterTrait>(s, out var ct))
+                npc.CharTraits.Add(ct);
+        }
+
+        npc.LocationId = rdr.IsDBNull(locationIdOrdinal) ? 0 : rdr.GetInt32(locationIdOrdinal);
+
+        return npc;
+    }
+
+    private List<T> LoadJsonList<T>(SQLiteDataReader rdr, int ordinal) where T : class
+    {
+        if (rdr.IsDBNull(ordinal)) return new List<T>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<T>>(rdr.GetString(ordinal)) ?? new List<T>();
+        }
+        catch
+        {
+            return new List<T>();
+        }
+    }
+
+    private void LoadAllModifiersBatch(List<Npc> npcs)
+    {
+        if (npcs.Count == 0) return;
+
+        const int batchSize = 500;
+
+        for (int i = 0; i < npcs.Count; i += batchSize)
+        {
+            var batch = npcs.Skip(i).Take(batchSize).ToList();
+            var ids = string.Join(",", batch.Select(n => n.Id));
+
+            using var cmd = new SQLiteCommand($"SELECT * FROM NpcModifiers WHERE NpcId IN ({ids}) ORDER BY NpcId", _conn);
+            using var rdr = cmd.ExecuteReader();
+
+            var modifiersByNpc = new Dictionary<int, List<(string StatId, Modifier Mod)>>();
+
+            while (rdr.Read())
+            {
+                var npcId = rdr.GetInt32(rdr.GetOrdinal("NpcId"));
+                var statId = rdr.GetString(rdr.GetOrdinal("StatId"));
+                var modifierClass = rdr.GetString(rdr.GetOrdinal("ModifierClass"));
+
+                if (!modifiersByNpc.ContainsKey(npcId))
+                    modifiersByNpc[npcId] = new List<(string, Modifier)>();
+
+                if (modifierClass == "Permanent")
+                {
+                    var mod = new PermanentModifier(
+                        rdr.GetString(rdr.GetOrdinal("ModifierId")),
+                        rdr.GetString(rdr.GetOrdinal("Name")),
+                        rdr.GetString(rdr.GetOrdinal("Source")),
+                        (ModifierType)rdr.GetInt32(rdr.GetOrdinal("ModifierType")),
+                        rdr.GetDouble(rdr.GetOrdinal("Value"))
+                    );
+                    if (rdr.GetInt32(rdr.GetOrdinal("IsActive")) == 0)
+                        mod.Deactivate();
+                    modifiersByNpc[npcId].Add((statId, mod));
+                }
+                else if (modifierClass == "Independent")
+                {
+                    var mod = new IndependentModifier(
+                        rdr.GetString(rdr.GetOrdinal("ModifierId")),
+                        rdr.GetString(rdr.GetOrdinal("Name")),
+                        rdr.GetString(rdr.GetOrdinal("Source")),
+                        (ModifierType)rdr.GetInt32(rdr.GetOrdinal("ModifierType")),
+                        rdr.GetDouble(rdr.GetOrdinal("Value")),
+                        (TimeUnit)rdr.GetInt32(rdr.GetOrdinal("TimeUnit")),
+                        rdr.GetInt32(rdr.GetOrdinal("Duration"))
+                    );
+                    modifiersByNpc[npcId].Add((statId, mod));
+                }
+            }
+
+            // Применяем модификаторы к NPC в этой партии
+            foreach (var npc in batch)
+            {
+                if (modifiersByNpc.TryGetValue(npc.Id, out var mods))
+                {
+                    foreach (var (statId, mod) in mods)
+                    {
+                        var stat = npc.Stats.GetById(statId);
+                        stat?.AddModifier(mod);
+                    }
+                }
+            }
+        }
+    }
+
 }
