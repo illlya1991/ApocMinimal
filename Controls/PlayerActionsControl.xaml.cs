@@ -23,6 +23,11 @@ public partial class PlayerActionsControl : UserControl
     private readonly List<ComboBox> _dynamicComboBoxes = new();
 
     public event Action<string, string>? LogAction;
+    public event Action? EndDayRequested;
+    public event Action? QuestsRequested;
+    public event Action? PlayerInfoRequested;
+    public event Action? FullscreenRequested;
+    public event Action? SettingsRequested;
 
     // Конструктор без параметров для XAML
     public PlayerActionsControl()
@@ -532,19 +537,10 @@ public partial class PlayerActionsControl : UserControl
     }
 
     // =========================================================
-    // Tab switching
+    // Bottom nav buttons
     // =========================================================
 
-    private void Tab_Click(object sender, RoutedEventArgs e)
-    {
-        TabActions.IsChecked = sender == TabActions;
-        TabMap.IsChecked = sender == TabMap;
-
-        PanelActions.Visibility = TabActions.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-        PanelMap.Visibility = TabMap.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void OpenTerminalBtn_Click(object sender, RoutedEventArgs e)
+    private void BtnTerminal_Click(object sender, RoutedEventArgs e)
     {
         var win = new TerminalWindow(_viewModel);
         win.Owner = Window.GetWindow(this);
@@ -552,6 +548,22 @@ public partial class PlayerActionsControl : UserControl
         _viewModel.Refresh();
         Refresh();
     }
+
+    private void BtnMap_Click(object sender, RoutedEventArgs e)
+    {
+        bool showMap = PanelMap.Visibility != Visibility.Visible;
+        PanelActions.Visibility = showMap ? Visibility.Collapsed : Visibility.Visible;
+        PanelMap.Visibility = showMap ? Visibility.Visible : Visibility.Collapsed;
+        BtnMap.Background = BrushCache.GetBrush(showMap ? "#0d2a3a" : "#161b22");
+        BtnMap.Foreground = BrushCache.GetBrush(showMap ? "#58a6ff" : "#7dd3fc");
+        if (showMap) RefreshMapTab();
+    }
+
+    private void BtnQuests_Click(object sender, RoutedEventArgs e) => QuestsRequested?.Invoke();
+    private void BtnPlayerInfo_Click(object sender, RoutedEventArgs e) => PlayerInfoRequested?.Invoke();
+    private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => FullscreenRequested?.Invoke();
+    private void BtnSettings_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke();
+    private void BtnEndDay_Click(object sender, RoutedEventArgs e) => EndDayRequested?.Invoke();
 
     private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
     {

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,101 +12,125 @@ public partial class NpcListControl : UserControl
     public event Action<Npc>? NpcSelected;
 
     private readonly GameUIService _uiService;
-    private List<Npc> _allFollowers = new();  // Все последователи (уровень 1+)
-    private List<Npc> _currentPageNpcs = new();
+    private List<Npc> _allNpcs = new();
+    private List<int> _controlledZoneIds = new();
     private Npc? _currentSelectedNpc;
 
+    private bool _showFollowers = true; // true = followers tab, false = territory tab
+
     private int _currentPage = 1;
-    private const int PageSize = 100;
+    private const int PageSize = 20;
     private int _totalPages = 1;
+    private List<Npc> _filteredNpcs = new();
 
     public NpcListControl()
     {
         InitializeComponent();
         _uiService = new GameUIService((text, color) => { });
+        InitFilters();
     }
 
-    public void UpdateNpcs(List<Npc> npcs, Npc? currentSelectedNpc = null)
+    private void InitFilters()
     {
-        try
+        FilterFollower.Items.Add("Все уровни");
+        for (int i = 1; i <= 5; i++) FilterFollower.Items.Add(i.ToString());
+        FilterFollower.SelectedIndex = 0;
+
+        FilterEvolution.Items.Add("Все");
+        for (int i = 0; i <= 5; i++) FilterEvolution.Items.Add(i.ToString());
+        FilterEvolution.SelectedIndex = 0;
+    }
+
+    public void UpdateNpcs(List<Npc> npcs, List<int> controlledZoneIds, Npc? selectedNpc = null)
+    {
+        _allNpcs = npcs ?? new();
+        _controlledZoneIds = controlledZoneIds ?? new();
+        _currentSelectedNpc = selectedNpc;
+        _currentPage = 1;
+        ApplyFilters();
+    }
+
+    // Overload for backwards compatibility
+    public void UpdateNpcs(List<Npc> npcs, Npc? selectedNpc = null)
+        => UpdateNpcs(npcs, _controlledZoneIds, selectedNpc);
+
+    private void ApplyFilters()
+    {
+        if (_showFollowers)
         {
-            System.Diagnostics.Debug.WriteLine($"  NpcListControl.UpdateNpcs: npcs={npcs?.Count ?? 0}, selected={currentSelectedNpc?.Name}");
-            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var followerFilter = FilterFollower.SelectedIndex; // 0=all, 1-5=level
+            var evolutionFilter = FilterEvolution.SelectedIndex - 1; // -1=all, 0-5=level
 
-            _currentSelectedNpc = currentSelectedNpc;
-
-            // Фильтруем: только живые последователи с уровнем 1+
-            _allFollowers = npcs
+            _filteredNpcs = _allNpcs
                 .Where(n => n.IsAlive && n.FollowerLevel >= 1)
+                .Where(n => followerFilter == 0 || n.FollowerLevel == followerFilter)
+                .Where(n => evolutionFilter < 0 || n.EvolutionLevel == evolutionFilter)
+                .OrderByDescending(n => n.FollowerLevel)
+                .ThenByDescending(n => n.EvolutionLevel)
+                .ThenBy(n => n.Name)
+                .ToList();
+
+            FilterPanel.Visibility = Visibility.Visible;
+            TabCountLabel.Text = $"{_filteredNpcs.Count} последователей";
+
+            int total = _allNpcs.Count(n => n.IsAlive && n.FollowerLevel >= 1);
+            FollowerCountLabel.Text = total != _filteredNpcs.Count ? $"всего: {total}" : "";
+        }
+        else
+        {
+            var zoneSet = _controlledZoneIds.ToHashSet();
+            _filteredNpcs = _allNpcs
+                .Where(n => n.IsAlive && zoneSet.Contains(n.LocationId))
                 .OrderByDescending(n => n.FollowerLevel)
                 .ThenBy(n => n.Name)
                 .ToList();
 
-            System.Diagnostics.Debug.WriteLine($"    Последователей: {_allFollowers.Count}");
-
-            // Обновляем счётчик
-            int totalFollowers = _allFollowers.Count;
-            FollowerCountLabel.Text = $"{totalFollowers} посл.";
-
-            // Рассчитываем страницы
-            _totalPages = totalFollowers > 0 ? (int)System.Math.Ceiling((double)totalFollowers / PageSize) : 1;
-            _currentPage = 1;
-
-            // Отображаем первую страницу
-            RefreshCurrentPage();
-
-            // Обновляем состояние кнопок
-            UpdatePaginationButtons();
-
-            sw.Stop();
-            System.Diagnostics.Debug.WriteLine($"    UpdateNpcs за {sw.ElapsedMilliseconds} мс");
+            FilterPanel.Visibility = Visibility.Collapsed;
+            TabCountLabel.Text = $"{_filteredNpcs.Count} НПС на территории";
+            FollowerCountLabel.Text = "";
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"!!! ОШИБКА В UpdateNpcs: {ex.Message}");
-            throw;
-        }
+
+        _totalPages = _filteredNpcs.Count > 0
+            ? (int)System.Math.Ceiling((double)_filteredNpcs.Count / PageSize)
+            : 1;
+        if (_currentPage > _totalPages) _currentPage = _totalPages;
+
+        RefreshCurrentPage();
+        UpdatePaginationButtons();
     }
+
     private void RefreshCurrentPage()
     {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        System.Diagnostics.Debug.WriteLine($"      NpcListControl: отрисовка страницы {_currentPage} START");
-
         NpcPanel.Children.Clear();
 
-        // Вычисляем индексы для текущей страницы
         int startIndex = (_currentPage - 1) * PageSize;
-        int endIndex = System.Math.Min(startIndex + PageSize, _allFollowers.Count);
+        if (startIndex >= _filteredNpcs.Count && _filteredNpcs.Count > 0)
+        {
+            _currentPage = 1;
+            startIndex = 0;
+        }
 
-        if (startIndex >= _allFollowers.Count)
+        if (_filteredNpcs.Count == 0)
         {
             NpcPanel.Children.Add(new TextBlock
             {
-                Text = "Нет последователей",
+                Text = _showFollowers ? "Нет последователей" : "Никого на территории",
                 Foreground = BrushCache.GetBrush("#8b949e"),
                 FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 20, 0, 0)
             });
-            System.Diagnostics.Debug.WriteLine($"      Нет последователей: {sw.ElapsedMilliseconds} мс");
+            PageInfoLabel.Text = "0";
             return;
         }
 
-        _currentPageNpcs = _allFollowers.Skip(startIndex).Take(PageSize).ToList();
-
-        int cardCount = 0;
-        for (int i = 0; i < _currentPageNpcs.Count; i++)
+        var page = _filteredNpcs.Skip(startIndex).Take(PageSize).ToList();
+        foreach (var npc in page)
         {
-            var npc = _currentPageNpcs[i];
             var card = _uiService.BuildNpcCard(npc);
-            var capturedNpc = npc;
+            var captured = npc;
+            card.MouseLeftButtonUp += (_, _) => NpcSelected?.Invoke(captured);
 
-            card.MouseLeftButtonUp += (_, e) =>
-            {
-                NpcSelected?.Invoke(capturedNpc);
-            };
-
-            // Подсветка выбранного NPC
             if (_currentSelectedNpc != null && _currentSelectedNpc.Id == npc.Id)
             {
                 card.BorderBrush = BrushCache.GetBrush("#60a5fa")!;
@@ -114,30 +138,33 @@ public partial class NpcListControl : UserControl
             }
 
             NpcPanel.Children.Add(card);
-            cardCount++;
-
-            // Логируем каждые 20 карточек
-            if (cardCount % 20 == 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"        Создано {cardCount} карточек за {sw.ElapsedMilliseconds} мс");
-            }
         }
 
-        // Обновляем информацию о странице
-        int totalDisplayed = System.Math.Min(PageSize, _allFollowers.Count - startIndex);
         int from = startIndex + 1;
-        int to = startIndex + totalDisplayed;
-        PageInfoLabel.Text = $"{from}-{to} / {_allFollowers.Count}";
-
-        System.Diagnostics.Debug.WriteLine($"      NpcListControl: отрисовано {cardCount} карточек за {sw.ElapsedMilliseconds} мс");
+        int to = startIndex + page.Count;
+        PageInfoLabel.Text = $"{from}-{to} / {_filteredNpcs.Count}";
     }
+
     private void UpdatePaginationButtons()
     {
         PrevPageBtn.IsEnabled = _currentPage > 1;
-        NextPageBtn.IsEnabled = _currentPage < _totalPages && _allFollowers.Count > PageSize;
+        NextPageBtn.IsEnabled = _currentPage < _totalPages;
+        PageInfoLabel.Foreground = BrushCache.GetBrush(_filteredNpcs.Count > 0 ? "#60a5fa" : "#8b949e")!;
+    }
 
-        // Стиль для активной страницы
-        PageInfoLabel.Foreground = BrushCache.GetBrush(_allFollowers.Count > 0 ? "#60a5fa" : "#8b949e")!;
+    private void Tab_Click(object sender, RoutedEventArgs e)
+    {
+        _showFollowers = sender == TabFollowers;
+        TabFollowers.IsChecked = _showFollowers;
+        TabTerritory.IsChecked = !_showFollowers;
+        _currentPage = 1;
+        ApplyFilters();
+    }
+
+    private void Filter_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        _currentPage = 1;
+        ApplyFilters();
     }
 
     private void PrevPage_Click(object sender, RoutedEventArgs e)
@@ -147,10 +174,7 @@ public partial class NpcListControl : UserControl
             _currentPage--;
             RefreshCurrentPage();
             UpdatePaginationButtons();
-
-            // Прокрутка вверх
-            if (NpcPanel.Parent is ScrollViewer sv)
-                sv.ScrollToTop();
+            if (NpcPanel.Parent is ScrollViewer sv) sv.ScrollToTop();
         }
     }
 
@@ -161,21 +185,18 @@ public partial class NpcListControl : UserControl
             _currentPage++;
             RefreshCurrentPage();
             UpdatePaginationButtons();
-
-            // Прокрутка вверх
-            if (NpcPanel.Parent is ScrollViewer sv)
-                sv.ScrollToTop();
+            if (NpcPanel.Parent is ScrollViewer sv) sv.ScrollToTop();
         }
     }
 
-    // Очистка кэша при обновлении
     public void Clear()
     {
-        _allFollowers.Clear();
-        _currentPageNpcs.Clear();
+        _allNpcs.Clear();
+        _filteredNpcs.Clear();
         NpcPanel.Children.Clear();
-        FollowerCountLabel.Text = "0 посл.";
-        PageInfoLabel.Text = "0-0 / 0";
+        TabCountLabel.Text = "0 НПС";
+        FollowerCountLabel.Text = "";
+        PageInfoLabel.Text = "0";
         PrevPageBtn.IsEnabled = false;
         NextPageBtn.IsEnabled = false;
     }

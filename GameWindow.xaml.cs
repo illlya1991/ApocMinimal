@@ -40,6 +40,11 @@ public partial class GameWindow : Window
 
             PlayerActionsControl.SetViewModel(_viewModel);
             PlayerActionsControl.LogAction += LogPlayer;
+            PlayerActionsControl.EndDayRequested += async () => await OnEndDay();
+            PlayerActionsControl.QuestsRequested += OnQuestsRequested;
+            PlayerActionsControl.PlayerInfoRequested += OnPlayerInfoRequested;
+            PlayerActionsControl.FullscreenRequested += OnFullscreenRequested;
+            PlayerActionsControl.SettingsRequested += OnSettingsRequested;
             NpcListControl.NpcSelected += OnNpcSelected;
 
             RefreshAll();
@@ -295,7 +300,7 @@ public partial class GameWindow : Window
     private void RefreshAll()
     {
         RefreshHeader();
-        NpcListControl.UpdateNpcs(_viewModel.AllNpcs, NpcSidebarControl.CurrentNpc);
+        NpcListControl.UpdateNpcs(_viewModel.AllNpcs, _viewModel.ControlledZoneIds, NpcSidebarControl.CurrentNpc);
         PlayerActionsControl.Refresh();
     }
 
@@ -303,18 +308,15 @@ public partial class GameWindow : Window
     {
         ListPlayerFactions listPlayerFactions = new ListPlayerFactions();
         OnePlayerFaction onePlayerFaction = listPlayerFactions.factions.FirstOrDefault(pf => pf.Faction == _viewModel.PlayerFaction);
-        PlayerNameLabel.Text = $"{_viewModel.PlayerName}";
+        PlayerNameLabel.Text = _viewModel.PlayerName;
         PlayerFactionLabel.Text = $"  |  {onePlayerFaction.Label}";
         DayLabel.Text = $"  |  {_viewModel.DayDisplay}";
         DevPointsLabel.Text = $"  {_viewModel.DevPointsDisplay}";
         TerminalLabel.Text = $"  {_viewModel.TerminalDisplay}";
-        ActionsLabel.Text = $"  {_viewModel.ActionsDisplay}";
-        ActionsLabel.Foreground = _viewModel.HasActionsLeft
-            ? BrushCache.GetBrush("#56d364")!
-            : BrushCache.GetBrush("#f87171")!;
+        BarrierLabel.Text = $"  Барьер: ур.{_viewModel.BarrierLevel}";
     }
 
-    private async void EndDayBtn_Click(object sender, RoutedEventArgs e)
+    private async Task OnEndDay()
     {
         SettingsOverlay.Visibility = Visibility.Collapsed;
 
@@ -343,6 +345,52 @@ public partial class GameWindow : Window
 
         if (_viewModel.IsVictory || _viewModel.IsDefeat)
             ShowResultWindow();
+    }
+
+    private void SaveBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SaveAll();
+        StatusTextBlock.Text = "Сохранено";
+        StatusTextBlock.Visibility = Visibility.Visible;
+        Task.Delay(2000).ContinueWith(_ =>
+            Dispatcher.Invoke(() =>
+            {
+                StatusTextBlock.Text = "";
+                StatusTextBlock.Visibility = Visibility.Collapsed;
+            }));
+    }
+
+    private void ExitBtn_Click(object sender, RoutedEventArgs e)
+    {
+        new StartWindow().Show();
+        Close();
+    }
+
+    private void OnQuestsRequested()
+    {
+        var w = new QuestWindow(_viewModel, LogPlayer);
+        w.ShowDialog();
+        _viewModel.Refresh();
+        RefreshAll();
+    }
+
+    private void OnPlayerInfoRequested()
+    {
+        var w = new PlayerInfoWindow(_viewModel) { Owner = this };
+        w.ShowDialog();
+    }
+
+    private void OnFullscreenRequested()
+    {
+        var w = new NpcFullscreenWindow(_viewModel.AllNpcs);
+        w.ShowDialog();
+    }
+
+    private void OnSettingsRequested()
+    {
+        SettingsOverlay.Visibility = SettingsOverlay.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     private void ShowProgress(string message)
@@ -429,41 +477,6 @@ public partial class GameWindow : Window
         var win = new ResultWindow(_viewModel.IsVictory, _viewModel.CurrentDay, summary);
         win.Owner = this;
         win.ShowDialog();
-    }
-
-    private void FullscreenInfo_Click(object sender, RoutedEventArgs e)
-    {
-        var fullscreenWindow = new NpcFullscreenWindow(_viewModel.AllNpcs);
-        fullscreenWindow.ShowDialog();
-    }
-
-    private void PlayerInfoBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var w = new PlayerInfoWindow(_viewModel) { Owner = this };
-        w.ShowDialog();
-    }
-
-    private void QuestsBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var questWindow = new QuestWindow(_viewModel, LogPlayer);
-        questWindow.ShowDialog();
-        _viewModel.Refresh();
-        RefreshAll();
-    }
-
-    private void TechniquesBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var w = new TechniqueWindow(_viewModel, LogPlayer);
-        w.ShowDialog();
-        _viewModel.Refresh();
-        RefreshAll();
-    }
-
-    private void SettingsBtn_Click(object sender, RoutedEventArgs e)
-    {
-        SettingsOverlay.Visibility = SettingsOverlay.Visibility == Visibility.Visible
-            ? Visibility.Collapsed
-            : Visibility.Visible;
     }
 
     private void MenuNoSave_Click(object sender, RoutedEventArgs e)

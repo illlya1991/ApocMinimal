@@ -36,37 +36,18 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="TabBtn" TargetType="ToggleButton">
-            <Setter Property="Background" Value="#21262d"/>
-            <Setter Property="Foreground" Value="#8b949e"/>
-            <Setter Property="BorderThickness" Value="0,0,0,2"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="10,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Foreground" Value="#58a6ff"/>
-                    <Setter Property="BorderBrush" Value="#58a6ff"/>
-                </Trigger>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#30363d"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="CollapseBtn" TargetType="Button">
+        <Style x:Key="NavBtn" TargetType="Button">
             <Setter Property="Background" Value="#161b22"/>
             <Setter Property="Foreground" Value="#8b949e"/>
             <Setter Property="BorderBrush" Value="#30363d"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Height" Value="26"/>
-            <Setter Property="Margin" Value="0,4,0,2"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="2,1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#21262d"/>
                     <Setter Property="Foreground" Value="#c9d1d9"/>
                 </Trigger>
             </Style.Triggers>
@@ -75,41 +56,82 @@
 
     <Border Background="#0d1117" BorderBrush="#30363d" BorderThickness="1,0,0,0">
         <DockPanel>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="#161b22">
-                <ToggleButton x:Name="TabActions" Content="Действия" Style="{StaticResource TabBtn}" IsChecked="True" Click="Tab_Click"/>
-                <ToggleButton x:Name="TabQuests" Content="Квесты" Style="{StaticResource TabBtn}" Click="Tab_Click" Visibility="Collapsed"/>
-                <Button x:Name="OpenTerminalBtn" Content="⚡ Терминал" Height="30" Padding="10,0" Background="#21262d" Foreground="#d2a8ff" BorderThickness="0" Cursor="Hand" Click="OpenTerminalBtn_Click"/>
-                <ToggleButton x:Name="TabMap" Content="Карта" Style="{StaticResource TabBtn}" Click="Tab_Click"/>
-            </StackPanel>
 
-            <!-- ACTIONS TAB -->
-            <ScrollViewer x:Name="PanelActions" VerticalScrollBarVisibility="Auto" Padding="10">
+            <!-- BOTTOM BUTTONS -->
+            <Border DockPanel.Dock="Bottom" BorderBrush="#30363d" BorderThickness="0,1,0,0"
+                    Background="#0d1117" Padding="6,6,6,6">
                 <StackPanel>
-                    <TextBlock Text="КАТЕГОРИЯ" Style="{StaticResource SectionHeader}"/>
-                    <ComboBox x:Name="ActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="ActionCombo_SelectionChanged"/>
-
-                    <TextBlock x:Name="SubActionLabel" Text="ДЕЙСТВИЕ" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
-                    <Grid x:Name="SubActionRow" Visibility="Collapsed">
-                        <ComboBox x:Name="SubActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="SubActionCombo_SelectionChanged"/>
+                    <Grid Margin="0,0,0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" x:Name="BtnTerminal" Content="Терминал"
+                                Style="{StaticResource NavBtn}" Foreground="#d2a8ff"
+                                Click="BtnTerminal_Click"/>
+                        <Button Grid.Column="1" x:Name="BtnMap" Content="Карта"
+                                Style="{StaticResource NavBtn}" Foreground="#7dd3fc"
+                                Click="BtnMap_Click"/>
+                        <Button Grid.Column="2" x:Name="BtnQuests" Content="Квесты"
+                                Style="{StaticResource NavBtn}" Foreground="#56d364"
+                                Click="BtnQuests_Click"/>
                     </Grid>
-
-                    <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
-
-                    <Button x:Name="ExecuteBtn" Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
-
-                    <Separator Background="#30363d" Margin="0,12,0,6"/>
-                    <TextBlock Text="ТЕХНИКИ АЛТАРЯ" Style="{StaticResource SectionHeader}"/>
-                    <StackPanel x:Name="TechniquePanel"/>
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" x:Name="BtnPlayerInfo" Content="Игрок"
+                                Style="{StaticResource NavBtn}" Foreground="#a5d6ff"
+                                Click="BtnPlayerInfo_Click"/>
+                        <Button Grid.Column="1" x:Name="BtnFullscreen" Content="Обзор"
+                                Style="{StaticResource NavBtn}" Foreground="#d2a8ff"
+                                Click="BtnFullscreen_Click"/>
+                        <Button Grid.Column="2" x:Name="BtnSettings" Content="Настройки"
+                                Style="{StaticResource NavBtn}" Foreground="#8b949e"
+                                Click="BtnSettings_Click"/>
+                    </Grid>
+                    <Button x:Name="BtnEndDay" Content="КОНЕЦ ДНЯ"
+                            Height="32" FontSize="12" FontWeight="Bold"
+                            Background="#1f4e8c" Foreground="#a5d6ff"
+                            BorderBrush="#2d6cb0" BorderThickness="1"
+                            Cursor="Hand" Margin="0,0,0,0"
+                            Click="BtnEndDay_Click"/>
                 </StackPanel>
-            </ScrollViewer>
+            </Border>
 
-            <!-- MAP TAB -->
-            <ScrollViewer x:Name="PanelMap" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
-                <StackPanel>
-                    <TextBlock Text="КАРТА МИРА" Style="{StaticResource SectionHeader}"/>
-                    <StackPanel x:Name="MapPanel"/>
-                </StackPanel>
-            </ScrollViewer>
+            <!-- ACTIONS PANEL (top, fills remaining space) -->
+            <Grid>
+                <ScrollViewer x:Name="PanelActions" VerticalScrollBarVisibility="Auto" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="КАТЕГОРИЯ" Style="{StaticResource SectionHeader}"/>
+                        <ComboBox x:Name="ActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="ActionCombo_SelectionChanged"/>
+
+                        <TextBlock x:Name="SubActionLabel" Text="ДЕЙСТВИЕ" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
+                        <Grid x:Name="SubActionRow" Visibility="Collapsed">
+                            <ComboBox x:Name="SubActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="SubActionCombo_SelectionChanged"/>
+                        </Grid>
+
+                        <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
+
+                        <Button x:Name="ExecuteBtn" Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
+
+                        <Separator Background="#30363d" Margin="0,12,0,6"/>
+                        <TextBlock Text="ТЕХНИКИ" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="TechniquePanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="PanelMap" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="КАРТА МИРА" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="MapPanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
         </DockPanel>
     </Border>
 </UserControl>

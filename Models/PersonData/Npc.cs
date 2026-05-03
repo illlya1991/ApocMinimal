@@ -40,6 +40,7 @@ public class Npc
     // ── ROLE & PROGRESSION ──────────────────────────────────────────────────
     public NpcTrait Trait { get; set; }
     public int FollowerLevel { get; set; }
+    public int EvolutionLevel { get; set; }
     public List<CharacterTrait> CharTraits { get; set; } = new();
     public List<string> Specializations { get; set; } = new();
 
@@ -134,6 +135,17 @@ public class Npc
         4 => "Преданный",
         5 => "Фанатик",
         _ => FollowerLevel.ToString()
+    };
+
+    public string EvolutionLabel => EvolutionLevel switch
+    {
+        0 => "Неробуджений",
+        1 => "Пробудження",
+        2 => "Усвідомлення",
+        3 => "Злиття",
+        4 => "Перетворення",
+        5 => "Трансцендент",
+        _ => EvolutionLevel.ToString()
     };
 
     public string StatusColor
