@@ -70,14 +70,9 @@ public class InteractionHandler : BaseActionHandler
         if (urgentNeed != null && urgentNeed.IsCritical)
             response += $" Мне срочно нужно: {urgentNeed.Name}!";
 
-        // Расчет изменения доверия
         int trustChange = CalculateTrustChange(target, "Chat");
         target.Trust = Math.Clamp(target.Trust + trustChange, 0, 100);
-
-        // Сохранение
-        _db.SaveNpc(target);
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Поговорил с координатором (доверие {(trustChange >= 0 ? "+" : "")}{trustChange})"));
-        _db.SaveNpc(target);
 
         // Логирование
         Log($"Ты обращаешься к {target.Name}:", LogEntry.ColorNormal);
@@ -141,12 +136,7 @@ public class InteractionHandler : BaseActionHandler
         // Применяем пожертвование
         target.Devotion = Math.Max(0, target.Devotion - donationAmount);
         player.DevPoints += donationAmount;
-
-        _db.SaveNpc(target);
-        _db.SavePlayer(player);
-
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Пожертвовал {donationAmount:F0} ОР"));
-        _db.SaveNpc(target);
 
         // Логирование
         Log($"{target.Name} делает пожертвование:", LogEntry.ColorSpeech);
@@ -187,10 +177,7 @@ public class InteractionHandler : BaseActionHandler
         int fearReduction = CalculateFearReduction(target);
 
         target.Fear = Math.Max(0, target.Fear - fearReduction);
-        _db.SaveNpc(target);
-
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Координатор успокоил (страх -{fearReduction})"));
-        _db.SaveNpc(target);
 
         Log($"Ты успокаиваешь {target.Name}:", LogEntry.ColorNormal);
         Log($"  Страх -{fearReduction} (теперь {target.Fear:F0})", LogEntry.ColorSuccess);
@@ -218,10 +205,7 @@ public class InteractionHandler : BaseActionHandler
 
         target.Devotion = Math.Min(100, target.Devotion + faithGain);
         target.Initiative = Math.Min(100, target.Initiative + 5);
-        _db.SaveNpc(target);
-
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Divine, $"Мотивация координатора (преданность +{faithGain})"));
-        _db.SaveNpc(target);
 
         Log($"Ты вдохновляешь {target.Name}:", LogEntry.ColorNormal);
         Log($"  Преданность +{faithGain} (теперь {target.Devotion:F0})", LogEntry.ColorTerminalColor);
@@ -253,21 +237,7 @@ public class InteractionHandler : BaseActionHandler
 
         string result = $"Ты запугиваешь {target.Name}!\n  Страх +{fearGain} (теперь {target.Fear:F0})";
 
-        // Шанс получить ресурсы
-        if (_random.NextDouble() < resourceChance)
-        {
-            var randomResource = _db.GetAllResources().FirstOrDefault();
-            if (randomResource != null)
-            {
-                double amount = _random.Next(1, 10);
-                randomResource.Amount += amount;
-                _db.SaveResource(randomResource);
-                result += $"\n  Получено {amount} ед. {randomResource.Name}";
-            }
-        }
-
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social, $"Координатор запугал (страх +{fearGain})"));
-        _db.SaveNpc(target);
 
         Log(result, LogEntry.ColorWarning);
 

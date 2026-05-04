@@ -1,4 +1,3 @@
-using ApocMinimal.Database;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
@@ -7,9 +6,9 @@ namespace ApocMinimal.Services;
 
 public class ShopService
 {
-    private readonly DatabaseManager _db;
+    private readonly Database.DatabaseManager _db;
 
-    public ShopService(DatabaseManager db) => _db = db;
+    public ShopService(Database.DatabaseManager db) => _db = db;
 
     public bool IsUnlocked(List<string> unlocks, string resourceName)
         => unlocks.Contains(resourceName);
@@ -24,8 +23,6 @@ public class ShopService
 
         res.Amount -= 1;
         player.DevPoints -= 5;
-        _db.SaveResource(res);
-        _db.SavePlayer(player);
         _db.UnlockShopResource(_db.CurrentSaveId, resourceName);
         unlocks.Add(resourceName);
         return $"Разблокирована покупка: {resourceName}";
@@ -41,10 +38,9 @@ public class ShopService
         if (player.DevPoints < price) return $"Недостаточно ОР (нужно {price:F0})";
 
         player.DevPoints -= price;
-        _db.SavePlayer(player);
 
         var res = resources.FirstOrDefault(r => r.Name == resourceName);
-        if (res != null) { res.Amount += 10; _db.SaveResource(res); }
+        if (res != null) res.Amount += 10;
 
         return $"Куплено 10 ед. {resourceName} за {price:F0} ОР";
     }

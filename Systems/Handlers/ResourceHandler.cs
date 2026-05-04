@@ -72,33 +72,24 @@ public class ResourceHandler : BaseActionHandler
             return $"Недостаточно '{resource.Name}'. Есть: {resource.Amount:F0}, нужно: {amount:F0}";
 
         resource.Amount -= amount;
-        _db.SaveResource(resource);
 
-        // Удовлетворение потребностей NPC
         var satisfaction = NeedSystem.SatisfyNeed(target, resource.Name, amount * 0.5);
         if (satisfaction)
             Log($"  Потребность '{resource.Name}' удовлетворена на {amount * 0.5:F0}%", LogEntry.ColorSuccess);
 
-        // Расчет изменения доверия
         int trustGain = CalculateTransferTrustGain(target, resource, amount);
         target.Trust = Math.Min(100, target.Trust + trustGain);
-        _db.SaveNpc(target);
-
-        // Добавление в память
         target.Remember(new MemoryEntry(player.CurrentDay, MemoryType.Social,
             $"Получил {amount:F0} ед. {resource.Name} от Божества"));
 
-        // Логирование
         Log($"Передано {amount:F0} ед. '{resource.Name}' → {target.Name}", LogEntry.ColorSuccess);
         Log($"  Осталось: {resource.Amount:F0}", LogEntry.ColorNormal);
         Log($"  Доверие {(trustGain >= 0 ? "+" : "")}{trustGain} (теперь {target.Trust:F0})",
             trustGain >= 0 ? LogEntry.ColorSuccess : LogEntry.ColorDanger);
 
-        // Шанс повышения уровня последователя
         if (trustGain > 5 && target.FollowerLevel < 5 && _random.NextDouble() < 0.1)
         {
             target.FollowerLevel++;
-            _db.SaveNpc(target);
             Log($"  {target.Name} повышен до {target.FollowerLabel}!", LogEntry.ColorTerminalColor);
         }
 
@@ -128,8 +119,6 @@ public class ResourceHandler : BaseActionHandler
             // Отказ - снижение доверия
             int trustLoss = (int)Math.Min(15, 5 + actualAmount / 10);
             target.Trust = Math.Max(0, target.Trust - trustLoss);
-            _db.SaveNpc(target);
-
             Log($"{target.Name} отказался отдавать ресурсы!", LogEntry.ColorDanger);
             Log($"  Доверие -{trustLoss} (теперь {target.Trust:F0})", LogEntry.ColorDanger);
 
@@ -141,17 +130,12 @@ public class ResourceHandler : BaseActionHandler
 
         // Получаем ресурсы
         resource.Amount += actualAmount;
-        _db.SaveResource(resource);
 
-        // Снижение веры NPC
         double faithLoss = actualAmount * 0.5;
         target.Devotion = Math.Max(0, target.Devotion - faithLoss);
 
-        // Снижение доверия
         int trustLossFinal = (int)Math.Min(20, 5 + actualAmount / 5);
         target.Trust = Math.Max(0, target.Trust - trustLossFinal);
-
-        _db.SaveNpc(target);
 
         // Логирование
         Log($"{target.Name} отдал {actualAmount:F0} ед. '{resource.Name}'", LogEntry.ColorWarning);

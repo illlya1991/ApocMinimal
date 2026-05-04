@@ -91,10 +91,6 @@ public class ManagementHandler : BaseActionHandler
         // Бонусы при повышении
         ApplyRewardBonuses(target, player.CurrentDay);
 
-        _db.SavePlayer(player);
-        _db.SaveNpc(target);
-
-        // Логирование
         Log($"  {target.Name} повышен до {target.FollowerLabel}!", LogEntry.ColorTerminalColor);
         Log($"    Стоимость: {cost:F0} веры", LogEntry.ColorNormal);
         Log($"    Доверие: +10 (теперь {target.Trust:F0})", LogEntry.ColorSuccess);
@@ -119,10 +115,6 @@ public class ManagementHandler : BaseActionHandler
 
         // Штрафы
         ApplyPunishmentPenalties(target, player.CurrentDay);
-
-        _db.SaveNpc(target);
-
-        // Логирование
         Log($"  {target.Name} понижен до {target.FollowerLabel}!", LogEntry.ColorDanger);
         Log($"    Доверие: -15 (теперь {target.Trust:F0})", LogEntry.ColorDanger);
         Log($"    Вера NPC: -{(oldLevel - target.FollowerLevel) * 10:F0}", LogEntry.ColorDanger);

@@ -20,10 +20,6 @@ public partial class GameViewModel
         ExchangeSystem.Apply(ex, _npcs, _resources);
         _appliedExchangeIds.Add(ex.Id);
         _db.SaveAppliedExchange(_db.CurrentSaveId, ex.Id);
-
-        foreach (var npc in _npcs)
-            if (npc.IsAlive) _db.SaveNpc(npc);
-
         PendingExchanges.Remove(ex);
         OnPropertyChanged(nameof(PendingExchanges));
         return $"✓ Принят: «{ex.Name}»";
@@ -56,27 +52,6 @@ public partial class GameViewModel
             _appliedExchangeIds.Add(ex.Id);
             _db.SaveAppliedExchange(_db.CurrentSaveId, ex.Id);
         }
-
-        var saveSw = System.Diagnostics.Stopwatch.StartNew();
-        using (var transaction = _db.GetConnection().BeginTransaction())
-        {
-            try
-            {
-                foreach (var npc in _npcs)
-                    if (npc.IsAlive) _db.SaveNpcInTransaction(npc, transaction);
-                transaction.Commit();
-                System.Diagnostics.Debug.WriteLine($"      Сохранено NPC за {saveSw.ElapsedMilliseconds} мс");
-            }
-            catch (Exception ex)
-            {
-                transaction.Rollback();
-                System.Diagnostics.Debug.WriteLine($"      Ошибка сохранения: {ex.Message}");
-                throw;
-            }
-        }
-
-        foreach (var res in _resources)
-            _db.SaveResource(res);
 
         PendingExchanges = new List<PresidentialExchangeEntry>();
         OnPropertyChanged(nameof(PendingExchanges));
@@ -121,7 +96,6 @@ public partial class GameViewModel
         _player.BaseUnits += cost;
         _player.ControlledZoneIds.Add(locationId);
         _player.TerritoryControl = _player.ControlledZoneIds.Count;
-        _db.SavePlayer(_player);
         DevPoints = _player.DevPoints;
         return $"«{loc.Name}» взята под защиту ({cost:F0} БЕ)";
     }
@@ -135,7 +109,6 @@ public partial class GameViewModel
 
         _player.ControlledZoneIds.Remove(locationId);
         _player.TerritoryControl = _player.ControlledZoneIds.Count;
-        _db.SavePlayer(_player);
         return $"«{loc?.Name ?? $"#{locationId}"}» снята с защиты";
     }
 }

@@ -84,7 +84,6 @@ public partial class GameViewModel
             return $"Недостаточно ОР (нужно {tech.OPCost:F0}, есть {_player.DevPoints:F0})";
 
         _player.DevPoints -= tech.OPCost;
-        _db.SavePlayer(_player);
         _db.AddTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
         _techInventory.Add(tech.CatalogKey);
         RefreshInventoryTechniques();
@@ -113,7 +112,6 @@ public partial class GameViewModel
         _db.RemoveTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
         _techInventory.Remove(tech.CatalogKey);
         RefreshInventoryTechniques();
-        _db.SaveNpc(npc);
         return $"«{npc.Name}» обучен технике «{tech.Name}»";
     }
 

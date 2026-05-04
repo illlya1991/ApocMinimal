@@ -391,10 +391,7 @@ public partial class PlayerActionsControl : UserControl
             Log(result, LogEntry.ColorSuccess);
 
         if (_viewModel.SelectedAction.ConsumesAction)
-        {
             _viewModel.ActionsToday++;
-            _viewModel.SavePlayer();
-        }
 
         _viewModel.Refresh();
         Refresh();
@@ -583,7 +580,6 @@ public partial class PlayerActionsControl : UserControl
     {
         if (sender is not Button btn || btn.Tag is not Technique tech) return;
         _viewModel.DevPoints -= tech.OPCost;
-        _viewModel.SavePlayer();
         var target = tech.HealAmount > 0
             ? _viewModel.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
             : _viewModel.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
@@ -594,10 +590,7 @@ public partial class PlayerActionsControl : UserControl
             return;
         }
         if (TechniqueSystem.Apply(tech, target, out string techLog))
-        {
-            _viewModel.SaveNpc(target);
             Log($"  {techLog}", LogEntry.ColorSuccess);
-        }
         else
         {
             Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);

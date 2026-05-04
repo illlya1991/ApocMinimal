@@ -36,7 +36,6 @@ public class QuestService
         }
 
         player.DevPoints -= price;
-        _db.SavePlayer(player);
         _db.PurchaseQuest(_db.CurrentSaveId, entry, type);
 
         string typeLabel = type switch
@@ -130,7 +129,6 @@ public class QuestService
                 if (res != null)
                 {
                     res.Amount += quest.RewardAmount;
-                    _db.SaveResource(res);
                     rewardGiven = $"+{quest.RewardAmount:F0} {res.Name}";
                     logs.Add($"Получено: {rewardGiven} за «{quest.Title}»");
                 }

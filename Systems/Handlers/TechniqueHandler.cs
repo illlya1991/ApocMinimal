@@ -63,15 +63,10 @@ public class TechniqueHandler : BaseActionHandler
         if (!success)
             return techLog;
 
-        // Списываем веру
         player.DevPoints -= technique.OPCost;
-        _db.SavePlayer(player);
-        _db.SaveNpc(target);
 
-        // Бонус к доверию
         int trustGain = (int)Math.Min(10, technique.OPCost / 10);
         target.Trust = Math.Min(100, target.Trust + trustGain);
-        _db.SaveNpc(target);
 
         // Логирование
         Log($"  {target.Name} изучил технику:", LogEntry.ColorSuccess);

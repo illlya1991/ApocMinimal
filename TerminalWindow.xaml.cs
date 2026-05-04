@@ -71,7 +71,6 @@ public partial class TerminalWindow : Window
         if (!_vm.CanUpgrade) return;
         _vm.DevPoints -= _vm.UpgradeCost;
         _vm.TerminalLevel++;
-        _vm.SavePlayer();
         _vm.Refresh();
         Refresh();
     }
@@ -294,7 +293,6 @@ public partial class TerminalWindow : Window
         if (_vm.DevPoints < 20) return;
         _vm.DevPoints -= 20;
         _vm.BarrierLevel++;
-        _vm.SavePlayer();
         _vm.Refresh();
         RefreshBarrierTab();
     }
