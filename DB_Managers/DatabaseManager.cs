@@ -99,8 +99,6 @@ public partial class DatabaseManager : IDisposable
 
     private void ApplyMigrations()
     {
-        try { ExecuteNQ("ALTER TABLE Techniques ADD COLUMN PassiveEvolutionLevel INTEGER DEFAULT 0"); }
-        catch { /* колонка уже существует */ }
     }
 
     public void DeleteSave(OneSave value)
