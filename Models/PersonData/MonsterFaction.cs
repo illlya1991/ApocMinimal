@@ -26,6 +26,8 @@ public class MonsterFaction
     public double ThreatLevel { get; set; }
     /// <summary>Скорость роста угрозы за день.</summary>
     public double ThreatGrowthPerDay { get; set; }
+    /// <summary>Фракция активна, если угроза превышает минимальный порог.</summary>
+    public bool IsActive => ThreatLevel > 5;
 
     public string ThreatLabel => ThreatLevel switch
     {

@@ -127,6 +127,10 @@ public partial class GameWindow : Window
                 foreach (var ex in day10Exchanges)
                     LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
 
+                // Сохраняем состояние после авто-генерации дней 1-10
+                // Без этого CurrentDay в БД остаётся = 1 и слот считается пустым
+                _viewModel.SaveAll();
+
                 LogControl.AddSystemEntry("👉 Игрок может начинать действовать!", "#56d364");
             }
             else
