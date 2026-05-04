@@ -445,6 +445,54 @@ public partial class GameViewModel : INotifyPropertyChanged
         dayResult.Logs.Add(("💬 Предложите им стать последователями через панель НПС", false));
     }
 
+    // ── Follower management ──────────────────────────────────────────────────
+
+    public string AcceptFollower(Npc npc)
+    {
+        if (npc.PlayerId == 1)
+            return $"«{npc.Name}» уже ваш последователь";
+
+        int limit = _player.GetFollowerLimit(1);
+        if (limit != -1)
+        {
+            int cur = _npcs.Count(n => n.IsAlive && n.PlayerId == 1 && n.FollowerLevel == 1);
+            if (cur >= limit)
+                return $"Достигнут лимит последователей 1-го уровня ({limit})";
+        }
+
+        npc.PlayerId      = 1;
+        npc.FollowerLevel = 1;
+        return $"✓ «{npc.Name}» принят в последователи (ур.1)";
+    }
+
+    public string RaiseFollower(Npc npc)
+    {
+        if (npc.PlayerId != 1)  return "Не является последователем";
+        if (npc.FollowerLevel >= 5) return $"«{npc.Name}» уже на максимальном уровне (5)";
+
+        int newLevel = npc.FollowerLevel + 1;
+        int limit = _player.GetFollowerLimit(newLevel);
+        if (limit == 0)
+            return $"Терминал ур.{_player.TerminalLevel} не позволяет иметь последователей {newLevel}-го уровня";
+        if (limit != -1)
+        {
+            int cur = _npcs.Count(n => n.IsAlive && n.PlayerId == 1 && n.FollowerLevel == newLevel);
+            if (cur >= limit)
+                return $"Достигнут лимит последователей {newLevel}-го уровня ({limit})";
+        }
+
+        npc.FollowerLevel = newLevel;
+        return $"▲ «{npc.Name}» повышен до ур.{newLevel}";
+    }
+
+    public string DismissFollower(Npc npc)
+    {
+        if (npc.PlayerId != 1) return "Не является последователем";
+        npc.PlayerId      = 0;
+        npc.FollowerLevel = 0;
+        return $"✕ «{npc.Name}» отстранён от последователей";
+    }
+
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

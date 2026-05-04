@@ -45,6 +45,9 @@ public partial class GameWindow : Window
             PlayerActionsControl.PlayerInfoRequested += OnPlayerInfoRequested;
             PlayerActionsControl.FullscreenRequested += OnFullscreenRequested;
             NpcListControl.NpcSelected += OnNpcSelected;
+            NpcSidebarControl.FollowerAccepted  += OnFollowerAccepted;
+            NpcSidebarControl.FollowerRaised    += OnFollowerRaised;
+            NpcSidebarControl.FollowerDismissed += OnFollowerDismissed;
 
             RefreshAll();
             Title = $"Apocalypse Simulation — {_viewModel.PlayerName}";
@@ -118,20 +121,37 @@ public partial class GameWindow : Window
                     System.Diagnostics.Debug.WriteLine($"    День {day} полностью завершён");
                 }
 
+                // День 10: применяем обмены
                 System.Diagnostics.Debug.WriteLine("  [3] Применение обменов дня 10...");
                 var day10Exchanges = _viewModel.SetupAndApplyDayExchanges(10);
-
-                LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
-                LogControl.AddSystemEntry("День 10 — первый день участия игрока.", "#8b949e");
-
                 foreach (var ex in day10Exchanges)
                     LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
 
-                // Сохраняем состояние после авто-генерации дней 1-10
-                // Без этого CurrentDay в БД остаётся = 1 и слот считается пустым
+                // День 11: переход, LOA → 2, обработка НПС
+                System.Diagnostics.Debug.WriteLine("  [4] Переход к дню 11...");
+                var day11Result = _viewModel.AdvanceToNextDay(); // CurrentDay → 11
+                LogSystemSummary(day11Result);
+                SaveCurrentDayLog(10);
+
+                LogControl.NewDay($"═══ ДЕНЬ 11 ══════════════════════");
+                LogControl.AddSystemEntry("День 11 — начало игры.", "#8b949e");
+
+                var progress11 = CreateProgressHandler();
+                StatusTextBlock.Text = "Обработка дня 11...";
+                StatusTextBlock.Visibility = Visibility.Visible;
+                var npcResult11 = await _viewModel.ProcessNpcDayOptimizedAsync(progress11, alertsOnly: true);
+                LogNpcDay(npcResult11);
+                StatusTextBlock.Text = "";
+                StatusTextBlock.Visibility = Visibility.Collapsed;
+
+                var day11Exchanges = _viewModel.SetupAndApplyDayExchanges(11);
+                foreach (var ex in day11Exchanges)
+                    LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
+
+                // Сохраняем после авто-генерации дней 1-11
                 _viewModel.SaveAll();
 
-                LogControl.AddSystemEntry("👉 Игрок может начинать действовать!", "#56d364");
+                LogControl.AddSystemEntry("👁 День 11, 23:00 — вы вступаете в игру!", "#56d364");
             }
             else
             {
@@ -309,6 +329,32 @@ public partial class GameWindow : Window
     private void OnNpcSelected(Npc npc)
     {
         NpcSidebarControl.Toggle(npc);
+    }
+
+    private void OnFollowerAccepted(Npc npc)
+    {
+        var result = _viewModel.AcceptFollower(npc);
+        LogPlayer(result, npc.PlayerId == 1 ? "#22c55e" : "#f87171");
+        NpcSidebarControl.UpdateFollowerButtons();
+        RefreshAll();
+    }
+
+    private void OnFollowerRaised(Npc npc)
+    {
+        var result = _viewModel.RaiseFollower(npc);
+        bool ok = result.StartsWith("▲");
+        LogPlayer(result, ok ? "#22c55e" : "#f87171");
+        NpcSidebarControl.UpdateFollowerButtons();
+        RefreshAll();
+    }
+
+    private void OnFollowerDismissed(Npc npc)
+    {
+        var result = _viewModel.DismissFollower(npc);
+        bool ok = result.StartsWith("✕");
+        LogPlayer(result, ok ? "#f59e0b" : "#f87171");
+        NpcSidebarControl.UpdateFollowerButtons();
+        RefreshAll();
     }
 
     private void RefreshAll()

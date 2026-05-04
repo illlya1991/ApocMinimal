@@ -12,6 +12,10 @@ public partial class NpcSidebarControl : UserControl
     private Npc? _currentNpc;
 
     public event Action? Closed;
+    public event Action<Npc>? FollowerAccepted;
+    public event Action<Npc>? FollowerRaised;
+    public event Action<Npc>? FollowerDismissed;
+
     public new bool IsVisible => SidebarRoot.Visibility == Visibility.Visible;
     public Npc? CurrentNpc => _currentNpc;
 
@@ -56,6 +60,7 @@ public partial class NpcSidebarControl : UserControl
         SidebarRoot.Visibility = Visibility.Visible;
         SidebarRoot.Opacity = 0;
         AnimateShow();
+        UpdateFollowerButtons();
     }
 
     public void Hide()
@@ -63,6 +68,7 @@ public partial class NpcSidebarControl : UserControl
         if (!IsVisible) return;
         _currentNpc = null;
         NpcInfo.Clear();
+        FollowerActionsPanel.Visibility = Visibility.Collapsed;
         AnimateHide();
         Closed?.Invoke();
     }
@@ -73,5 +79,36 @@ public partial class NpcSidebarControl : UserControl
             Hide();
         else
             ShowNpc(npc, mode);
+    }
+
+    public void UpdateFollowerButtons()
+    {
+        if (_currentNpc == null || !_currentNpc.IsAlive)
+        {
+            FollowerActionsPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        FollowerActionsPanel.Visibility = Visibility.Visible;
+        bool isFollower = _currentNpc.PlayerId == 1;
+
+        AcceptBtn.Visibility  = isFollower ? Visibility.Collapsed : Visibility.Visible;
+        RaiseBtn.Visibility   = isFollower && _currentNpc.FollowerLevel < 5 ? Visibility.Visible : Visibility.Collapsed;
+        DismissBtn.Visibility = isFollower ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void AcceptBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentNpc != null) FollowerAccepted?.Invoke(_currentNpc);
+    }
+
+    private void RaiseBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentNpc != null) FollowerRaised?.Invoke(_currentNpc);
+    }
+
+    private void DismissBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentNpc != null) FollowerDismissed?.Invoke(_currentNpc);
     }
 }

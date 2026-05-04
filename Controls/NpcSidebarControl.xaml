@@ -3,12 +3,61 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:ApocMinimal.Controls">
 
-    <Border Background="#0d1117" 
-            BorderBrush="#30363d" 
+    <Border Background="#0d1117"
+            BorderBrush="#30363d"
             BorderThickness="1,0,0,0"
-            Width="350" 
-            Visibility="Collapsed" 
+            Width="350"
+            Visibility="Collapsed"
             x:Name="SidebarRoot">
-        <local:NpcInfoControl x:Name="NpcInfo"/>
+        <DockPanel>
+            <Border x:Name="FollowerActionsPanel"
+                    DockPanel.Dock="Bottom"
+                    Background="#161b22"
+                    BorderBrush="#30363d"
+                    BorderThickness="0,1,0,0"
+                    Padding="8"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <Button x:Name="AcceptBtn"
+                            Content="✚ Принять в последователи"
+                            Margin="0,0,0,4"
+                            Click="AcceptBtn_Click"
+                            Background="#1f6feb"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Padding="8,6"
+                            Cursor="Hand"
+                            Visibility="Collapsed"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="4"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="RaiseBtn"
+                                Grid.Column="0"
+                                Content="▲ Повысить уровень"
+                                Click="RaiseBtn_Click"
+                                Background="#238636"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Padding="8,6"
+                                Cursor="Hand"
+                                Visibility="Collapsed"/>
+                        <Button x:Name="DismissBtn"
+                                Grid.Column="2"
+                                Content="✕ Отстранить"
+                                Click="DismissBtn_Click"
+                                Background="#6e2222"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Padding="8,6"
+                                Cursor="Hand"
+                                Visibility="Collapsed"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <local:NpcInfoControl x:Name="NpcInfo"/>
+        </DockPanel>
     </Border>
 </UserControl>

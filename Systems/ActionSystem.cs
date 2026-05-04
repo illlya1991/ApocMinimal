@@ -626,9 +626,14 @@ public static class ActionSystem
         NeedSystem.ApplyDailyDecay(npc);
         NeedSystem.ApplyPenalties(npc);
 
-        // Сообщение о смерти
+        // Смерть: освобождаем слот последователя
         if (!npc.IsAlive)
         {
+            if (npc.PlayerId == 1)
+            {
+                npc.FollowerLevel = 0;
+                npc.PlayerId      = 0;
+            }
             log.Add(new ActionLogEntry
             {
                 Time    = "23:59",
