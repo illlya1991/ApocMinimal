@@ -348,6 +348,7 @@ public partial class GameWindow : Window
 
     private void SaveBtn_Click(object sender, RoutedEventArgs e)
     {
+        SettingsOverlay.Visibility = Visibility.Collapsed;
         _viewModel.SaveAll();
         StatusTextBlock.Text = "Сохранено";
         StatusTextBlock.Visibility = Visibility.Visible;
