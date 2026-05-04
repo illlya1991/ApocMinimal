@@ -123,15 +123,15 @@ public partial class LogControl : UserControl
     private void BuildNestedLevel(Panel parent, List<LogDayItem> days, TimeLevel level)
     {
         var groups = days
-            .GroupBy(d => GetGroupKey(d.DayNumber, level))
-            .OrderBy(g => GetGroupSortKey(g.Key));
+            .GroupBy(d => LogGroupingHelper.GetGroupKey(d.DayNumber, level))
+            .OrderBy(g => LogGroupingHelper.GetGroupSortKey(g.Key));
 
         foreach (var group in groups)
         {
             var groupContainer = CreateGroupContainer(group.Key, group.First().DayNumber, level);
             parent.Children.Add(groupContainer.Container!);
 
-            var childLevel = GetChildLevel(level);
+            var childLevel = LogGroupingHelper.GetChildLevel(level);
             if (childLevel == TimeLevel.Day)
             {
                 foreach (var day in group.OrderBy(d => d.DayNumber))
@@ -145,57 +145,12 @@ public partial class LogControl : UserControl
         }
     }
 
-    private static TimeLevel GetChildLevel(TimeLevel level) => level switch
-    {
-        TimeLevel.Year    => TimeLevel.Quarter,
-        TimeLevel.Quarter => TimeLevel.Month,
-        TimeLevel.Month   => TimeLevel.Week,
-        TimeLevel.Week    => TimeLevel.Day,
-        _                 => TimeLevel.Day,
-    };
-
-    private string GetGroupKey(int day, TimeLevel level) => level switch
-    {
-        TimeLevel.Week    => $"W{GameCalendar.GetWeek(day):D3}_{GameCalendar.GetYear(day)}",
-        TimeLevel.Month   => $"M{GameCalendar.GetMonth(day):D2}_{GameCalendar.GetYear(day)}",
-        TimeLevel.Quarter => $"Q{GameCalendar.GetQuarter(day)}_{GameCalendar.GetYear(day)}",
-        TimeLevel.Year    => $"Y{GameCalendar.GetYear(day)}",
-        _                 => $"D{day:D6}",
-    };
-
-    private static int GetGroupSortKey(string key)
-    {
-        if (key.StartsWith("Y"))  return int.Parse(key[1..]) * 1_000_000;
-        if (key.StartsWith("Q")) { var p = key[1..].Split('_'); return int.Parse(p[1]) * 1_000_000 + int.Parse(p[0]) * 100_000; }
-        if (key.StartsWith("M")) { var p = key[1..].Split('_'); return int.Parse(p[1]) * 1_000_000 + int.Parse(p[0]) * 1_000; }
-        if (key.StartsWith("W")) { var p = key[1..].Split('_'); return int.Parse(p[1]) * 1_000_000 + int.Parse(p[0]) * 10; }
-        if (key.StartsWith("D")) return int.TryParse(key[1..], out int v) ? v : 0;
-        return 0;
-    }
-
-    private string FormatGroupHeader(string key, int sampleDay) => _currentGroupLevel switch
-    {
-        TimeLevel.Week    => $"📅 Неделя {GameCalendar.GetWeek(sampleDay)}  ({GameCalendar.GetMonthName(sampleDay)} {GameCalendar.GetYear(sampleDay)})",
-        TimeLevel.Month   => $"📆 {GameCalendar.GetMonthName(sampleDay).ToUpperInvariant()}  {GameCalendar.GetYear(sampleDay)}",
-        TimeLevel.Quarter => $"🗓 Квартал {GameCalendar.GetQuarter(sampleDay)}  ({GameCalendar.GetYear(sampleDay)})",
-        TimeLevel.Year    => $"📂 {GameCalendar.GetYear(sampleDay)} год",
-        _                 => ""
-    };
-
-    // For nested sub-groups the level passed may differ from _currentGroupLevel
-    private string FormatSubGroupHeader(string key, int sampleDay, TimeLevel level) => level switch
-    {
-        TimeLevel.Week    => $"📅 Неделя {GameCalendar.GetWeek(sampleDay)}",
-        TimeLevel.Month   => $"📆 {GameCalendar.GetMonthName(sampleDay)}",
-        TimeLevel.Quarter => $"🗓 Квартал {GameCalendar.GetQuarter(sampleDay)}",
-        TimeLevel.Year    => $"📂 {GameCalendar.GetYear(sampleDay)} год",
-        _                 => ""
-    };
-
     private GroupItem CreateGroupContainer(string key, int sampleDay, TimeLevel level)
     {
         bool isTopLevel = level == _currentGroupLevel;
-        string header = isTopLevel ? FormatGroupHeader(key, sampleDay) : FormatSubGroupHeader(key, sampleDay, level);
+        string header = isTopLevel
+            ? LogGroupingHelper.FormatGroupHeader(key, sampleDay, _currentGroupLevel)
+            : LogGroupingHelper.FormatSubGroupHeader(sampleDay, level);
 
         var container = new Border
         {

@@ -1,7 +1,3 @@
-﻿// NpcInfoBuilder.cs - исправленная версия
-
-using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,7 +9,7 @@ using ApocMinimal.Models.TechniqueData;
 
 namespace ApocMinimal.Services;
 
-public static class NpcInfoBuilder
+public static partial class NpcInfoBuilder
 {
     // ============================================================
     // Цвета
@@ -65,7 +61,6 @@ public static class NpcInfoBuilder
             FontSize = 12,
             Margin = new Thickness(leftMargin, 2, 0, 2)
         };
-
         TextBlock valueBlock = new TextBlock
         {
             Text = value,
@@ -78,6 +73,18 @@ public static class NpcInfoBuilder
         grid.Children.Add(valueBlock);
         Grid.SetColumn(valueBlock, 1);
         return grid;
+    }
+
+    public static Expander CreateCollapsibleSection(string header, bool IsExpanded = false)
+    {
+        Expander expander = new Expander();
+        expander.Header = header;
+        expander.IsExpanded = IsExpanded;
+        expander.Foreground = GetBrush("#60a5fa");
+        expander.FontSize = 12;
+        expander.FontWeight = FontWeights.SemiBold;
+        expander.Margin = new Thickness(0, 10, 0, 5);
+        return expander;
     }
 
     // ============================================================
@@ -115,20 +122,6 @@ public static class NpcInfoBuilder
             p.Children.Add(new TextBlock { Text = "различаются", Foreground = GetBrush("#f87171"), FontSize = 11 });
         }
         return p;
-    }
-
-    public static void AddStatsByTypeCompare(StackPanel panel, Npc npc, Npc other, StatType type, bool hlSame, bool hlDiff)
-    {
-        List<Characteristic> stats = npc.Stats.GetStatsByType(type);
-        List<Characteristic> otherStats = other.Stats.GetStatsByType(type);
-        for (int i = 0; i < stats.Count; i++)
-        {
-            Characteristic stat = stats[i];
-            double otherVal = i < otherStats.Count ? otherStats[i].FinalValue : 0;
-            string? bg = CmpBg(NumSame(stat.FinalValue, otherVal), hlSame, hlDiff);
-            string display = NumValue(stat.FinalValue, otherVal);
-            panel.Children.Add(CreateInfoRow(stat.Name + ":", display, GetStatColor(stat.FinalValue), 0, bg));
-        }
     }
 
     public static StackPanel BuildFullInfoPanelWithCompare(Npc npc, Npc other, bool hlSame, bool hlDiff)
@@ -213,180 +206,6 @@ public static class NpcInfoBuilder
         return panel;
     }
 
-    public static Expander CreateCollapsibleSection(string header, bool IsExpanded = false)
-    {
-        Expander expander = new Expander();
-        expander.Header = header;
-        expander.IsExpanded = IsExpanded;
-        expander.Foreground = GetBrush("#60a5fa");
-        expander.FontSize = 12;
-        expander.FontWeight = FontWeights.SemiBold;
-        expander.Margin = new Thickness(0, 10, 0, 5);
-        return expander;
-    }
-
-    // ============================================================
-    // Статистические панели
-    // ============================================================
-
-    public static void AddStatsByType(StackPanel panel, Npc npc, StatType type, bool showIcons = false)
-    {
-        List<Characteristic> stats = npc.Stats.GetStatsByType(type);
-        for (int i = 0; i < stats.Count; i++)
-        {
-            Characteristic stat = stats[i];
-            string icon = "";
-            if (showIcons)
-            {
-                if (stat.IsCombat) icon = "⚔ ";
-                if (stat.IsSocial) icon = "💬 ";
-            }
-            panel.Children.Add(CreateInfoRow(icon + stat.Name + ":", stat.FinalValue.ToString(), GetStatColor(stat.FinalValue)));
-        }
-    }
-
-    /// <summary>
-    /// Добавляет только боевые характеристики (IsCombat = true)
-    /// </summary>
-    public static void AddCombatStats(StackPanel panel, Npc npc)
-    {
-        List<Characteristic> stats = npc.Stats.GetCombatStats();
-        for (int i = 0; i < stats.Count; i++)
-        {
-            Characteristic stat = stats[i];
-            panel.Children.Add(CreateInfoRow(stat.Name + ":", stat.FinalValue.ToString(), GetStatColor(stat.FinalValue)));
-        }
-        panel.Children.Add(CreateInfoRow("Боевая инициатива:", npc.CombatInitiative.ToString("F0"), "#c9d1d9"));
-    }
-
-    /// <summary>
-    /// Добавляет только социальные характеристики (IsSocial = true)
-    /// </summary>
-    public static void AddSocialStats(StackPanel panel, Npc npc)
-    {
-        List<Characteristic> stats = npc.Stats.GetSocialStats();
-        for (int i = 0; i < stats.Count; i++)
-        {
-            Characteristic stat = stats[i];
-            panel.Children.Add(CreateInfoRow(stat.Name + ":", stat.FinalValue.ToString(), GetStatColor(stat.FinalValue)));
-        }
-    }
-
-    public static void AddAllStats(StackPanel panel, Npc npc, bool showIcons = false)
-    {
-        panel.Children.Add(CreateSectionHeader("ФИЗИЧЕСКИЕ"));
-        AddStatsByType(panel, npc, StatType.Physical, showIcons);
-        panel.Children.Add(CreateSectionHeader("МЕНТАЛЬНЫЕ"));
-        AddStatsByType(panel, npc, StatType.Mental, showIcons);
-        panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ"));
-        AddStatsByType(panel, npc, StatType.Energy, showIcons);
-    }
-
-    // ============================================================
-    // Детальные статы с модификаторами
-    // ============================================================
-
-    public static void AddDetailedStats(StackPanel panel, Npc npc)
-    {
-        // Физические
-        panel.Children.Add(CreateSectionHeader("ФИЗИЧЕСКИЕ", true));
-        AddDetailedStatGroup(panel, npc.Stats.GetStatsByType(StatType.Physical));
-
-        // Ментальные
-        panel.Children.Add(CreateSectionHeader("МЕНТАЛЬНЫЕ", true));
-        AddDetailedStatGroup(panel, npc.Stats.GetStatsByType(StatType.Mental));
-
-        // Энергетические
-        panel.Children.Add(CreateSectionHeader("ЭНЕРГЕТИЧЕСКИЕ", true));
-        AddDetailedStatGroup(panel, npc.Stats.GetStatsByType(StatType.Energy));
-    }
-
-    private static void AddDetailedStatGroup(StackPanel panel, List<Characteristic> stats)
-    {
-        for (int i = 0; i < stats.Count; i++)
-        {
-            Characteristic stat = stats[i];
-            string combatIcon = stat.IsCombat ? "⚔ " : "  ";
-            string socialIcon = stat.IsSocial ? "💬 " : "  ";
-
-            panel.Children.Add(new TextBlock
-            {
-                Text = "  " + combatIcon + socialIcon + stat.Name + ":",
-                Foreground = GetBrush("#8b949e"),
-                FontSize = 11,
-                Margin = new Thickness(0, 4, 0, 2)
-            });
-
-            string deviationText;
-            if (stat.Deviation > 0)
-                deviationText = "+" + stat.Deviation.ToString();
-            else if (stat.Deviation < 0)
-                deviationText = stat.Deviation.ToString();
-            else
-                deviationText = " 0";
-
-            panel.Children.Add(new TextBlock
-            {
-                Text = "      База: " + stat.BaseValue.ToString().PadLeft(3) +
-                       " | Откл.: " + deviationText.PadLeft(3) +
-                       " | Полн.база: " + stat.FullBase.ToString().PadLeft(3) +
-                       " | Итог: " + stat.FinalValue.ToString().PadLeft(3),
-                Foreground = GetStatColorBrush(stat.FinalValue),
-                FontSize = 11,
-                Margin = new Thickness(0, 0, 0, 2)
-            });
-
-            // Постоянные модификаторы
-            List<PermanentModifier> permMods = stat.GetModifiersByType<PermanentModifier>();
-            for (int j = 0; j < permMods.Count; j++)
-            {
-                PermanentModifier mod = permMods[j];
-                if (mod.IsActive())
-                {
-                    string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
-                    panel.Children.Add(new TextBlock
-                    {
-                        Text = "        [П] " + mod.Name + ": " + modSign + mod.Value.ToString() + " (" + mod.Source + ")",
-                        Foreground = GetBrush("#facc15"),
-                        FontSize = 10,
-                        Margin = new Thickness(0, 0, 0, 1)
-                    });
-                }
-            }
-
-            // Временные модификаторы
-            List<IndependentModifier> indMods = stat.GetModifiersByType<IndependentModifier>();
-            for (int j = 0; j < indMods.Count; j++)
-            {
-                IndependentModifier mod = indMods[j];
-                if (mod.IsActive())
-                {
-                    string modSign = (mod.Type == ModifierType.Additive) ? "+" : "×";
-                    string timeLeft = "";
-                    if (mod.TimeUnit == TimeUnit.Days)
-                    {
-                        timeLeft = " (ост. " + mod.Remaining.ToString() + " дн.)";
-                    }
-                    else if (mod.TimeUnit == TimeUnit.Hours)
-                    {
-                        timeLeft = " (ост. " + mod.Remaining.ToString() + " ч.)";
-                    }
-                    else if (mod.TimeUnit == TimeUnit.CombatTurns)
-                    {
-                        timeLeft = " (ост. " + mod.Remaining.ToString() + " ходов)";
-                    }
-                    panel.Children.Add(new TextBlock
-                    {
-                        Text = "        [В] " + mod.Name + ": " + modSign + mod.Value.ToString() + timeLeft + " (" + mod.Source + ")",
-                        Foreground = GetBrush("#fbbf24"),
-                        FontSize = 10,
-                        Margin = new Thickness(0, 0, 0, 1)
-                    });
-                }
-            }
-        }
-    }
-
     // ============================================================
     // Строковые представления
     // ============================================================
@@ -425,96 +244,6 @@ public static class NpcInfoBuilder
     }
 
     // ============================================================
-    // Потребности
-    // ============================================================
-
-    private static readonly Dictionary<string, string[]> NeedLevelDescs = new()
-    {
-        ["Еда"]                  = new[]{"1 раз в 2 дня","1 раз в день","2 раза в день","3 раза в день","4+ раза в день"},
-        ["Вода"]                 = new[]{"1 раз в 2 дня","1 раз в день","2 раза в день","3–4 раза в день","постоянно"},
-        ["Сон"]                  = new[]{"4–5 ч/сутки","6 ч/сутки","7–8 ч/сутки","9 ч/сутки","10+ ч/сутки"},
-        ["Тепло"]                = new[]{"переносит холод","небольшой обогрев","комфортная t°","тепло обязательно","постоянный комфорт"},
-        ["Гигиена"]              = new[]{"раз в неделю","через день","ежедневно","2 раза в день","несколько раз в день"},
-        ["Безопасность"]         = new[]{"почти не беспокоит","небольшая тревога","нужно чувствовать защиту","нужна охрана","постоянная охрана"},
-        ["Отдых и здоровье"]     = new[]{"раз в неделю","2–3 раза в нед.","ежедневно","несколько раз в день","постоянный уход"},
-        ["Общение"]              = new[]{"раз в неделю","2–3 раза в нед.","ежедневно","несколько раз в день","постоянное общение"},
-        ["Секс/Семья"]           = new[]{"редко","иногда","регулярно","часто","постоянная близость"},
-        ["Самосовершенствование"]= new[]{"редко учится","иногда","регулярно","активно","ежедневно" },
-        ["Гурман"]               = new[]{"изредка деликатесы","иногда","регулярно","часто","только изысканное"},
-        ["Сомелье"]              = new[]{"редко напитки","иногда","регулярно","часто","постоянно"},
-        ["Чуткий сон"]           = new[]{"шум не мешает","немного мешает","нужна тишина","нужна тишь+кровать","идеальные условия"},
-        ["Неженка"]              = new[]{"терпит дискомфорт","слабо ощущает","нужен уют","нужен комфорт","постоянный комфорт"},
-        ["Эстет"]                = new[]{"редко ухаживает","иногда","регулярно","часто","ежедневный уход"},
-        ["Параноик"]             = new[]{"слабая тревога","иногда проверяет","регулярно проверяет","постоянно проверяет","навязчивая тревога"},
-        ["Гедонист"]             = new[]{"иногда удовольствие","регулярно","часто","очень часто","постоянно"},
-        ["Светский лев"]         = new[]{"редкое общение","иногда","регулярно","часто","постоянно в обществе"},
-        ["Романтик"]             = new[]{"романтика редко","иногда","регулярно","часто","постоянно"},
-        ["Перфекционист"]        = new[]{"иногда совершенствует","регулярно","часто","очень часто","всегда лучшее" },
-    };
-
-    private static string GetLevelDesc(string needName, int level)
-    {
-        if (NeedLevelDescs.TryGetValue(needName, out var descs) && level >= 1 && level <= 5)
-            return descs[level - 1];
-        return $"уровень {level}";
-    }
-
-    private static string LevelStars(int level) =>
-        new string('★', level) + new string('☆', 5 - level);
-
-    private static string GetNeedColor(Need need)
-    {
-        if (need.IsCritical) return "#f87171";
-        if (need.IsUrgent)   return "#fbbf24";
-        if (need.IsSatisfied) return "#4ade80";
-        return "#c9d1d9";
-    }
-
-    public static void AddAllNeeds(StackPanel panel, Npc npc)
-    {
-        var basic   = npc.Needs.Where(n => n.Category == NeedCategory.Basic).OrderBy(n => n.Id).ToList();
-        var special = npc.Needs.Where(n => n.Category == NeedCategory.Special).OrderBy(n => n.Id).ToList();
-
-        panel.Children.Add(CreateSectionHeader("БАЗОВЫЕ ПОТРЕБНОСТИ"));
-        foreach (var need in basic)
-            AddNeedRow(panel, need);
-
-        if (special.Count > 0)
-        {
-            panel.Children.Add(CreateSectionHeader("СПЕЦИАЛЬНЫЕ ПОТРЕБНОСТИ"));
-            foreach (var need in special)
-                AddNeedRow(panel, need);
-        }
-    }
-
-    private static void AddNeedRow(StackPanel panel, Need need)
-    {
-        string color = GetNeedColor(need);
-        string stars = LevelStars(need.Level);
-        string desc  = GetLevelDesc(need.Name, need.Level);
-        string state = need.IsCritical ? "КРИТИЧНО" : need.IsUrgent ? "срочно" : need.IsSatisfied ? "ok" : $"{need.Value:F0}%";
-
-        var grid = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150, GridUnitType.Pixel) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80,  GridUnitType.Pixel) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50,  GridUnitType.Pixel) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1,   GridUnitType.Star)  });
-
-        grid.Children.Add(new TextBlock { Text = need.Name, Foreground = GetBrush(color), FontSize = 12 });
-        var starsBlock = new TextBlock { Text = stars, Foreground = GetBrush("#facc15"), FontSize = 10 };
-        Grid.SetColumn(starsBlock, 1);
-        grid.Children.Add(starsBlock);
-        var stateBlock = new TextBlock { Text = state, Foreground = GetBrush(color), FontSize = 11, FontWeight = need.IsCritical ? FontWeights.Bold : FontWeights.Normal };
-        Grid.SetColumn(stateBlock, 2);
-        grid.Children.Add(stateBlock);
-        var descBlock = new TextBlock { Text = desc, Foreground = GetBrush("#8b949e"), FontSize = 11 };
-        Grid.SetColumn(descBlock, 3);
-        grid.Children.Add(descBlock);
-
-        panel.Children.Add(grid);
-    }
-
-    // ============================================================
     // Полная информационная панель
     // ============================================================
 
@@ -522,7 +251,6 @@ public static class NpcInfoBuilder
     {
         StackPanel panel = new StackPanel();
 
-        // Заголовок
         panel.Children.Add(new TextBlock
         {
             Text = $"{npc.Name} [{npc.GenderLabel}] {npc.Age} лет",
@@ -532,7 +260,6 @@ public static class NpcInfoBuilder
             Margin = new Thickness(0, 0, 0, isCompact ? 8 : 10)
         });
 
-        // Основные характеристики
         panel.Children.Add(CreateSectionHeader("ОСНОВНЫЕ ХАРАКТЕРИСТИКИ"));
         panel.Children.Add(CreateInfoRow("HP:", $"{npc.Health:F0}", npc.Health < 30 ? "#f87171" : "#4ade80"));
         panel.Children.Add(CreateInfoRow("Выносливость:", $"{npc.Stamina:F0}", npc.Stamina < 30 ? "#f87171" : "#60a5fa"));
@@ -543,35 +270,26 @@ public static class NpcInfoBuilder
         panel.Children.Add(CreateInfoRow("Инициатива:", $"{npc.Initiative:F0}", "#c9d1d9"));
         panel.Children.Add(CreateInfoRow("Уровень:", npc.FollowerLabel, "#d29922"));
 
-        // Личность
         panel.Children.Add(CreateSectionHeader("ЛИЧНОСТЬ"));
         panel.Children.Add(CreateInfoRow("Черты:", BuildTraitsString(npc.CharTraits), "#d29922"));
         panel.Children.Add(CreateInfoRow("Эмоции:", BuildEmotionsString(npc.Emotions), "#e879f9"));
 
-        // Цели
         panel.Children.Add(CreateSectionHeader("ЦЕЛИ"));
         panel.Children.Add(CreateInfoRow("Цель:", npc.Goal, "#c9d1d9"));
         panel.Children.Add(CreateInfoRow("Мечта:", npc.Dream, "#c9d1d9"));
         panel.Children.Add(CreateInfoRow("Желание:", npc.Desire, "#c9d1d9"));
 
-        // Специализации
         if (npc.Specializations.Count > 0)
-        {
             panel.Children.Add(CreateInfoRow("Специализации:", BuildSpecializationsString(npc.Specializations), "#56d364"));
-        }
 
-        // Техники и способности
         AddTechAbilitySection(panel, npc);
 
-        // Потребности
         if (isCompact)
         {
-            // Detailed mode: все потребности с уровнем и описанием
             AddAllNeeds(panel, npc);
         }
         else
         {
-            // Full mode: только срочные
             panel.Children.Add(CreateSectionHeader("ПОТРЕБНОСТИ (срочные)"));
             bool hasUrgent = false;
             for (int i = 0; i < npc.Needs.Count; i++)
@@ -584,18 +302,9 @@ public static class NpcInfoBuilder
                 }
             }
             if (!hasUrgent)
-            {
-                panel.Children.Add(new TextBlock
-                {
-                    Text = "  Нет срочных потребностей",
-                    Foreground = GetBrush("#4ade80"),
-                    FontSize = 11,
-                    Margin = new Thickness(0, 2, 0, 2)
-                });
-            }
+                panel.Children.Add(new TextBlock { Text = "  Нет срочных потребностей", Foreground = GetBrush("#4ade80"), FontSize = 11, Margin = new Thickness(0, 2, 0, 2) });
         }
 
-        // Характеристики (сворачиваемые)
         Expander statsExpander = CreateCollapsibleSection("ХАРАКТЕРИСТИКИ", isCompact);
         StackPanel statsPanel = new StackPanel { Margin = new Thickness(15, 0, 0, 0) };
         if (!isCompact)
@@ -617,7 +326,6 @@ public static class NpcInfoBuilder
         if (npc.LearnedTechIds.Count == 0) return;
 
         panel.Children.Add(CreateSectionHeader("ТЕХНИКИ"));
-
         foreach (var key in npc.LearnedTechIds)
         {
             panel.Children.Add(new TextBlock
@@ -651,7 +359,6 @@ public static class NpcInfoBuilder
             Margin = new Thickness(0, 5, 0, 5)
         });
 
-        // Критические потребности
         bool hasCritical = false;
         StringBuilder criticalBuilder = new StringBuilder();
         for (int i = 0; i < npc.Needs.Count; i++)
@@ -664,7 +371,6 @@ public static class NpcInfoBuilder
                 hasCritical = true;
             }
         }
-
         if (hasCritical)
         {
             panel.Children.Add(new TextBlock
@@ -719,9 +425,7 @@ public static class NpcInfoBuilder
         panel.Children.Add(CreateInfoRow("Мечта:", npc.Dream, "#c9d1d9"));
 
         if (npc.Specializations.Count > 0)
-        {
             panel.Children.Add(CreateInfoRow("Специализации:", BuildSpecializationsString(npc.Specializations), "#56d364"));
-        }
 
         panel.Children.Add(CreateSectionHeader("СОЦИАЛЬНЫЕ СТАТЫ"));
         AddSocialStats(panel, npc);
