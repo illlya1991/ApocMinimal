@@ -125,10 +125,37 @@ public static class NeedSystem
 
     // ── Daily decay ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Активные потребности определяются уровнем осознанности НПС:
+    /// 0-1: только еда, вода, сон
+    /// 2-3: все 10 базовых
+    /// 4+:  базовые + специальные
+    /// </summary>
+    public static bool IsNeedActive(Npc npc, Need need)
+    {
+        int loa = npc.LevelOfAwareness;
+
+        if (loa <= 1)
+        {
+            return need.Category == NeedCategory.Basic
+                && (need.Id == (int)BasicNeedId.Food
+                 || need.Id == (int)BasicNeedId.Water
+                 || need.Id == (int)BasicNeedId.Sleep);
+        }
+
+        if (loa <= 3)
+            return need.Category == NeedCategory.Basic;
+
+        // loa >= 4: всё
+        return true;
+    }
+
     public static void ApplyDailyDecay(Npc npc)
     {
         foreach (var need in npc.Needs)
         {
+            if (!IsNeedActive(npc, need)) continue;
+
             double rate = need.Category == NeedCategory.Basic
                 ? (BasicDecayRates.TryGetValue(need.Id, out var r) ? r : 4)
                 : (SpecialDecayRates.TryGetValue(need.Id, out var sr) ? sr : 5);
@@ -140,7 +167,7 @@ public static class NeedSystem
 
     public static void ApplyPenalties(Npc npc)
     {
-        foreach (var need in npc.Needs.Where(n => n.IsCritical && n.Category == NeedCategory.Basic))
+        foreach (var need in npc.Needs.Where(n => n.IsCritical && n.Category == NeedCategory.Basic && IsNeedActive(npc, n)))
         {
             double penalty = need.Level * 2.0;
             switch ((BasicNeedId)need.Id)

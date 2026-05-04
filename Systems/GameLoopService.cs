@@ -239,19 +239,21 @@ public static class GameLoopService
         for (int i = 0; i < npcs.Count; i++)
         {
             Npc leader = npcs[i];
-            if (!leader.IsAlive || leader.Trait != NpcTrait.Leader) continue;
+            // Лидерский бонус только если лидер уже стал последователем (FollowerLevel > 0)
+            if (!leader.IsAlive || leader.Trait != NpcTrait.Leader || leader.FollowerLevel == 0) continue;
 
             int count = 0;
             for (int j = 0; j < npcs.Count; j++)
             {
                 Npc t = npcs[j];
                 if (!t.IsAlive || t.Id == leader.Id || t.Trait == NpcTrait.Loner) continue;
+                if (t.PlayerId != 1) continue; // бонус только для своих НПС
                 t.Devotion = Math.Min(100, t.Devotion + 3);
                 count++;
             }
 
             if (count > 0)
-                result.Logs.Add(($"{leader.Name} (Лидер) поднял Веру {count} выжившим +3", false));
+                result.Logs.Add(($"{leader.Name} (Лидер) поднял Веру {count} последователям +3", false));
         }
     }
 
@@ -297,9 +299,10 @@ public static class GameLoopService
     private static void ProcessDailyNeeds(DayResult result, Player player, List<Npc> npcs,
         List<Resource> resources, Dictionary<string, ResourceCatalogEntry> catalog)
     {
+        // Только свои НПС (PlayerId == 1) едят из инвентаря игрока
         int alive = 0;
         for (int i = 0; i < npcs.Count; i++)
-            if (npcs[i].IsAlive) alive++;
+            if (npcs[i].IsAlive && npcs[i].PlayerId == 1) alive++;
 
         if (alive == 0) return;
 
@@ -367,7 +370,7 @@ public static class GameLoopService
                 int fedSoFar = 0;
                 for (int j = 0; j < npcs.Count && fedSoFar < fed; j++)
                 {
-                    if (npcs[j].IsAlive)
+                    if (npcs[j].IsAlive && npcs[j].PlayerId == 1)
                     {
                         NeedSystem.SatisfyNeed(npcs[j], needId, entries[i].restore);
                         fedSoFar++;
@@ -383,7 +386,7 @@ public static class GameLoopService
             result.Logs.Add(($"{resName}: {emptyAlert}", true));
             for (int i = 0; i < npcs.Count; i++)
             {
-                if (npcs[i].IsAlive)
+                if (npcs[i].IsAlive && npcs[i].PlayerId == 1)
                     npcs[i].Health = Math.Max(0, npcs[i].Health - healthPenalty);
             }
         }

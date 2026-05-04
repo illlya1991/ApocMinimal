@@ -247,8 +247,11 @@ public partial class GameWindow : Window
     {
         System.Diagnostics.Debug.WriteLine($"      LogNpcDay: начало, {dayResult.NpcResults.Count} результатов");
 
+        // Показываем только действия своих НПС (PlayerId == 1)
         foreach (var npcResult in dayResult.NpcResults)
         {
+            if (npcResult.Npc.PlayerId != 1) continue;
+
             var entries = npcResult.Actions;
             if (entries.Count == 0) continue;
 
@@ -278,8 +281,19 @@ public partial class GameWindow : Window
                 "#22c55e");
         }
 
+        // Сводка: выжившие (все / мои) и монстры
+        int totalAlive     = _viewModel.AllNpcs.Count(n => n.IsAlive);
+        int myFollowers    = _viewModel.AllNpcs.Count(n => n.IsAlive && n.PlayerId == 1);
+        int monsterFactions = _viewModel.MonsterFactions.Count(f => f.IsActive);
+        double avgThreat   = _viewModel.MonsterFactions.Count > 0
+            ? _viewModel.MonsterFactions.Average(f => f.ThreatLevel) : 0;
+
         LogControl.AddSystemEntry(
-            $"23:00 | ОР: {_viewModel.DevPoints:F0}  Выживших: {_viewModel.AliveNpcsCount}/{_viewModel.AllNpcs.Count}  Терминал: ур.{_viewModel.TerminalLevel}",
+            $"📊 Выживших: {totalAlive:N0} (моих: {myFollowers})  |  Монстры: {monsterFactions} группировок  угроза {avgThreat:F0}%",
+            "#6b7280");
+
+        LogControl.AddSystemEntry(
+            $"23:00 | ОР: {_viewModel.DevPoints:F0}  Последователей: {myFollowers}  Терминал: ур.{_viewModel.TerminalLevel}",
             LogEntry.ColorTerminalColor);
     }
 
