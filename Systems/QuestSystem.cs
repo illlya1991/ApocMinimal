@@ -35,6 +35,7 @@ public static class QuestSystem
                 var n = npcs[i];
                 if (!n.IsAlive || n.HasTask) continue;
                 if (n.ActiveTask != "" || n.TaskDaysLeft > 0) continue;
+                if (n.PlayerId == 0) continue; // только НПС под управлением ЦС
 
                 int activeCount = publishedQuests.Count(q => q.Status == QuestStatus.Active && q.AssignedNpcId == n.Id);
                 if (activeCount >= 3) continue;

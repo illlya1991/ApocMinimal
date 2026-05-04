@@ -306,6 +306,14 @@ public partial class GameViewModel : INotifyPropertyChanged
         DevPoints    = _player.DevPoints;
         ActionsToday = _player.PlayerActionsToday;
 
+        if (_player.CurrentDay == 11)
+        {
+            _db.BulkSetLevelOfAwareness(2, excludeValue: 4);
+            foreach (var npc in _npcs.Where(n => n.LevelOfAwareness != 4))
+                npc.LevelOfAwareness = 2;
+            dayResult.Logs.Add(("🧠 День 11: уровень осознанности всех НПС повышен до 2", false));
+        }
+
         if (!_trueTerminal.IsAchieved)
         {
             int aliveFollowers = _npcs.Count(n => n.IsAlive && n.FollowerLevel > 0);

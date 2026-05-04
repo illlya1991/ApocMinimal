@@ -41,6 +41,8 @@ public class Npc
     public NpcTrait Trait { get; set; }
     public int FollowerLevel { get; set; }
     public int EvolutionLevel { get; set; }
+    public int LevelOfAwareness { get; set; } = 1;
+    public int PlayerId { get; set; } = 0;
     public List<CharacterTrait> CharTraits { get; set; } = new();
     public List<string> Specializations { get; set; } = new();
 
@@ -135,6 +137,16 @@ public class Npc
         4 => "Преданный",
         5 => "Фанатик",
         _ => FollowerLevel.ToString()
+    };
+
+    public string AwarenessLabel => LevelOfAwareness switch
+    {
+        0 => "Спящий",
+        1 => "Пробуждённый",
+        2 => "Осознающий",
+        3 => "Просветлённый",
+        4 => "Преобразованный",
+        _ => LevelOfAwareness.ToString()
     };
 
     public string EvolutionLabel => EvolutionLevel switch

@@ -154,6 +154,14 @@ public partial class DatabaseManager : IDisposable
         int startLocId = startIdObj is long sl ? (int)sl : 1;
         ExecuteNQ($"UPDATE Npcs SET LocationId={startLocId}");
 
+        // Начальные значения новых полей
+        object? loaExists = ExecuteScalar("SELECT COUNT(*) FROM pragma_table_info('Npcs') WHERE name='LevelOfAwareness'");
+        if (loaExists is long loaCount && loaCount > 0)
+            ExecuteNQ("UPDATE Npcs SET LevelOfAwareness=1");
+        object? pidExists = ExecuteScalar("SELECT COUNT(*) FROM pragma_table_info('Npcs') WHERE name='PlayerId'");
+        if (pidExists is long pidCount && pidCount > 0)
+            ExecuteNQ("UPDATE Npcs SET PlayerId=0");
+
         Report(90, "Начальные ресурсы...");
         SetInitialResources(CurrentSaveId);
 

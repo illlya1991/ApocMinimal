@@ -24,11 +24,15 @@ public partial class DatabaseManager
     public void SaveNpcInTransaction(Npc n, SQLiteTransaction transaction)
     {
         bool hasEvo = HasEvolutionLevelColumn();
+        bool hasLoa = HasLevelOfAwarenessColumn();
+        bool hasPid = HasPlayerIdColumn();
         string evoSet = hasEvo ? ", EvolutionLevel=@el" : "";
+        string loaSet = hasLoa ? ", LevelOfAwareness=@loa" : "";
+        string pidSet = hasPid ? ", PlayerId=@pid" : "";
         using var cmd = new SQLiteCommand($@"
         UPDATE Npcs SET
             Health=@hp, Devotion=@fa, Stamina=@st, Energy=@ck,
-            Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl{evoSet},
+            Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl{evoSet}{loaSet}{pidSet},
             CharTraits=@ct, Specializations=@sp, Emotions=@em,
             Goal=@gl, Dream=@dr, Desire=@de,
             Needs=@nd, Memory=@me, Statistics=@stat, LocationId=@li,
@@ -45,6 +49,8 @@ public partial class DatabaseManager
         cmd.Parameters.AddWithValue("@ci", n.CombatInitiative);
         cmd.Parameters.AddWithValue("@fl", n.FollowerLevel);
         if (hasEvo) cmd.Parameters.AddWithValue("@el", n.EvolutionLevel);
+        if (hasLoa) cmd.Parameters.AddWithValue("@loa", n.LevelOfAwareness);
+        if (hasPid) cmd.Parameters.AddWithValue("@pid", n.PlayerId);
 
         cmd.Parameters.AddWithValue("@ct", JsonSerializer.Serialize(n.CharTraits.Select(t => t.ToString()).ToList(), JsonOpts));
         cmd.Parameters.AddWithValue("@sp", JsonSerializer.Serialize(n.Specializations, JsonOpts));
@@ -118,17 +124,23 @@ public partial class DatabaseManager
     private void InsertNpcTx(Npc n, SQLiteTransaction tx)
     {
         bool hasEvo = HasEvolutionLevelColumn();
+        bool hasLoa = HasLevelOfAwarenessColumn();
+        bool hasPid = HasPlayerIdColumn();
         string evoCol = hasEvo ? ", EvolutionLevel" : "";
         string evoVal = hasEvo ? ",@el" : "";
+        string loaCol = hasLoa ? ", LevelOfAwareness" : "";
+        string loaVal = hasLoa ? ",@loa" : "";
+        string pidCol = hasPid ? ", PlayerId" : "";
+        string pidVal = hasPid ? ",@pid" : "";
         var traitStrings = n.CharTraits.Select(t => t.ToString()).ToList();
         using var cmd = new SQLiteCommand($@"
             INSERT INTO Npcs (Name, Age, Gender, Profession, Description,
                 Health, Devotion, Stamina, Energy, Fear, Trust, Initiative, CombatInitiative,
-                Trait, FollowerLevel{evoCol}, Goal, Dream, Desire, ActiveTask, TaskDaysLeft, TaskRewardResId, TaskRewardAmt,
+                Trait, FollowerLevel{evoCol}{loaCol}{pidCol}, Goal, Dream, Desire, ActiveTask, TaskDaysLeft, TaskRewardResId, TaskRewardAmt,
                 Statistics, CharTraits, Specializations, Emotions, Needs, Memory)
             VALUES (@nm,@ag,@gn,@pr,@ds,
                 @hp,@fa,@st,@ck,@fr,@tr,@in,@ci,
-                @tt,@fl{evoVal},@gl,@dr,@de,@at,@td,@rr,@ra,
+                @tt,@fl{evoVal}{loaVal}{pidVal},@gl,@dr,@de,@at,@td,@rr,@ra,
                 @stat,@ct,@sp,@em,@nd,@me)", _conn, tx);
         cmd.Parameters.AddWithValue("@nm", n.Name);
         cmd.Parameters.AddWithValue("@ag", n.Age);
@@ -146,6 +158,8 @@ public partial class DatabaseManager
         cmd.Parameters.AddWithValue("@tt", n.Trait.ToString());
         cmd.Parameters.AddWithValue("@fl", n.FollowerLevel);
         if (hasEvo) cmd.Parameters.AddWithValue("@el", n.EvolutionLevel);
+        if (hasLoa) cmd.Parameters.AddWithValue("@loa", n.LevelOfAwareness);
+        if (hasPid) cmd.Parameters.AddWithValue("@pid", n.PlayerId);
         cmd.Parameters.AddWithValue("@gl", n.Goal ?? "");
         cmd.Parameters.AddWithValue("@dr", n.Dream ?? "");
         cmd.Parameters.AddWithValue("@de", n.Desire ?? "");
@@ -168,11 +182,15 @@ public partial class DatabaseManager
     public void SaveNpc(Npc n)
     {
         bool hasEvo = HasEvolutionLevelColumn();
+        bool hasLoa = HasLevelOfAwarenessColumn();
+        bool hasPid = HasPlayerIdColumn();
         string evoSet = hasEvo ? ", EvolutionLevel=@el" : "";
+        string loaSet = hasLoa ? ", LevelOfAwareness=@loa" : "";
+        string pidSet = hasPid ? ", PlayerId=@pid" : "";
         using var cmd = new SQLiteCommand($@"
         UPDATE Npcs SET
             Health=@hp, Devotion=@fa, Stamina=@st, Energy=@ck,
-            Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl{evoSet},
+            Fear=@fr, Trust=@tr, Initiative=@in, CombatInitiative=@ci, FollowerLevel=@fl{evoSet}{loaSet}{pidSet},
             CharTraits=@ct, Specializations=@sp, Emotions=@em,
             Goal=@gl, Dream=@dr, Desire=@de,
             Needs=@nd, Memory=@me, Statistics=@stat, LocationId=@li,
@@ -189,6 +207,8 @@ public partial class DatabaseManager
         cmd.Parameters.AddWithValue("@ci", n.CombatInitiative);
         cmd.Parameters.AddWithValue("@fl", n.FollowerLevel);
         if (hasEvo) cmd.Parameters.AddWithValue("@el", n.EvolutionLevel);
+        if (hasLoa) cmd.Parameters.AddWithValue("@loa", n.LevelOfAwareness);
+        if (hasPid) cmd.Parameters.AddWithValue("@pid", n.PlayerId);
 
         cmd.Parameters.AddWithValue("@ct", JsonSerializer.Serialize(n.CharTraits.Select(t => t.ToString()).ToList(), JsonOpts));
         cmd.Parameters.AddWithValue("@sp", JsonSerializer.Serialize(n.Specializations, JsonOpts));
@@ -338,6 +358,8 @@ public partial class DatabaseManager
 
         npc.FollowerLevel = GetIntOrDefault(rdr, "FollowerLevel");
         npc.EvolutionLevel = GetIntOrDefault(rdr, "EvolutionLevel");
+        npc.LevelOfAwareness = GetIntOrDefault(rdr, "LevelOfAwareness", 1);
+        npc.PlayerId = GetIntOrDefault(rdr, "PlayerId", 0);
         npc.Goal = GetStringOrDefault(rdr, "Goal");
         npc.Dream = GetStringOrDefault(rdr, "Dream");
         npc.Desire = GetStringOrDefault(rdr, "Desire");
@@ -384,6 +406,8 @@ public partial class DatabaseManager
     }
 
     private static bool? _hasEvolutionLevel = null;
+    private static bool? _hasLevelOfAwareness = null;
+    private static bool? _hasPlayerId = null;
 
     private bool HasEvolutionLevelColumn()
     {
@@ -392,6 +416,30 @@ public partial class DatabaseManager
             "SELECT COUNT(*) FROM pragma_table_info('Npcs') WHERE name='EvolutionLevel'", _conn);
         _hasEvolutionLevel = (long)(cmd.ExecuteScalar() ?? 0L) > 0;
         return _hasEvolutionLevel.Value;
+    }
+
+    private bool HasLevelOfAwarenessColumn()
+    {
+        if (_hasLevelOfAwareness.HasValue) return _hasLevelOfAwareness.Value;
+        using var cmd = new SQLiteCommand(
+            "SELECT COUNT(*) FROM pragma_table_info('Npcs') WHERE name='LevelOfAwareness'", _conn);
+        _hasLevelOfAwareness = (long)(cmd.ExecuteScalar() ?? 0L) > 0;
+        return _hasLevelOfAwareness.Value;
+    }
+
+    private bool HasPlayerIdColumn()
+    {
+        if (_hasPlayerId.HasValue) return _hasPlayerId.Value;
+        using var cmd = new SQLiteCommand(
+            "SELECT COUNT(*) FROM pragma_table_info('Npcs') WHERE name='PlayerId'", _conn);
+        _hasPlayerId = (long)(cmd.ExecuteScalar() ?? 0L) > 0;
+        return _hasPlayerId.Value;
+    }
+
+    public void BulkSetLevelOfAwareness(int newValue, int excludeValue)
+    {
+        if (!HasLevelOfAwarenessColumn()) return;
+        ExecuteNQ($"UPDATE Npcs SET LevelOfAwareness={newValue} WHERE LevelOfAwareness != {excludeValue}");
     }
 
     public List<Npc> GetAllNpcsOptimized()
@@ -409,12 +457,16 @@ public partial class DatabaseManager
         var npcs = new List<Npc>();
 
         bool hasEvo = HasEvolutionLevelColumn();
+        bool hasLoa = HasLevelOfAwarenessColumn();
+        bool hasPid = HasPlayerIdColumn();
         string evoCol = hasEvo ? ", EvolutionLevel" : "";
+        string loaCol = hasLoa ? ", LevelOfAwareness" : "";
+        string pidCol = hasPid ? ", PlayerId" : "";
 
         using var cmd = new SQLiteCommand($@"
         SELECT Id, Name, Age, Gender, Profession, Description,
                Health, Devotion, Stamina, Energy, Fear, Trust,
-               Initiative, CombatInitiative, Trait, FollowerLevel{evoCol},
+               Initiative, CombatInitiative, Trait, FollowerLevel{evoCol}{loaCol}{pidCol},
                Goal, Dream, Desire, ActiveTask, TaskDaysLeft,
                TaskRewardResId, TaskRewardAmt, Statistics, CharTraits,
                Specializations, Emotions, Needs, Memory, LocationId, LearnedTechIds
@@ -424,7 +476,7 @@ public partial class DatabaseManager
 
         while (rdr.Read())
         {
-            var npc = ReadNpcFast(rdr, hasEvo);
+            var npc = ReadNpcFast(rdr, hasEvo, hasLoa, hasPid);
             npcs.Add(npc);
         }
 
@@ -444,7 +496,7 @@ public partial class DatabaseManager
         return npcs;
     }
 
-    private Npc ReadNpcFast(SQLiteDataReader rdr, bool hasEvolutionLevel = true)
+    private Npc ReadNpcFast(SQLiteDataReader rdr, bool hasEvolutionLevel = true, bool hasLevelOfAwareness = false, bool hasPlayerId = false)
     {
         var npc = new Npc();
 
@@ -466,6 +518,8 @@ public partial class DatabaseManager
         var traitOrdinal = rdr.GetOrdinal("Trait");
         var followerLevelOrdinal = rdr.GetOrdinal("FollowerLevel");
         int evolutionLevelOrdinal = hasEvolutionLevel ? rdr.GetOrdinal("EvolutionLevel") : -1;
+        int loaOrdinal = hasLevelOfAwareness ? rdr.GetOrdinal("LevelOfAwareness") : -1;
+        int pidOrdinal = hasPlayerId ? rdr.GetOrdinal("PlayerId") : -1;
         var goalOrdinal = rdr.GetOrdinal("Goal");
         var dreamOrdinal = rdr.GetOrdinal("Dream");
         var desireOrdinal = rdr.GetOrdinal("Desire");
@@ -512,6 +566,10 @@ public partial class DatabaseManager
         npc.FollowerLevel = rdr.IsDBNull(followerLevelOrdinal) ? 0 : rdr.GetInt32(followerLevelOrdinal);
         npc.EvolutionLevel = evolutionLevelOrdinal >= 0 && !rdr.IsDBNull(evolutionLevelOrdinal)
             ? rdr.GetInt32(evolutionLevelOrdinal) : 0;
+        npc.LevelOfAwareness = loaOrdinal >= 0 && !rdr.IsDBNull(loaOrdinal)
+            ? rdr.GetInt32(loaOrdinal) : 1;
+        npc.PlayerId = pidOrdinal >= 0 && !rdr.IsDBNull(pidOrdinal)
+            ? rdr.GetInt32(pidOrdinal) : 0;
         npc.Goal = rdr.IsDBNull(goalOrdinal) ? "" : rdr.GetString(goalOrdinal);
         npc.Dream = rdr.IsDBNull(dreamOrdinal) ? "" : rdr.GetString(dreamOrdinal);
         npc.Desire = rdr.IsDBNull(desireOrdinal) ? "" : rdr.GetString(desireOrdinal);

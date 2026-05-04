@@ -78,7 +78,15 @@ public class ManagementHandler : BaseActionHandler
 
         // Повышаем уровень
         player.DevPoints -= cost;
+        bool wasUnowned = target.FollowerLevel == 0;
         target.FollowerLevel++;
+
+        // Первое повышение: НПС переходит под управление игрока
+        if (wasUnowned)
+        {
+            target.PlayerId = 1;
+            target.LevelOfAwareness = 4;
+        }
 
         // Бонусы при повышении
         ApplyRewardBonuses(target, player.CurrentDay);
