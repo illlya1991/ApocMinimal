@@ -10,6 +10,9 @@ public class Player
     public int CurrentDay { get; set; }
     public PlayerFaction Faction { get; set; } = PlayerFaction.ElementMages;
 
+    // ── Location ──────────────────────────────────────────────────────
+    public int LocationId { get; set; } = 1;
+
     // ── Barrier & territory ───────────────────────────────────────────
     public int BarrierLevel { get; set; } = 1;
     public int TerritoryControl { get; set; }

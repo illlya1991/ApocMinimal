@@ -7,6 +7,16 @@ namespace ApocMinimal.Database;
 
 public partial class DatabaseManager
 {
+    private static bool? _hasPlayerLocationId = null;
+
+    private bool HasPlayerLocationIdColumn()
+    {
+        if (_hasPlayerLocationId.HasValue) return _hasPlayerLocationId.Value;
+        var r = ExecuteScalar("SELECT COUNT(*) FROM pragma_table_info('Player') WHERE name='LocationId'");
+        _hasPlayerLocationId = r is long c && c > 0;
+        return _hasPlayerLocationId.Value;
+    }
+
     public Player? GetPlayer()
     {
         using var cmd = new SQLiteCommand("SELECT * FROM Player WHERE Id = 1 LIMIT 1", _conn);
@@ -16,9 +26,12 @@ public partial class DatabaseManager
 
     public void SavePlayer(Player p)
     {
+        bool hasLoc = HasPlayerLocationIdColumn();
+        string locCol = hasLoc ? ",LocationId=@loc" : "";
+
         using var cmd = new SQLiteCommand(
-            "UPDATE Player SET Name=@pn,Faction=@fc,DevPoints=@fp,TerminalLevel=@al,CurrentDay=@cd," +
-            "BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,FactionCoeffs=@fcoeffs WHERE Id=@id", _conn);
+            $"UPDATE Player SET Name=@pn,Faction=@fc,DevPoints=@fp,TerminalLevel=@al,CurrentDay=@cd," +
+            $"BarrierLevel=@bl,TerritoryControl=@tc,PlayerActionsToday=@pa,ControlledZoneIds=@cz,FactionCoeffs=@fcoeffs{locCol} WHERE Id=@id", _conn);
         cmd.Parameters.AddWithValue("@fp", p.DevPoints);
         cmd.Parameters.AddWithValue("@al", p.TerminalLevel);
         cmd.Parameters.AddWithValue("@fc", p.Faction.ToString());
@@ -29,11 +42,12 @@ public partial class DatabaseManager
         cmd.Parameters.AddWithValue("@pn", p.Name);
         cmd.Parameters.AddWithValue("@cz", JsonSerializer.Serialize(p.ControlledZoneIds, JsonOpts));
         cmd.Parameters.AddWithValue("@fcoeffs", JsonSerializer.Serialize(p.FactionCoeffs, JsonOpts));
+        if (hasLoc) cmd.Parameters.AddWithValue("@loc", p.LocationId);
         cmd.Parameters.AddWithValue("@id", p.Id);
         cmd.ExecuteNonQuery();
     }
 
-    private static Player ReadPlayer(SQLiteDataReader rdr)
+    private Player ReadPlayer(SQLiteDataReader rdr)
     {
         var p = new Player();
         p.Id = rdr.GetInt32(rdr.GetOrdinal("Id"));
@@ -46,6 +60,8 @@ public partial class DatabaseManager
         p.BarrierLevel = GetIntOrDefault(rdr, "BarrierLevel", 1);
         p.TerritoryControl = GetIntOrDefault(rdr, "TerritoryControl");
         p.PlayerActionsToday = GetIntOrDefault(rdr, "PlayerActionsToday");
+        if (HasPlayerLocationIdColumn())
+            p.LocationId = GetIntOrDefault(rdr, "LocationId", 1);
         string zonesJson = GetStringOrDefault(rdr, "ControlledZoneIds", "[]");
         try { p.ControlledZoneIds = JsonSerializer.Deserialize<List<int>>(zonesJson) ?? new(); }
         catch { p.ControlledZoneIds = new(); }

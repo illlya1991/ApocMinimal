@@ -306,6 +306,12 @@ public partial class GameViewModel : INotifyPropertyChanged
         DevPoints    = _player.DevPoints;
         ActionsToday = _player.PlayerActionsToday;
 
+        if (_player.CurrentDay == 2)
+            RedistributeNpcsFromCity(dayResult);
+
+        if (_player.CurrentDay == 10)
+            BringNpcsToPlayerFloor(dayResult);
+
         if (_player.CurrentDay == 11)
         {
             _db.BulkSetLevelOfAwareness(2, excludeValue: 4);
@@ -337,6 +343,94 @@ public partial class GameViewModel : INotifyPropertyChanged
         await _optimizedLoop.ProcessNpcDaysParallelAsync(
             _player, _npcs, _resources, _locations, _player.CurrentDay,
             _player.FactionCoeffs.CoeffStatGrowth, progress, alertsOnly);
+
+    // ── NPC redistribution on Day 2 ─────────────────────────────────────────
+
+    private void RedistributeNpcsFromCity(DayResult dayResult)
+    {
+        var cityDistrictIds = new HashSet<int>(
+            _locations.Where(l => l.Type == LocationType.City || l.Type == LocationType.District)
+                      .Select(l => l.Id));
+
+        var eligible = _locations.Where(l =>
+            l.MapState == MapState.Current &&
+            l.Type != LocationType.City &&
+            l.Type != LocationType.District).ToList();
+
+        if (eligible.Count == 0) return;
+
+        int moved = 0;
+        foreach (var npc in _npcs)
+        {
+            if (!npc.IsAlive || !cityDistrictIds.Contains(npc.LocationId)) continue;
+            npc.LocationId = eligible[_rnd.Next(eligible.Count)].Id;
+            moved++;
+        }
+
+        if (moved > 0)
+            dayResult.Logs.Add(($"🏘 День 2: {moved:N0} НПС разошлись по локациям города", false));
+    }
+
+    // ── Day 10: 2-5 nearest NPCs arrive at player's floor ───────────────────
+
+    private void BringNpcsToPlayerFloor(DayResult dayResult)
+    {
+        int playerFloorId = _player.LocationId;
+        var playerFloor = _locations.FirstOrDefault(l => l.Id == playerFloorId);
+        if (playerFloor == null || playerFloor.Type != LocationType.Floor) return;
+
+        int playerBuildingId = playerFloor.ParentId;
+
+        // Collect IDs of all locations within the same building
+        var buildingChildIds = new HashSet<int>(
+            _locations.Where(l => l.ParentId == playerBuildingId).Select(l => l.Id));
+        // Include apartments inside those floors
+        var buildingDeepIds = new HashSet<int>(buildingChildIds);
+        foreach (var floorId in buildingChildIds.ToList())
+            foreach (var apt in _locations.Where(l => l.ParentId == floorId))
+                buildingDeepIds.Add(apt.Id);
+
+        var candidates = _npcs.Where(n =>
+            n.IsAlive && n.PlayerId == 0 && n.FollowerLevel == 0 &&
+            n.LocationId != playerFloorId &&
+            buildingDeepIds.Contains(n.LocationId)).ToList();
+
+        // If < 2 in same building, expand to district
+        if (candidates.Count < 2)
+        {
+            var districtId = _locations.FirstOrDefault(l => l.Id == playerBuildingId)?.ParentId ?? 0;
+            var districtBuildingIds = new HashSet<int>(
+                _locations.Where(l => l.ParentId == districtId && l.Type == LocationType.Building)
+                          .Select(l => l.Id));
+            var districtFloorIds = new HashSet<int>(
+                _locations.Where(l => districtBuildingIds.Contains(l.ParentId))
+                          .Select(l => l.Id));
+            candidates = _npcs.Where(n =>
+                n.IsAlive && n.PlayerId == 0 && n.FollowerLevel == 0 &&
+                n.LocationId != playerFloorId &&
+                (districtBuildingIds.Contains(n.LocationId) || districtFloorIds.Contains(n.LocationId))
+            ).ToList();
+        }
+
+        // Fallback: any alive unowned NPC
+        if (candidates.Count == 0)
+        {
+            candidates = _npcs.Where(n =>
+                n.IsAlive && n.PlayerId == 0 && n.FollowerLevel == 0 &&
+                n.LocationId != playerFloorId).ToList();
+        }
+
+        if (candidates.Count == 0) return;
+
+        int count = Math.Min(candidates.Count, _rnd.Next(2, 6));
+        var chosen = candidates.OrderBy(_ => _rnd.Next()).Take(count).ToList();
+        foreach (var npc in chosen)
+            npc.LocationId = playerFloorId;
+
+        string names = string.Join(", ", chosen.Select(n => n.Name));
+        dayResult.Logs.Add(($"👥 День 10: {chosen.Count} НПС пришли на ваш этаж — {names}", false));
+        dayResult.Logs.Add(("💬 Предложите им стать последователями через панель НПС", false));
+    }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

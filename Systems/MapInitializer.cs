@@ -128,10 +128,10 @@ public static class MapInitializer
                 }
             }
 
-            // Ensure at least one resource in every location (for gameplay)
-            if (loc.ResourceNodes.Count == 0 && rnd.NextDouble() < 0.3)
+            // Ensure at least one resource: guaranteed for Apartments, 30% for others
+            if (loc.ResourceNodes.Count == 0 &&
+                (loc.Type == LocationType.Apartment || rnd.NextDouble() < 0.3))
             {
-                // Add a small amount of common resource
                 var commonResources = new[] { "Еда", "Вода", "Дерево" };
                 var randomResource = commonResources[rnd.Next(commonResources.Length)];
                 loc.ResourceNodes[randomResource] = Math.Round(rnd.NextDouble() * 3 + 1, 1);

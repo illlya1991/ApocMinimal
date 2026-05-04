@@ -91,7 +91,24 @@ public partial class DatabaseManager : IDisposable
     public void OpenCurrentSave()
     {
         if (!string.IsNullOrEmpty(_thisSave._connectionString))
+        {
             OpenConnection(_thisSave._connectionString);
+            ApplyMigrations();
+        }
+    }
+
+    private void ApplyMigrations()
+    {
+        // Drop unused BarrierSize column if present (SQLite 3.35+)
+        try
+        {
+            var hasBs = ExecuteScalar("SELECT COUNT(*) FROM pragma_table_info('Player') WHERE name='BarrierSize'");
+            if (hasBs is long c && c > 0)
+                ExecuteNQ("ALTER TABLE Player DROP COLUMN BarrierSize");
+        }
+        catch { }
+        // Reset column caches after schema change
+        _hasPlayerLocationId = null;
     }
 
     public void DeleteSave(OneSave value)
@@ -150,9 +167,17 @@ public partial class DatabaseManager : IDisposable
         foreach (var loc in locations) loc.ClearDirty();
 
         Report(85, "Размещение NPC...");
+        // НПС начинают в Городе (тип City, Id=1) — на День 2 разойдутся по локациям
+        object? cityIdObj = ExecuteScalar("SELECT MIN(Id) FROM Locations WHERE Type='City'");
+        int cityLocId = cityIdObj is long cl ? (int)cl : 1;
+        ExecuteNQ($"UPDATE Npcs SET LocationId={cityLocId}");
+
+        // Игрок стартует на первом исследованном этаже
         object? startIdObj = ExecuteScalar("SELECT MIN(Id) FROM Locations WHERE Type='Floor' AND IsExplored=1");
-        int startLocId = startIdObj is long sl ? (int)sl : 1;
-        ExecuteNQ($"UPDATE Npcs SET LocationId={startLocId}");
+        int startLocId = startIdObj is long sl ? (int)sl : cityLocId;
+        object? playerLocExists = ExecuteScalar("SELECT COUNT(*) FROM pragma_table_info('Player') WHERE name='LocationId'");
+        if (playerLocExists is long plc && plc > 0)
+            ExecuteNQ($"UPDATE Player SET LocationId={startLocId} WHERE Id=1");
 
         // Начальные значения новых полей
         object? loaExists = ExecuteScalar("SELECT COUNT(*) FROM pragma_table_info('Npcs') WHERE name='LevelOfAwareness'");
