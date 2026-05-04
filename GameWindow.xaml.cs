@@ -44,7 +44,6 @@ public partial class GameWindow : Window
             PlayerActionsControl.QuestsRequested += OnQuestsRequested;
             PlayerActionsControl.PlayerInfoRequested += OnPlayerInfoRequested;
             PlayerActionsControl.FullscreenRequested += OnFullscreenRequested;
-            PlayerActionsControl.SettingsRequested += OnSettingsRequested;
             NpcListControl.NpcSelected += OnNpcSelected;
 
             RefreshAll();
@@ -215,12 +214,9 @@ public partial class GameWindow : Window
     {
         var dayRaw = LogControl.GetDayRaw(dayNumber);
         if (dayRaw == null) return;
-
-        Task.Run(() =>
-        {
-            _db.SaveDayLog(_db.CurrentSaveId, dayNumber,
-                dayRaw.Entries.Select(e => (e.Section, e.Text, e.Color, e.IsAction)));
-        });
+        // Synchronous — SQLiteConnection is not thread-safe
+        _db.SaveDayLog(_db.CurrentSaveId, dayNumber,
+            dayRaw.Entries.Select(e => (e.Section, e.Text, e.Color, e.IsAction)));
     }
 
     private void LoadSavedLogs()
@@ -347,6 +343,8 @@ public partial class GameWindow : Window
         if (_viewModel.IsVictory || _viewModel.IsDefeat)
             ShowResultWindow();
     }
+
+    private void SettingsBtn_Click(object sender, RoutedEventArgs e) => OnSettingsRequested();
 
     private void SaveBtn_Click(object sender, RoutedEventArgs e)
     {

@@ -10,7 +10,9 @@
       "Bash(git restore *)",
       "Bash(git rm *)",
       "Bash(xargs grep *)",
-      "Bash(grep -v \"//\")"
+      "Bash(grep -v \"//\")",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ]
   }
 }

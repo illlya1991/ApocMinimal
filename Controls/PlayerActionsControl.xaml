@@ -81,7 +81,6 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0" x:Name="BtnPlayerInfo" Content="Игрок"
                                 Style="{StaticResource NavBtn}" Foreground="#a5d6ff"
@@ -89,9 +88,6 @@
                         <Button Grid.Column="1" x:Name="BtnFullscreen" Content="Обзор"
                                 Style="{StaticResource NavBtn}" Foreground="#d2a8ff"
                                 Click="BtnFullscreen_Click"/>
-                        <Button Grid.Column="2" x:Name="BtnSettings" Content="Настройки"
-                                Style="{StaticResource NavBtn}" Foreground="#8b949e"
-                                Click="BtnSettings_Click"/>
                     </Grid>
                     <Button x:Name="BtnEndDay" Content="КОНЕЦ ДНЯ"
                             Height="32" FontSize="12" FontWeight="Bold"

@@ -76,6 +76,9 @@
                                 Style="{StaticResource ActionBtn}"
                                 Background="#1a3a1a" Foreground="#56d364"
                                 Width="90" Margin="0,0,6,0" Click="SaveBtn_Click"/>
+                        <Button x:Name="SettingsBtn" Content="⚙ Настройки"
+                                Style="{StaticResource ActionBtn}"
+                                Width="100" Margin="0,0,6,0" Click="SettingsBtn_Click"/>
                         <Button x:Name="ExitBtn" Content="В меню"
                                 Style="{StaticResource ActionBtn}"
                                 Background="#1e1010" Foreground="#f87171"

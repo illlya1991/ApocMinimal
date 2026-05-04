@@ -27,7 +27,6 @@ public partial class PlayerActionsControl : UserControl
     public event Action? QuestsRequested;
     public event Action? PlayerInfoRequested;
     public event Action? FullscreenRequested;
-    public event Action? SettingsRequested;
 
     // Конструктор без параметров для XAML
     public PlayerActionsControl()
@@ -562,7 +561,6 @@ public partial class PlayerActionsControl : UserControl
     private void BtnQuests_Click(object sender, RoutedEventArgs e) => QuestsRequested?.Invoke();
     private void BtnPlayerInfo_Click(object sender, RoutedEventArgs e) => PlayerInfoRequested?.Invoke();
     private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => FullscreenRequested?.Invoke();
-    private void BtnSettings_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke();
     private void BtnEndDay_Click(object sender, RoutedEventArgs e) => EndDayRequested?.Invoke();
 
     private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
