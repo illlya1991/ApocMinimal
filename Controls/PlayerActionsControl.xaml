@@ -81,11 +81,15 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0" x:Name="BtnPlayerInfo" Content="Игрок"
                                 Style="{StaticResource NavBtn}" Foreground="#a5d6ff"
                                 Click="BtnPlayerInfo_Click"/>
-                        <Button Grid.Column="1" x:Name="BtnFullscreen" Content="Обзор"
+                        <Button Grid.Column="1" x:Name="BtnTechniques" Content="Техники"
+                                Style="{StaticResource NavBtn}" Foreground="#f9a8d4"
+                                Click="BtnTechniques_Click"/>
+                        <Button Grid.Column="2" x:Name="BtnFullscreen" Content="Обзор"
                                 Style="{StaticResource NavBtn}" Foreground="#d2a8ff"
                                 Click="BtnFullscreen_Click"/>
                     </Grid>
@@ -113,10 +117,6 @@
                         <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
 
                         <Button x:Name="ExecuteBtn" Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
-
-                        <Separator Background="#30363d" Margin="0,12,0,6"/>
-                        <TextBlock Text="ТЕХНИКИ" Style="{StaticResource SectionHeader}"/>
-                        <StackPanel x:Name="TechniquePanel"/>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -124,6 +124,13 @@
                     <StackPanel>
                         <TextBlock Text="КАРТА МИРА" Style="{StaticResource SectionHeader}"/>
                         <StackPanel x:Name="MapPanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="PanelTechniques" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="ТЕХНИКИ" Style="{StaticResource SectionHeader}"/>
+                        <StackPanel x:Name="TechniquePanel"/>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

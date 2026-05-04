@@ -551,11 +551,27 @@ public partial class PlayerActionsControl : UserControl
     private void BtnMap_Click(object sender, RoutedEventArgs e)
     {
         bool showMap = PanelMap.Visibility != Visibility.Visible;
-        PanelActions.Visibility = showMap ? Visibility.Collapsed : Visibility.Visible;
-        PanelMap.Visibility = showMap ? Visibility.Visible : Visibility.Collapsed;
-        BtnMap.Background = BrushCache.GetBrush(showMap ? "#0d2a3a" : "#161b22");
-        BtnMap.Foreground = BrushCache.GetBrush(showMap ? "#58a6ff" : "#7dd3fc");
+        PanelActions.Visibility    = showMap ? Visibility.Collapsed : Visibility.Visible;
+        PanelMap.Visibility        = showMap ? Visibility.Visible   : Visibility.Collapsed;
+        PanelTechniques.Visibility = Visibility.Collapsed;
+        BtnMap.Background        = BrushCache.GetBrush(showMap ? "#0d2a3a" : "#161b22");
+        BtnMap.Foreground        = BrushCache.GetBrush(showMap ? "#58a6ff" : "#7dd3fc");
+        BtnTechniques.Background = BrushCache.GetBrush("#161b22");
+        BtnTechniques.Foreground = BrushCache.GetBrush("#f9a8d4");
         if (showMap) RefreshMapTab();
+    }
+
+    private void BtnTechniques_Click(object sender, RoutedEventArgs e)
+    {
+        bool showTech = PanelTechniques.Visibility != Visibility.Visible;
+        PanelActions.Visibility    = showTech ? Visibility.Collapsed : Visibility.Visible;
+        PanelMap.Visibility        = Visibility.Collapsed;
+        PanelTechniques.Visibility = showTech ? Visibility.Visible   : Visibility.Collapsed;
+        BtnTechniques.Background = BrushCache.GetBrush(showTech ? "#2a1a2e" : "#161b22");
+        BtnTechniques.Foreground = BrushCache.GetBrush(showTech ? "#f472b6" : "#f9a8d4");
+        BtnMap.Background        = BrushCache.GetBrush("#161b22");
+        BtnMap.Foreground        = BrushCache.GetBrush("#7dd3fc");
+        if (showTech) RefreshTechniquePanel();
     }
 
     private void BtnQuests_Click(object sender, RoutedEventArgs e) => QuestsRequested?.Invoke();

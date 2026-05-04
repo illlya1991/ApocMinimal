@@ -28,9 +28,37 @@ public partial class DatabaseManager
         while (rdr.Read())
         {
             var loc = new Location();
-            loc.Id = rdr.GetInt32(rdr.GetOrdinal("Id"));
-            loc.Name = rdr.GetString(rdr.GetOrdinal("Name"));
-            // ... остальное заполнение ...
+            loc.Id       = rdr.GetInt32(rdr.GetOrdinal("Id"));
+            loc.Name     = rdr.GetString(rdr.GetOrdinal("Name"));
+            loc.ParentId = GetIntOrDefault(rdr, "ParentId", 0);
+
+            string typeStr = GetStringOrDefault(rdr, "Type", "Building");
+            loc.Type = Enum.TryParse<LocationType>(typeStr, out var lt) ? lt : LocationType.Building;
+
+            string msStr = GetStringOrDefault(rdr, "MapState", "Current");
+            loc.MapState = Enum.TryParse<MapState>(msStr, out var ms) ? ms : MapState.Current;
+
+            string ctStr = GetStringOrDefault(rdr, "CommercialType", "None");
+            loc.CommercialType = Enum.TryParse<CommercialType>(ctStr, out var ct) ? ct : CommercialType.None;
+
+            loc.MonsterTypeName = GetStringOrDefault(rdr, "MonsterTypeName", "");
+
+            // ResourceNodes — JSON dict (через свойство — устанавливает IsDirty, очистим ниже)
+            string rnJson = GetStringOrDefault(rdr, "ResourceNodes", "{}");
+            try
+            {
+                var nodes = JsonSerializer.Deserialize<Dictionary<string, double>>(rnJson, JsonOpts);
+                loc.ResourceNodes = nodes ?? new();
+            }
+            catch { loc.ResourceNodes = new(); }
+
+            loc.DangerLevel = GetDoubleOrDefault(rdr, "DangerLevel", 0);
+            loc.IsExplored  = GetIntOrDefault(rdr, "IsExplored", 0) == 1;
+
+            string statusStr = GetStringOrDefault(rdr, "Status", "Dangerous");
+            loc.Status = Enum.TryParse<LocationStatus>(statusStr, out var ls) ? ls : LocationStatus.Dangerous;
+
+            loc.ClearDirty();
             list.Add(loc);
         }
 
