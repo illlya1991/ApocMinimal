@@ -21,5 +21,13 @@ public class Technique
     public double FearClear    { get; set; }
     public double StaminaBoost { get; set; }
 
+    /// <summary>
+    /// Пассивный эффект: при обучении устанавливает EvolutionLevel НПС = это значение.
+    /// 0 = нет пассивного эффекта.
+    /// </summary>
+    public int PassiveEvolutionLevel { get; set; }
+
+    public bool IsPassive => PassiveEvolutionLevel > 0;
+
     public string ModesLabel => ActivationModes.Count == 0 ? "—" : $"{ActivationModes.Count} реж.";
 }

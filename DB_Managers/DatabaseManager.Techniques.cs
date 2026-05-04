@@ -26,8 +26,8 @@ public partial class DatabaseManager
         using var cmd = new SQLiteCommand(@"
             INSERT INTO Techniques
               (Name,Description,TerminalLevel,TechLevel,TechType,OPCost,EnergyCost,StaminaCost,
-               RequiredStats,HealAmount,Faction,CatalogKey,ActivationModes)
-            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs,@ha,@fn,@ck,@am)", _conn);
+               RequiredStats,HealAmount,Faction,CatalogKey,ActivationModes,PassiveEvolutionLevel)
+            VALUES (@nm,@ds,@al,@tl,@tt,@fc,@cc,@sc,@rs,@ha,@fn,@ck,@am,@pel)", _conn);
         BindTechnique(cmd, t);
         cmd.ExecuteNonQuery();
         t.Id = (int)_conn.LastInsertRowId;
@@ -48,6 +48,7 @@ public partial class DatabaseManager
         cmd.Parameters.AddWithValue("@fn", t.Faction);
         cmd.Parameters.AddWithValue("@ck", t.CatalogKey);
         cmd.Parameters.AddWithValue("@am", JsonSerializer.Serialize(t.ActivationModes, JsonOptsPolymorphic));
+        cmd.Parameters.AddWithValue("@pel", t.PassiveEvolutionLevel);
     }
 
     public List<Technique> GetTechniquesByFaction(string faction, int maxTerminalLevel)
@@ -67,7 +68,8 @@ public partial class DatabaseManager
         using var cmd = new SQLiteCommand(
             "UPDATE Techniques SET Name=@nm,Description=@ds,TerminalLevel=@al,TechLevel=@tl," +
             "TechType=@tt,OPCost=@fc,EnergyCost=@cc,StaminaCost=@sc,RequiredStats=@rs," +
-            "HealAmount=@ha,Faction=@fn,CatalogKey=@ck,ActivationModes=@am WHERE Id=@id", _conn);
+            "HealAmount=@ha,Faction=@fn,CatalogKey=@ck,ActivationModes=@am," +
+            "PassiveEvolutionLevel=@pel WHERE Id=@id", _conn);
         BindTechnique(cmd, t);
         cmd.Parameters.AddWithValue("@id", t.Id);
         cmd.ExecuteNonQuery();
@@ -159,6 +161,7 @@ public partial class DatabaseManager
         t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new();
         t.Faction = GetStringOrDefault(rdr, "Faction");
         t.CatalogKey = GetStringOrDefault(rdr, "CatalogKey");
+        t.PassiveEvolutionLevel = GetIntOrDefault(rdr, "PassiveEvolutionLevel", 0);
 
         // ⚡ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: не пытаемся десериализовать битые данные
         try
@@ -192,7 +195,7 @@ public partial class DatabaseManager
         var list = new List<Technique>();
 
         using var cmd = new SQLiteCommand(
-            "SELECT Id, Name, Description, TerminalLevel, TechLevel, TechType, OPCost, EnergyCost, StaminaCost, RequiredStats, HealAmount, Faction, CatalogKey FROM Techniques ORDER BY TerminalLevel, Id",
+            "SELECT Id, Name, Description, TerminalLevel, TechLevel, TechType, OPCost, EnergyCost, StaminaCost, RequiredStats, HealAmount, Faction, CatalogKey, PassiveEvolutionLevel FROM Techniques ORDER BY TerminalLevel, Id",
             _conn);
         using var rdr = cmd.ExecuteReader();
 
@@ -234,6 +237,7 @@ public partial class DatabaseManager
             t.RequiredStats = DeserializeOrDefault<Dictionary<int, double>>(rdr, "RequiredStats") ?? new();
             t.Faction = GetStringOrDefault(rdr, "Faction");
             t.CatalogKey = GetStringOrDefault(rdr, "CatalogKey");
+            t.PassiveEvolutionLevel = GetIntOrDefault(rdr, "PassiveEvolutionLevel", 0);
 
             // Пропускаем ActivationModes при быстрой загрузке
             t.ActivationModes = new List<ActivationMode>();

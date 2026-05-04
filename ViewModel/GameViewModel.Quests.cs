@@ -112,6 +112,14 @@ public partial class GameViewModel
         _db.RemoveTechInventoryItem(_db.CurrentSaveId, tech.CatalogKey);
         _techInventory.Remove(tech.CatalogKey);
         RefreshInventoryTechniques();
+
+        // Пассивный эффект: установка уровня Энергии
+        if (tech.PassiveEvolutionLevel > 0 && tech.PassiveEvolutionLevel > npc.EvolutionLevel)
+        {
+            SetEvolutionLevel(npc, tech.PassiveEvolutionLevel);
+            return $"«{npc.Name}» обучен технике «{tech.Name}» → Уровень Энергии {npc.EvolutionLevel}";
+        }
+
         return $"«{npc.Name}» обучен технике «{tech.Name}»";
     }
 

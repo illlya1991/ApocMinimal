@@ -23,6 +23,14 @@ public static class TechniqueSystem
     /// </summary>
     public static bool Apply(Technique tech, Npc npc, out string log)
     {
+        // Пассивные техники (установка EvolutionLevel) не применяются вручную —
+        // их эффект назначается при обучении через TeachTechnique.
+        if (tech.PassiveEvolutionLevel > 0)
+        {
+            log = $"«{tech.Name}» — пассивная техника (ур. Энергии {tech.PassiveEvolutionLevel}), эффект уже активен";
+            return true;
+        }
+
         if (npc.Energy < tech.EnergyCost)
         { log = $"Недостаточно энергии: {npc.Energy:F0}/{tech.EnergyCost:F0}"; return false; }
 
