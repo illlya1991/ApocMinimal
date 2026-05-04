@@ -1,15 +1,12 @@
 namespace ApocMinimal.Models.PersonData;
 
-/// <summary>
-/// Пять фракций монстров, враждебных к выжившим и Терминалу.
-/// </summary>
 public enum MonsterFactionId
 {
-    GoblinSwarms,       // Гоблины-Стаи
-    IceArachnids,       // Ледяные Арахниды
-    Ogres,              // Огры
-    EarthElementals,    // Земляные Элементали
-    Succubi,            // Суккубы
+    GoblinSwarms,
+    IceArachnids,
+    Ogres,
+    EarthElementals,
+    Succubi,
 }
 
 public class MonsterFaction
@@ -18,41 +15,32 @@ public class MonsterFaction
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
 
-    /// <summary>Сила атаки (1–10).</summary>
     public int AttackPower { get; set; }
-    /// <summary>Защита (1–10).</summary>
     public int Defense { get; set; }
-    /// <summary>Текущая угроза (0–100).</summary>
     public double ThreatLevel { get; set; }
-    /// <summary>Скорость роста угрозы за день.</summary>
     public double ThreatGrowthPerDay { get; set; }
-    /// <summary>Фракция активна, если угроза превышает минимальный порог.</summary>
+
     public bool IsActive => ThreatLevel > 5;
 
     public string ThreatLabel => ThreatLevel switch
     {
-        < 20  => "Низкая",
-        < 40  => "Умеренная",
-        < 60  => "Высокая",
-        < 80  => "Критическая",
-        _     => "ОПАСНОСТЬ",
+        < 20 => "Низкая",
+        < 40 => "Умеренная",
+        < 60 => "Высокая",
+        < 80 => "Критическая",
+        _    => "ОПАСНОСТЬ",
     };
 
     public string ThreatColor => ThreatLevel switch
     {
-        < 20  => "#4ade80",
-        < 40  => "#facc15",
-        < 60  => "#f97316",
-        < 80  => "#ef4444",
-        _     => "#dc2626",
+        < 20 => "#4ade80",
+        < 40 => "#facc15",
+        < 60 => "#f97316",
+        < 80 => "#ef4444",
+        _    => "#dc2626",
     };
-
-    public bool IsActive { get; internal set; }
 }
 
-/// <summary>
-/// Создаёт и управляет пятью фракциями монстров для текущего мира.
-/// </summary>
 public static class MonsterFactionFactory
 {
     public static List<MonsterFaction> CreateDefault() => new()
@@ -99,7 +87,6 @@ public static class MonsterFactionFactory
         },
     };
 
-    /// <summary>Simulate one day of monster faction threat growth.</summary>
     public static List<string> SimulateDay(List<MonsterFaction> factions, Random rnd)
     {
         var logs = new List<string>();
@@ -114,7 +101,6 @@ public static class MonsterFactionFactory
         return logs;
     }
 
-    /// <summary>Reduce threat after player defeats monsters in a location.</summary>
     public static void ApplyDefeat(MonsterFaction faction, double damage)
     {
         faction.ThreatLevel = Math.Max(0, faction.ThreatLevel - damage);
