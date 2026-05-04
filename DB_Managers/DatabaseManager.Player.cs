@@ -9,7 +9,7 @@ public partial class DatabaseManager
 {
     public Player? GetPlayer()
     {
-        using var cmd = new SQLiteCommand("SELECT * FROM Player LIMIT 1", _conn);
+        using var cmd = new SQLiteCommand("SELECT * FROM Player WHERE Id = 1 LIMIT 1", _conn);
         using var rdr = cmd.ExecuteReader();
         return rdr.Read() ? ReadPlayer(rdr) : null;
     }

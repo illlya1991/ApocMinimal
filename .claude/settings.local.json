@@ -1,19 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -E \"^d|xaml|cs$\")",
-      "Bash(git add *)",
-      "Bash(git commit -m ' *)",
-      "Bash(git push *)",
-      "Bash(git reset *)",
-      "Bash(git lfs *)",
-      "Bash(git restore *)",
-      "Bash(git rm *)",
-      "Bash(xargs grep *)",
-      "Bash(grep -v \"//\")",
-      "Bash(git pull *)",
-      "Bash(git stash *)",
-      "Bash(echo \"175\")"
+      "Bash(*)",
+      "Edit",
+      "Write",
+      "Read",
+      "Glob",
+      "Grep"
     ]
   }
 }

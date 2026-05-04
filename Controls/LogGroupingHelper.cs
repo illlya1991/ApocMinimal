@@ -1,3 +1,5 @@
+using ApocMinimal.Models;
+
 namespace ApocMinimal.Controls;
 
 /// <summary>
