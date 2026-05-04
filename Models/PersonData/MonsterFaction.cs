@@ -44,6 +44,8 @@ public class MonsterFaction
         < 80  => "#ef4444",
         _     => "#dc2626",
     };
+
+    public bool IsActive { get; internal set; }
 }
 
 /// <summary>

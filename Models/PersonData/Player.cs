@@ -11,10 +11,10 @@ public class Player
     public PlayerFaction Faction { get; set; } = PlayerFaction.ElementMages;
 
     // ── Location ──────────────────────────────────────────────────────
-    public int LocationId { get; set; } = 1;
+    public int LocationId { get; set; }
 
     // ── Barrier & territory ───────────────────────────────────────────
-    public int BarrierLevel { get; set; } = 1;
+    public int BarrierLevel { get; set; }
     public int TerritoryControl { get; set; }
     public List<int> ControlledZoneIds { get; set; } = new();
 

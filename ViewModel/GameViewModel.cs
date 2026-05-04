@@ -375,15 +375,22 @@ public partial class GameViewModel : INotifyPropertyChanged
 
     private void BringNpcsToPlayerFloor(DayResult dayResult)
     {
-        int playerFloorId = _player.LocationId;
-        var playerFloor = _locations.FirstOrDefault(l => l.Id == playerFloorId);
-        if (playerFloor == null || playerFloor.Type != LocationType.Floor) return;
+        int playerApartmentId = _player.LocationId;
+        var playerApartment = _locations.FirstOrDefault(l => l.Id == playerApartmentId);
 
-        int playerBuildingId = playerFloor.ParentId;
+        if (playerApartment == null) return;
+
+        int playerFloorId = playerApartment.ParentId; // Этаж, на котором находится квартира игрока
+        var playerFloor = _locations.FirstOrDefault(l => l.Id == playerFloorId);
+
+        if (playerFloor == null) return;
+
+        int playerBuildingId = playerFloor.ParentId; // Здание, в котором находится этаж
 
         // Collect IDs of all locations within the same building
         var buildingChildIds = new HashSet<int>(
-            _locations.Where(l => l.ParentId == playerBuildingId).Select(l => l.Id));
+            _locations.Where(l => l.ParentId == playerBuildingId).Select(l => l.Id)); // все этажи в здании
+
         // Include apartments inside those floors
         var buildingDeepIds = new HashSet<int>(buildingChildIds);
         foreach (var floorId in buildingChildIds.ToList())
@@ -392,7 +399,7 @@ public partial class GameViewModel : INotifyPropertyChanged
 
         var candidates = _npcs.Where(n =>
             n.IsAlive && n.PlayerId == 0 && n.FollowerLevel == 0 &&
-            n.LocationId != playerFloorId &&
+            n.LocationId != playerApartmentId &&
             buildingDeepIds.Contains(n.LocationId)).ToList();
 
         // If < 2 in same building, expand to district
@@ -405,10 +412,16 @@ public partial class GameViewModel : INotifyPropertyChanged
             var districtFloorIds = new HashSet<int>(
                 _locations.Where(l => districtBuildingIds.Contains(l.ParentId))
                           .Select(l => l.Id));
+            var districtApartmentIds = new HashSet<int>(
+                _locations.Where(l => districtFloorIds.Contains(l.ParentId))
+                          .Select(l => l.Id));
+
             candidates = _npcs.Where(n =>
                 n.IsAlive && n.PlayerId == 0 && n.FollowerLevel == 0 &&
-                n.LocationId != playerFloorId &&
-                (districtBuildingIds.Contains(n.LocationId) || districtFloorIds.Contains(n.LocationId))
+                n.LocationId != playerApartmentId &&
+                (districtBuildingIds.Contains(n.LocationId) ||
+                 districtFloorIds.Contains(n.LocationId) ||
+                 districtApartmentIds.Contains(n.LocationId))
             ).ToList();
         }
 
@@ -417,7 +430,7 @@ public partial class GameViewModel : INotifyPropertyChanged
         {
             candidates = _npcs.Where(n =>
                 n.IsAlive && n.PlayerId == 0 && n.FollowerLevel == 0 &&
-                n.LocationId != playerFloorId).ToList();
+                n.LocationId != playerApartmentId).ToList();
         }
 
         if (candidates.Count == 0) return;
@@ -425,10 +438,10 @@ public partial class GameViewModel : INotifyPropertyChanged
         int count = Math.Min(candidates.Count, _rnd.Next(2, 6));
         var chosen = candidates.OrderBy(_ => _rnd.Next()).Take(count).ToList();
         foreach (var npc in chosen)
-            npc.LocationId = playerFloorId;
+            npc.LocationId = playerApartmentId;
 
         string names = string.Join(", ", chosen.Select(n => n.Name));
-        dayResult.Logs.Add(($"👥 День 10: {chosen.Count} НПС пришли на ваш этаж — {names}", false));
+        dayResult.Logs.Add(($"👥 День 10: {chosen.Count} НПС пришли в вашу квартиру — {names}", false));
         dayResult.Logs.Add(("💬 Предложите им стать последователями через панель НПС", false));
     }
 

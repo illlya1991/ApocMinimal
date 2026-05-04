@@ -99,16 +99,6 @@ public partial class DatabaseManager : IDisposable
 
     private void ApplyMigrations()
     {
-        // Drop unused BarrierSize column if present (SQLite 3.35+)
-        try
-        {
-            var hasBs = ExecuteScalar("SELECT COUNT(*) FROM pragma_table_info('Player') WHERE name='BarrierSize'");
-            if (hasBs is long c && c > 0)
-                ExecuteNQ("ALTER TABLE Player DROP COLUMN BarrierSize");
-        }
-        catch { }
-        // Reset column caches after schema change
-        _hasPlayerLocationId = null;
     }
 
     public void DeleteSave(OneSave value)
