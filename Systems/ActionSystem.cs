@@ -571,8 +571,38 @@ public static class ActionSystem
 
             // Удовлетворение потребностей (прямой доступ вместо LINQ)
             foreach (var kvp in action.SatisfiedNeeds)
-            {
                 NeedSystem.SatisfyNeed(npc, kvp.Key, kvp.Value);
+
+            // Добыча ресурсов из узлов локации (thread-safe через lock на объект локации)
+            if (ctx != null && action.ResourceFinds.Count > 0)
+            {
+                Location? findLoc = todayLocation
+                    ?? ctx.Locations.FirstOrDefault(l => l.Id == npc.LocationId);
+
+                if (findLoc != null)
+                {
+                    lock (findLoc)
+                    {
+                        foreach (var kvp in action.ResourceFinds)
+                        {
+                            if (!findLoc.ResourceNodes.TryGetValue(kvp.Key, out double nodeAmt) || nodeAmt <= 0)
+                                continue;
+
+                            double found = Math.Round(kvp.Value * (0.5 + rnd.NextDouble()), 1);
+                            found = Math.Min(found, nodeAmt);
+                            if (found <= 0.05) continue;
+
+                            MapInitializer.DeductFromNode(findLoc, kvp.Key, found);
+
+                            // Только свои НПС (PlayerId==1) добавляют в инвентарь игрока
+                            if (npc.PlayerId == 1 && ctx.Resources != null)
+                            {
+                                var res = ctx.Resources.FirstOrDefault(r => r.Name == kvp.Key);
+                                if (res != null) lock (res) { res.Amount += found; }
+                            }
+                        }
+                    }
+                }
             }
 
             // Рост статов
@@ -584,8 +614,8 @@ public static class ActionSystem
             npc.Remember(new MemoryEntry(day, MemoryType.Action, $"[{hour:00}:00] {action.Name}"));
             log.Add(new ActionLogEntry
             {
-                Time = $"{hour:00}:00",
-                Text = action.Name + growthSuffix,
+                Time  = $"{hour:00}:00",
+                Text  = action.Name + growthSuffix,
                 Color = action.Category == ActionCategory.Special ? "#e879f9" : "#c9d1d9",
             });
 
@@ -595,6 +625,18 @@ public static class ActionSystem
         // ── Конец дня ─────────────────────────────────────────────────────────
         NeedSystem.ApplyDailyDecay(npc);
         NeedSystem.ApplyPenalties(npc);
+
+        // Сообщение о смерти
+        if (!npc.IsAlive)
+        {
+            log.Add(new ActionLogEntry
+            {
+                Time    = "23:59",
+                Text    = $"💀 {npc.Name} умер от истощения",
+                Color   = "#dc2626",
+                IsAlert = true,
+            });
+        }
 
         return log;
     }
