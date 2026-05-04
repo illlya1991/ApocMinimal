@@ -180,6 +180,7 @@ public partial class GameWindow : Window
             }
 
             PlayerActionsControl.Refresh();
+            RefreshAll();
 
             totalSw.Stop();
             System.Diagnostics.Debug.WriteLine($"=== LoadInitialDaysAsync: ВСЕГО {totalSw.ElapsedMilliseconds} мс ===");
