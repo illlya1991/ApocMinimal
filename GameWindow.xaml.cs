@@ -248,7 +248,14 @@ public partial class GameWindow : Window
         var allRows = _db.GetAllLogs(_db.CurrentSaveId);
         if (allRows.Count == 0) return;
 
-        var rawDays = allRows
+        // Показываем только предыдущий и текущий день
+        int currentDay = _viewModel.CurrentDay;
+        var rows = allRows
+            .Where(r => r.DayNumber == currentDay - 1 || r.DayNumber == currentDay)
+            .ToList();
+        if (rows.Count == 0) rows = allRows; // fallback: вдруг дни не совпали
+
+        var rawDays = rows
             .GroupBy(r => r.DayNumber)
             .OrderBy(g => g.Key)
             .Select(g => new ApocMinimal.Controls.LogDayData
