@@ -321,7 +321,6 @@ public partial class GameWindow : Window
         SettingsOverlay.Visibility = Visibility.Collapsed;
 
         var endResult = _viewModel.AdvanceToNextDay();
-        _viewModel.SaveAll();
 
         LogControl.NewDay($"═══ ДЕНЬ {_viewModel.CurrentDay} ══════════════════════");
         LogSystemSummary(endResult);
@@ -333,6 +332,8 @@ public partial class GameWindow : Window
         HideProgress();
 
         LogNpcDay(npcResult);
+
+        _viewModel.SaveAll();
 
         var newExchanges = _viewModel.SetupAndApplyDayExchanges(_viewModel.CurrentDay);
         foreach (var ex in newExchanges)

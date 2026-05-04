@@ -188,6 +188,15 @@ namespace ApocMinimal.Services
         }
 
         /// <summary>
+        /// Получить локацию по ID (nullable).
+        /// </summary>
+        public Location? GetById(int id)
+        {
+            _allLocations.TryGetValue(id, out Location loc);
+            return loc;
+        }
+
+        /// <summary>
         /// Получить все локации.
         /// </summary>
         public List<Location> GetAllLocations()

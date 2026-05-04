@@ -1,4 +1,4 @@
-﻿// ViewModels/GameViewModel.cs
+// ViewModels/GameViewModel.cs
 using ApocMinimal.Database;
 using ApocMinimal.Models.ExchangeData;
 using ApocMinimal.Models.GameActions;
@@ -23,9 +23,12 @@ public class GameViewModel : INotifyPropertyChanged
     private readonly Random _rnd = new();
     private readonly LocationService _locationService;
     private readonly TechniqueService _techniqueService;
+    private readonly QuestService _questService;
+    private readonly ShopService _shopService;
 
     private Player _player = null!;
     private List<Npc> _npcs = new();
+    private Dictionary<int, Npc> _npcById = new();
     private List<Resource> _resources = new();
     private List<Quest> _quests = new();
     private List<Location> _locations = new();
@@ -56,6 +59,9 @@ public class GameViewModel : INotifyPropertyChanged
 
         _techniqueService = state?.TechniqueService ?? new TechniqueService(_db);
         if (state?.TechniqueService == null) _techniqueService.Initialize();
+
+        _questService = new QuestService(db);
+        _shopService = new ShopService(db);
 
         LoadData();
         _locationService.UpdateNpcCache(_npcs);
@@ -178,6 +184,7 @@ public class GameViewModel : INotifyPropertyChanged
         // NPC
         System.Diagnostics.Debug.WriteLine("  Загрузка NPC...");
         _npcs = _db.GetAllNpcsOptimized();
+        _npcById = _npcs.ToDictionary(n => n.Id);
         System.Diagnostics.Debug.WriteLine($"    NPC загружено: {_npcs.Count} шт. за {memSw.ElapsedMilliseconds} мс, память: {GC.GetTotalMemory(false) / (1024 * 1024)} МБ");
         memSw.Restart();
 
@@ -289,199 +296,30 @@ public class GameViewModel : INotifyPropertyChanged
 
     public string BuyQuest(QuestCatalogEntry entry, QuestType type)
     {
-        double price = type switch
-        {
-            QuestType.OneTime => entry.PriceOneTime ?? 0,
-            QuestType.Repeatable => entry.PriceRepeatable ?? 0,
-            QuestType.Eternal => entry.PriceEternal ?? 0,
-            _ => 0
-        };
-
-        double? priceNullable = type switch
-        {
-            QuestType.OneTime => entry.PriceOneTime,
-            QuestType.Repeatable => entry.PriceRepeatable,
-            QuestType.Eternal => entry.PriceEternal,
-            _ => null
-        };
-
-        if (priceNullable == null)
-            return "Этот тип покупки недоступен для данного квеста";
-
-        if (_player.DevPoints < price)
-            return $"Недостаточно ОР (нужно {price:F0}, есть {_player.DevPoints:F0})";
-
-        if (type == QuestType.OneTime)
-        {
-            for (int i = 0; i < _playerLibrary.Count; i++)
-            {
-                if (_playerLibrary[i].CatalogId == entry.Id && _playerLibrary[i].QuestType == QuestType.OneTime)
-                    return "Этот квест уже куплен";
-            }
-        }
-
-        if (type == QuestType.Eternal)
-        {
-            for (int i = 0; i < _playerLibrary.Count; i++)
-            {
-                if (_playerLibrary[i].CatalogId == entry.Id && _playerLibrary[i].QuestType == QuestType.Eternal)
-                    return "Вечный квест уже куплен";
-            }
-        }
-
-        _player.DevPoints -= price;
-        _db.SavePlayer(_player);
-        _db.PurchaseQuest(_db.CurrentSaveId, entry, type);
-        ReloadQuestLibrary();
+        var result = _questService.BuyQuest(_player, _playerLibrary, entry, type);
         DevPoints = _player.DevPoints;
-        string typeLabel = type switch
-        {
-            QuestType.OneTime => "×1",
-            QuestType.Repeatable => "×10",
-            QuestType.Eternal => "∞",
-            _ => ""
-        };
-        return $"Куплен квест «{entry.Title}» [{typeLabel}] за {price:F0} ОР";
+        ReloadQuestLibrary();
+        return result;
     }
 
     public string PublishQuest(PlayerLibraryEntry entry)
     {
-        if (!entry.CanPublish)
-            return "Нет доступных публикаций";
-
-        var catalog = entry.Catalog;
-        if (catalog == null)
-            return "Данные квеста не найдены";
-
-        int rewardResId = 0;
-        if (!string.IsNullOrEmpty(catalog.RewardResource))
-        {
-            var res = _resources.FirstOrDefault(r => r.Name == catalog.RewardResource);
-            if (res != null) rewardResId = res.Id;
-        }
-
-        var quest = new Quest
-        {
-            Title = catalog.Title,
-            Description = catalog.Description,
-            Source = QuestSource.Player,
-            Status = QuestStatus.Available,
-            DaysRequired = catalog.CompleteDays,
-            DaysRemaining = catalog.CompleteDays,
-            RewardResourceId = rewardResId,
-            RewardAmount = catalog.RewardAmount,
-            OPCost = 0,
-            QuestType = entry.QuestType,
-            LibraryId = entry.Id,
-            CompleteType = catalog.CompleteType,
-            CompleteTarget = catalog.CompleteAmount,
-            DayTaken = CurrentDay,
-            RewardType = catalog.RewardType,
-            RewardTechnique = catalog.RewardTechnique,
-        };
-
-        _db.SaveQuestFull(quest);
-        _quests.Add(quest);
-
-        if (entry.PublishesLeft != -1)
-            entry.PublishesLeft--;
-
-        if (entry.QuestType == QuestType.OneTime && entry.PublishesLeft == 0)
-        {
-            _db.DeleteLibraryEntry(entry.Id);
-        }
-        else
-        {
-            _db.UpdateLibraryEntry(entry);
-        }
+        var result = _questService.PublishQuest(_quests, _resources, entry, CurrentDay);
         ReloadQuestLibrary();
-
-        return $"Квест «{quest.Title}» опубликован";
+        return result;
     }
 
     public string UnpublishQuest(Quest quest)
     {
-        if (quest.Status != QuestStatus.Available)
-            return "Можно снять только опубликованный квест";
-
-        if (quest.LibraryId > 0)
-        {
-            var entry = _playerLibrary.FirstOrDefault(e => e.Id == quest.LibraryId);
-            if (entry != null && entry.Catalog != null)
-            {
-                if (entry.PublishesLeft != -1)
-                    entry.PublishesLeft++;
-                _db.UpdateLibraryEntry(entry);
-            }
-        }
-
-        _db.DeleteQuest(quest.Id);
-        _quests.Remove(quest);
+        var result = _questService.UnpublishQuest(_quests, _playerLibrary, quest);
         ReloadQuestLibrary();
-        return $"Квест «{quest.Title}» снят";
+        return result;
     }
 
     public List<string> CollectCompletedQuests()
     {
-        var logs = new List<string>();
-        var completed = _quests.Where(q => q.Status == QuestStatus.Completed).ToList();
-
-        for (int i = 0; i < completed.Count; i++)
-        {
-            var quest = completed[i];
-            string rewardGiven = "";
-
-            if (quest.RewardResourceId > 0 && quest.RewardAmount > 0)
-            {
-                var res = _resources.FirstOrDefault(r => r.Id == quest.RewardResourceId);
-                if (res != null)
-                {
-                    res.Amount += quest.RewardAmount;
-                    _db.SaveResource(res);
-                    rewardGiven = $"+{quest.RewardAmount:F0} {res.Name}";
-                    logs.Add($"Получено: {rewardGiven} за «{quest.Title}»");
-                }
-            }
-            else
-            {
-                logs.Add($"Принято: «{quest.Title}»");
-            }
-
-            var npc = _npcs.FirstOrDefault(n => n.Id == quest.AssignedNpcId);
-            var historyEntry = new QuestHistoryEntry
-            {
-                SaveId = _db.CurrentSaveId,
-                CatalogId = quest.LibraryId > 0
-                    ? (_playerLibrary.FirstOrDefault(e => e.Id == quest.LibraryId)?.CatalogId ?? 0)
-                    : 0,
-                QuestTitle = quest.Title,
-                NpcName = npc?.Name ?? "",
-                DayTaken = quest.DayTaken > 0 ? quest.DayTaken : CurrentDay,
-                DayCompleted = CurrentDay,
-                RewardGiven = rewardGiven,
-            };
-            _db.SaveQuestHistory(historyEntry);
-
-            if (quest.LibraryId > 0)
-            {
-                var entry = _playerLibrary.FirstOrDefault(e => e.Id == quest.LibraryId);
-                if (entry != null && entry.Catalog != null)
-                {
-                    entry.TimesCompleted++;
-                    var qt = entry.QuestType;
-                    if (qt == QuestType.Repeatable || qt == QuestType.Eternal)
-                    {
-                        if (entry.PublishesLeft != -1)
-                            entry.PublishesLeft++;
-                    }
-                    _db.UpdateLibraryEntry(entry);
-                }
-            }
-
-            _db.DeleteQuest(quest.Id);
-            _quests.Remove(quest);
-        }
-
+        var logs = _questService.CollectCompletedQuests(
+            _player, _quests, _resources, _npcById, _playerLibrary, CurrentDay);
         ReloadQuestLibrary();
         return logs;
     }
@@ -506,26 +344,23 @@ public class GameViewModel : INotifyPropertyChanged
     {
         _db.SavePlayer(_player);
 
-        foreach (var n in _npcs)
-            _db.SaveNpc(n);
+        using var tx = _db.GetConnection().BeginTransaction();
+        try
+        {
+            foreach (var n in _npcs)
+                _db.SaveNpcInTransaction(n, tx);
+            tx.Commit();
+        }
+        catch { tx.Rollback(); throw; }
 
         foreach (var r in _resources)
             _db.SaveResource(r);
 
-        foreach (var q in _quests.Where(q => q.Status != QuestStatus.Available))
-            _db.SaveQuest(q);
-
-        // Сохраняем только измененные локации
-        var dirtyLocations = _locations.Where(l => l.IsDirty).ToList();
-        if (dirtyLocations.Any())
+        var dirty = _locations.Where(l => l.IsDirty).ToList();
+        if (dirty.Count > 0)
         {
-            _db.SaveLocationsBatch(dirtyLocations);
-
-            // Сбрасываем флаг для сохраненных локаций
-            foreach (var loc in dirtyLocations)
-                loc.ClearDirty();
-
-            System.Diagnostics.Debug.WriteLine($"Saved {dirtyLocations.Count} dirty locations out of {_locations.Count}");
+            _db.SaveLocationsBatch(dirty);
+            foreach (var loc in dirty) loc.ClearDirty();
         }
     }
 
@@ -606,73 +441,28 @@ public class GameViewModel : INotifyPropertyChanged
         return _db.GetFollowerCountAtLevel(followerLevel);
     }
 
-    public Npc? GetNpcById(int id)
-    {
-        return _npcs.FirstOrDefault(n => n.Id == id);
-    }
+    public Npc? GetNpcById(int id) =>
+        _npcById.TryGetValue(id, out var npc) ? npc : null;
 
     public List<ResourceCatalogEntry> GetShoppableResources()
     {
         return _catalog.Values.ToList();
     }
 
-    public bool IsShopUnlocked(string resourceName) => _shopUnlocks.Contains(resourceName);
+    public bool IsShopUnlocked(string resourceName) => _shopService.IsUnlocked(_shopUnlocks, resourceName);
 
-    /// <summary>
-    /// Unlock a resource for purchase: costs 5 OV + 1 unit of the resource from community pool.
-    /// </summary>
     public string UnlockShopResource(string resourceName)
     {
-        if (_shopUnlocks.Contains(resourceName))
-            return $"{resourceName} уже разблокирован";
-
-        var res = _resources.FirstOrDefault(r => r.Name == resourceName);
-        if (res == null || res.Amount < 1)
-            return $"Недостаточно {resourceName} (нужна 1 ед.)";
-        if (_player.DevPoints < 5)
-            return "Недостаточно ОР (нужно 5)";
-
-        res.Amount -= 1;
-        _player.DevPoints -= 5;
-        _db.SaveResource(res);
-        _db.SavePlayer(_player);
-        _db.UnlockShopResource(_db.CurrentSaveId, resourceName);
-        _shopUnlocks.Add(resourceName);
+        var result = _shopService.Unlock(_player, _resources, _shopUnlocks, resourceName);
         DevPoints = _player.DevPoints;
-        return $"Разблокирована покупка: {resourceName}";
+        return result;
     }
 
-    /// <summary>
-    /// Buy 10 units of a resource. Returns result message.
-    /// </summary>
     public string BuyShopResource(string resourceName)
     {
-        if (!_shopUnlocks.Contains(resourceName))
-            return $"{resourceName} не разблокирован";
-
-        if (!_catalog.TryGetValue(resourceName, out var entry))
-            return "Ресурс не найден в каталоге";
-
-        double price = entry.Quality switch
-        {
-            1 => 2, 2 => 3, 3 => 5, 4 => 10, 5 => 20, _ => 5
-        };
-
-        if (_player.DevPoints < price)
-            return $"Недостаточно ОР (нужно {price:F0})";
-
-        _player.DevPoints -= price;
-        _db.SavePlayer(_player);
-
-        var res = _resources.FirstOrDefault(r => r.Name == resourceName);
-        if (res != null)
-        {
-            res.Amount += 10;
-            _db.SaveResource(res);
-        }
-
+        var result = _shopService.Buy(_player, _resources, _shopUnlocks, _catalog, resourceName);
         DevPoints = _player.DevPoints;
-        return $"Куплено 10 ед. {resourceName} за {price:F0} ОР";
+        return result;
     }
 
     public List<PresidentialExchangeEntry> AppliedExchangesList =>
@@ -688,7 +478,7 @@ public class GameViewModel : INotifyPropertyChanged
 
     public int MaxBaseUnits => _player?.MaxBaseUnits ?? 0;
 
-    public int FreeBaseUnits => _player?.FreeBaseUnits ?? 0; 
+    public int FreeBaseUnits => _player?.FreeBaseUnits ?? 0;
 
     public string ProtectLocation(int locationId)
     {
