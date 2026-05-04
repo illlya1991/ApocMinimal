@@ -462,6 +462,7 @@ public partial class GameViewModel : INotifyPropertyChanged
 
         npc.PlayerId      = 1;
         npc.FollowerLevel = 1;
+        NpcModifierService.ApplyFollowerLevel(npc);
         return $"✓ «{npc.Name}» принят в последователи (ур.1)";
     }
 
@@ -482,6 +483,7 @@ public partial class GameViewModel : INotifyPropertyChanged
         }
 
         npc.FollowerLevel = newLevel;
+        NpcModifierService.ApplyFollowerLevel(npc);
         return $"▲ «{npc.Name}» повышен до ур.{newLevel}";
     }
 
@@ -490,7 +492,15 @@ public partial class GameViewModel : INotifyPropertyChanged
         if (npc.PlayerId != 1) return "Не является последователем";
         npc.PlayerId      = 0;
         npc.FollowerLevel = 0;
+        NpcModifierService.ApplyFollowerLevel(npc); // удаляет модификаторы
         return $"✕ «{npc.Name}» отстранён от последователей";
+    }
+
+    public string SetEvolutionLevel(Npc npc, int level)
+    {
+        npc.EvolutionLevel = Math.Clamp(level, 0, 10);
+        NpcModifierService.ApplyEvolutionLevel(npc);
+        return $"«{npc.Name}» уровень Энергии → {npc.EvolutionLevel}";
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
