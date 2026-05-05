@@ -15,10 +15,9 @@ public partial class NpcListControl : UserControl
     private readonly GameUIService _uiService;
     private List<Npc> _allNpcs = new();
     private List<int> _controlledZoneIds = new();
-    private List<Npc> _nearbyNpcs = new();
     private Npc? _currentSelectedNpc;
 
-    private string _tabMode = "followers"; // "followers" | "territory" | "nearby"
+    private bool _showFollowers = true; // true = followers tab, false = territory tab
 
     private int _currentPage = 1;
     private const int PageSize = 20;
@@ -56,19 +55,9 @@ public partial class NpcListControl : UserControl
     public void UpdateNpcs(List<Npc> npcs, Npc? selectedNpc = null)
         => UpdateNpcs(npcs, _controlledZoneIds, selectedNpc);
 
-    public void UpdateNearbyNpcs(List<Npc> nearby)
-    {
-        _nearbyNpcs = nearby ?? new();
-        if (_tabMode == "nearby")
-        {
-            _currentPage = 1;
-            ApplyFilters();
-        }
-    }
-
     private void ApplyFilters()
     {
-        if (_tabMode == "followers")
+        if (_showFollowers)
         {
             var followerFilter = FilterFollower.SelectedIndex; // 0=all, 1-5=level
             var evolutionFilter = FilterEvolution.SelectedIndex - 1; // -1=all, 0-5=level
@@ -88,7 +77,7 @@ public partial class NpcListControl : UserControl
             int total = _allNpcs.Count(n => n.IsAlive && n.FollowerLevel >= 1);
             FollowerCountLabel.Text = total != _filteredNpcs.Count ? $"всего: {total}" : "";
         }
-        else if (_tabMode == "territory")
+        else
         {
             var zoneSet = _controlledZoneIds.ToHashSet();
             _filteredNpcs = _allNpcs
@@ -99,17 +88,6 @@ public partial class NpcListControl : UserControl
 
             FilterPanel.Visibility = Visibility.Collapsed;
             TabCountLabel.Text = $"{_filteredNpcs.Count} НПС на территории";
-            FollowerCountLabel.Text = "";
-        }
-        else // nearby
-        {
-            _filteredNpcs = _nearbyNpcs
-                .Where(n => n.IsAlive)
-                .OrderBy(n => n.Name)
-                .ToList();
-
-            FilterPanel.Visibility = Visibility.Collapsed;
-            TabCountLabel.Text = $"{_filteredNpcs.Count} НПС рядом";
             FollowerCountLabel.Text = "";
         }
 
@@ -135,15 +113,9 @@ public partial class NpcListControl : UserControl
 
         if (_filteredNpcs.Count == 0)
         {
-            string emptyText = _tabMode switch
-            {
-                "followers" => "Нет последователей",
-                "nearby"    => "Никого рядом",
-                _           => "Никого на территории"
-            };
             NpcPanel.Children.Add(new TextBlock
             {
-                Text = emptyText,
+                Text = _showFollowers ? "Нет последователей" : "Никого на территории",
                 Foreground = BrushCache.GetBrush("#8b949e"),
                 FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -166,7 +138,8 @@ public partial class NpcListControl : UserControl
                 card.BorderThickness = new Thickness(2);
             }
 
-            if (_tabMode == "nearby")
+            // "Принять" button appears on non-follower NPCs in the territory tab
+            if (!_showFollowers && captured.FollowerLevel == 0)
             {
                 var acceptBtn = new Button
                 {
@@ -179,7 +152,6 @@ public partial class NpcListControl : UserControl
                     FontSize = 10,
                     Margin = new Thickness(0, 2, 0, 4),
                     Cursor = System.Windows.Input.Cursors.Hand,
-                    Tag = captured,
                 };
                 acceptBtn.Click += (_, _) => NpcFollowerOffered?.Invoke(captured);
 
@@ -208,13 +180,9 @@ public partial class NpcListControl : UserControl
 
     private void Tab_Click(object sender, RoutedEventArgs e)
     {
-        if (sender == TabFollowers)       _tabMode = "followers";
-        else if (sender == TabTerritory)  _tabMode = "territory";
-        else                              _tabMode = "nearby";
-
-        TabFollowers.IsChecked  = _tabMode == "followers";
-        TabTerritory.IsChecked  = _tabMode == "territory";
-        TabNearby.IsChecked     = _tabMode == "nearby";
+        _showFollowers = sender == TabFollowers;
+        TabFollowers.IsChecked = _showFollowers;
+        TabTerritory.IsChecked = !_showFollowers;
         _currentPage = 1;
         ApplyFilters();
     }

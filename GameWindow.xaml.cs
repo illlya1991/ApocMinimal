@@ -180,6 +180,7 @@ public partial class GameWindow : Window
                     LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
             }
 
+            _viewModel.Refresh();
             PlayerActionsControl.Refresh();
             RefreshAll();
 
@@ -370,10 +371,6 @@ public partial class GameWindow : Window
     {
         RefreshHeader();
         NpcListControl.UpdateNpcs(_viewModel.AllNpcs, _viewModel.ControlledZoneIds, NpcSidebarControl.CurrentNpc);
-        var nearbyNpcs = _viewModel.AllNpcs
-            .Where(n => n.IsAlive && _viewModel.ControlledZoneIds.Contains(n.LocationId) && (n.PlayerId != 1 || n.FollowerLevel == 0))
-            .ToList();
-        NpcListControl.UpdateNearbyNpcs(nearbyNpcs);
         PlayerActionsControl.Refresh();
     }
 

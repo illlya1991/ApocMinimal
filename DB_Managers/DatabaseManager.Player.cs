@@ -33,6 +33,12 @@ public partial class DatabaseManager
         cmd.Parameters.AddWithValue("@loc",    p.LocationId);
         cmd.Parameters.AddWithValue("@id",     p.Id);
         cmd.ExecuteNonQuery();
+
+        // Обновляем метаданные текущего слота в памяти
+        _thisSave._active       = p.CurrentDay > 1;
+        _thisSave._currentDay   = p.CurrentDay;
+        _thisSave._terminalLevel = p.TerminalLevel;
+        _thisSave._devPoints    = p.DevPoints;
     }
 
     private Player ReadPlayer(SQLiteDataReader rdr)
