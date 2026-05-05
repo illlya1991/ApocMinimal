@@ -57,22 +57,25 @@ public partial class DatabaseManager : IDisposable
         {
             OneSave item = _ListSaves[i];
             item._active = false;
+            if (!System.IO.File.Exists(item._fileName)) continue;
             try
             {
-                OpenConnection(item._connectionString);
-                if (IsTableExistsSafe())
+                using var conn = new SQLiteConnection(item._connectionString);
+                conn.Open();
+                using var checkCmd = new SQLiteCommand(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Player'", conn);
+                if ((long)checkCmd.ExecuteScalar() == 0) continue;
+
+                using var cmd = new SQLiteCommand(
+                    "SELECT CurrentDay, TerminalLevel, DevPoints FROM Player LIMIT 1", conn);
+                using var rdr = cmd.ExecuteReader();
+                if (rdr.Read())
                 {
-                    object? scalarResult = ExecuteScalar("SELECT CurrentDay FROM Player Limit 1");
-                    long currentDay = 0;
-                    if (scalarResult != null) currentDay = (long)scalarResult;
-                    item._active = currentDay > 1;
-                    item._currentDay = (int)currentDay;
-
-                    object? TerminalResult = ExecuteScalar("SELECT TerminalLevel FROM Player Limit 1");
-                    if (TerminalResult != null) item._terminalLevel = (int)(long)TerminalResult;
-
-                    object? faithResult = ExecuteScalar("SELECT DevPoints FROM Player Limit 1");
-                    if (faithResult != null) item._devPoints = Convert.ToDouble(faithResult);
+                    int currentDay = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
+                    item._active     = currentDay > 1;
+                    item._currentDay = currentDay;
+                    if (!rdr.IsDBNull(1)) item._terminalLevel = rdr.GetInt32(1);
+                    if (!rdr.IsDBNull(2)) item._devPoints     = rdr.GetDouble(2);
                 }
             }
             catch { }

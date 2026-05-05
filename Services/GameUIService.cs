@@ -18,7 +18,7 @@ public class GameUIService
         _logAction = logAction;
     }
 
-    public Border BuildNpcCard(Npc npc)
+    public Border BuildNpcCard(Npc npc, Func<Npc, double>? devGenFunc = null)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -41,7 +41,8 @@ public class GameUIService
         // Добавляем уровень последователя как бейдж
         if (npc.FollowerLevel > 0)
         {
-            var levelBadge = CreateFollowerLevelBadge(npc.FollowerLevel);
+            double devGen = devGenFunc?.Invoke(npc) ?? 0;
+            var levelBadge = CreateFollowerLevelBadge(npc.FollowerLevel, devGen);
             panel.Children.Add(levelBadge);
         }
 
@@ -76,9 +77,9 @@ public class GameUIService
 
         return card;
     }
-    private static Border CreateFollowerLevelBadge(int level)
+    private static Border CreateFollowerLevelBadge(int level, double devGen = 0)
     {
-        string levelText = level switch
+        string levelName = level switch
         {
             1 => "Послушник",
             2 => "Последователь",
@@ -98,6 +99,10 @@ public class GameUIService
             _ => "#8b949e"
         };
 
+        string text = devGen > 0
+            ? $"{levelName} ({level})  •  {devGen:F1} ОР/д"
+            : $"{levelName} ({level})";
+
         return new Border
         {
             Background = BrushCache.GetBrush("#1a1a2e"),
@@ -106,7 +111,7 @@ public class GameUIService
             Margin = new Thickness(0, 2, 0, 4),
             Child = new TextBlock
             {
-                Text = levelText,
+                Text = text,
                 Foreground = BrushCache.GetBrush(levelColor),
                 FontSize = 9,
                 FontWeight = FontWeights.SemiBold,

@@ -18,6 +18,7 @@ public partial class NpcListControl : UserControl
     private Npc? _currentSelectedNpc;
 
     private bool _showFollowers = true; // true = followers tab, false = territory tab
+    private Func<Npc, double>? _devGenFunc;
 
     private int _currentPage = 1;
     private const int PageSize = 20;
@@ -42,11 +43,12 @@ public partial class NpcListControl : UserControl
         FilterEvolution.SelectedIndex = 0;
     }
 
-    public void UpdateNpcs(List<Npc> npcs, List<int> controlledZoneIds, Npc? selectedNpc = null)
+    public void UpdateNpcs(List<Npc> npcs, List<int> controlledZoneIds, Npc? selectedNpc = null, Func<Npc, double>? devGenFunc = null)
     {
         _allNpcs = npcs ?? new();
         _controlledZoneIds = controlledZoneIds ?? new();
         _currentSelectedNpc = selectedNpc;
+        _devGenFunc = devGenFunc;
         _currentPage = 1;
         ApplyFilters();
     }
@@ -80,10 +82,10 @@ public partial class NpcListControl : UserControl
         else
         {
             var zoneSet = _controlledZoneIds.ToHashSet();
+            // Territory tab: only non-followers (candidates for accepting)
             _filteredNpcs = _allNpcs
-                .Where(n => n.IsAlive && zoneSet.Contains(n.LocationId))
-                .OrderByDescending(n => n.FollowerLevel)
-                .ThenBy(n => n.Name)
+                .Where(n => n.IsAlive && zoneSet.Contains(n.LocationId) && n.FollowerLevel == 0)
+                .OrderBy(n => n.Name)
                 .ToList();
 
             FilterPanel.Visibility = Visibility.Collapsed;
@@ -128,7 +130,7 @@ public partial class NpcListControl : UserControl
         var page = _filteredNpcs.Skip(startIndex).Take(PageSize).ToList();
         foreach (var npc in page)
         {
-            var card = _uiService.BuildNpcCard(npc);
+            var card = _uiService.BuildNpcCard(npc, _devGenFunc);
             var captured = npc;
             card.MouseLeftButtonUp += (_, _) => NpcSelected?.Invoke(captured);
 

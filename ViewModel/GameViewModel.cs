@@ -463,7 +463,9 @@ public partial class GameViewModel : INotifyPropertyChanged
         npc.PlayerId      = 1;
         npc.FollowerLevel = 1;
         NpcModifierService.ApplyFollowerLevel(npc);
-        return $"✓ «{npc.Name}» принят в последователи (ур.1)";
+        _player.DevPoints += 10;
+        DevPoints += 10;
+        return $"✓ «{npc.Name}» принят в последователи (ур.1)  +10 ОР";
     }
 
     public string RaiseFollower(Npc npc)
@@ -487,6 +489,33 @@ public partial class GameViewModel : INotifyPropertyChanged
         return $"▲ «{npc.Name}» повышен до ур.{newLevel}";
     }
 
+    public string RaiseFollowerToLevel(Npc npc, int targetLevel)
+    {
+        if (npc.PlayerId != 1) return "Не является последователем";
+        if (npc.FollowerLevel != targetLevel - 1)
+            return $"«{npc.Name}» имеет ур.{npc.FollowerLevel}, нужен ур.{targetLevel - 1}";
+
+        int limit = _player.GetFollowerLimit(targetLevel);
+        if (limit == 0)
+            return $"Терминал ур.{_player.TerminalLevel} не открывает уровень {targetLevel}";
+        if (limit != -1)
+        {
+            int cur = _npcs.Count(n => n.IsAlive && n.PlayerId == 1 && n.FollowerLevel == targetLevel);
+            if (cur >= limit)
+                return $"Нет свободных мест для уровня {targetLevel} ({cur}/{limit})";
+        }
+
+        double devGen = GetNpcDailyDevGen(npc);
+        if ((targetLevel == 3 || targetLevel == 4) && devGen < 2.0)
+            return $"«{npc.Name}» генерирует {devGen:F1} ОР/день (нужно 2+)";
+        if (targetLevel == 5 && devGen < 5.0)
+            return $"«{npc.Name}» генерирует {devGen:F1} ОР/день (нужно 5+)";
+
+        npc.FollowerLevel = targetLevel;
+        NpcModifierService.ApplyFollowerLevel(npc);
+        return $"▲ «{npc.Name}» повышен до ур.{targetLevel}";
+    }
+
     public string DismissFollower(Npc npc)
     {
         if (npc.PlayerId != 1) return "Не является последователем";
@@ -494,6 +523,28 @@ public partial class GameViewModel : INotifyPropertyChanged
         npc.FollowerLevel = 0;
         NpcModifierService.ApplyFollowerLevel(npc); // удаляет модификаторы
         return $"✕ «{npc.Name}» отстранён от последователей";
+    }
+
+    public (int used, int limit) GetFollowerSlots(int level)
+    {
+        int used  = _npcs.Count(n => n.IsAlive && n.PlayerId == 1 && n.FollowerLevel == level);
+        int limit = _player.GetFollowerLimit(level);
+        return (used, limit);
+    }
+
+    public double GetNpcDailyDevGen(Npc npc)
+    {
+        if (npc.FollowerLevel <= 0 || !npc.IsAlive) return 0;
+        double maxDevPerNpc = Player.MaxDevPointsPerNpcPerDay * _player.FactionCoeffs.CoeffMaxDevPerNpc;
+        double maxDay  = npc.FollowerLevel * (maxDevPerNpc / 5.0);
+        double avgSat  = npc.Needs.Count > 0 ? npc.Needs.Average(n => n.Satisfaction) / 100.0 : 0.5;
+        double trustMod = 0.3 + (npc.Trust / 100.0) * 0.7;
+        double posSum  = npc.Emotions
+            .Where(e => e.Name is "Радость" or "Спокойствие" or "Надежда" or "Любовь"
+                                 or "Воодушевление" or "Гордость" or "Благодарность")
+            .Sum(e => e.Percentage);
+        double emoMod  = 0.5 + posSum / 200.0;
+        return Math.Min(maxDay, maxDay * avgSat * trustMod * emoMod) * _player.FactionCoeffs.CoeffDevPerNpc;
     }
 
     public string SetEvolutionLevel(Npc npc, int level)

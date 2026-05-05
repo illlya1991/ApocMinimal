@@ -74,6 +74,8 @@ public partial class GameWindow : Window
         {
             if (_viewModel.CurrentDay == 1)
             {
+                PlayerActionsControl.IsEnabled = false;
+                NpcListControl.IsEnabled = false;
                 System.Diagnostics.Debug.WriteLine("  [1] Установка обменов дня 1...");
                 _viewModel.SetupDayExchanges(1);
 
@@ -180,6 +182,8 @@ public partial class GameWindow : Window
                     LogControl.AddSystemEntry($"📜 Принят обмен: «{ex.Name}» — {ex.GetText}", "#f59e0b");
             }
 
+            PlayerActionsControl.IsEnabled = true;
+            NpcListControl.IsEnabled = true;
             _viewModel.Refresh();
             PlayerActionsControl.Refresh();
             RefreshAll();
@@ -370,7 +374,11 @@ public partial class GameWindow : Window
     private void RefreshAll()
     {
         RefreshHeader();
-        NpcListControl.UpdateNpcs(_viewModel.AllNpcs, _viewModel.ControlledZoneIds, NpcSidebarControl.CurrentNpc);
+        NpcListControl.UpdateNpcs(
+            _viewModel.AllNpcs,
+            _viewModel.ControlledZoneIds,
+            NpcSidebarControl.CurrentNpc,
+            npc => _viewModel.GetNpcDailyDevGen(npc));
         PlayerActionsControl.Refresh();
     }
 

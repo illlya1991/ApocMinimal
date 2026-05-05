@@ -21,6 +21,12 @@ public partial class PlayerActionsControl : UserControl
     private readonly GameUIService _uiService;
     private readonly List<ComboBox> _dynamicComboBoxes = new();
 
+    // ── Виртуальная группа "Уровень последователя" ──────────────────────────
+    private const int FollowerLevelGroupId = -99;
+    private ComboBox? _flLevelCombo;
+    private ComboBox? _flCandidateCombo;
+    private StackPanel? _flCandidatesPanel;
+
     public event Action<string, string>? LogAction;
     public event Action? EndDayRequested;
     public event Action? QuestsRequested;
@@ -58,6 +64,9 @@ public partial class PlayerActionsControl : UserControl
 
         foreach (var group in _viewModel.ActionGroups)
             ActionCombo.Items.Add(group);
+
+        // Виртуальная группа управления уровнями последователей
+        ActionCombo.Items.Add(new PlayerActionGroup { Id = FollowerLevelGroupId, Name = "Уровень последователя" });
 
         ActionCombo.SelectedIndex = -1;
 
@@ -113,17 +122,39 @@ public partial class PlayerActionsControl : UserControl
 
         SubActionRow.Visibility = Visibility.Visible;
         SubActionCombo.Items.Clear();
+        ParametersPanel.Children.Clear();
+        ParametersPanel.Visibility = Visibility.Collapsed;
+        _flLevelCombo = null;
+        _flCandidateCombo = null;
+        _flCandidatesPanel = null;
+
+        if (group.Id == FollowerLevelGroupId)
+        {
+            SubActionCombo.Items.Add("Поднять уровень");
+            SubActionCombo.Items.Add("Отказаться от последователя");
+            SubActionCombo.SelectedIndex = -1;
+            return;
+        }
 
         foreach (var action in _viewModel.GetActionsByGroup(group.Id))
             SubActionCombo.Items.Add(action);
 
         SubActionCombo.SelectedIndex = -1;
-        ParametersPanel.Children.Clear();
-        ParametersPanel.Visibility = Visibility.Collapsed;
     }
 
     private void SubActionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // Виртуальная группа: строим кастомный UI
+        if (ActionCombo.SelectedItem is PlayerActionGroup g && g.Id == FollowerLevelGroupId)
+        {
+            _viewModel.SelectedAction = null;
+            string? sub = SubActionCombo.SelectedItem?.ToString();
+            BuildFollowerLevelUI(sub);
+            ExecuteBtn.IsEnabled = true;
+            ExecuteBtn.Opacity = 1.0;
+            return;
+        }
+
         if (SubActionCombo.SelectedItem is not PlayerGameAction action)
         {
             _viewModel.SelectedAction = null;
@@ -231,6 +262,13 @@ public partial class PlayerActionsControl : UserControl
 
     private void ExecuteAction_Click(object sender, RoutedEventArgs e)
     {
+        // Виртуальная группа управления уровнями
+        if (ActionCombo.SelectedItem is PlayerActionGroup vg && vg.Id == FollowerLevelGroupId)
+        {
+            ExecuteFollowerLevelAction();
+            return;
+        }
+
         if (_viewModel.SelectedAction == null)
         {
             Log("Выберите действие.", LogEntry.ColorWarning);
@@ -431,5 +469,179 @@ public partial class PlayerActionsControl : UserControl
     private void BtnPlayerInfo_Click(object sender, RoutedEventArgs e) => PlayerInfoRequested?.Invoke();
     private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => FullscreenRequested?.Invoke();
     private void BtnEndDay_Click(object sender, RoutedEventArgs e) => EndDayRequested?.Invoke();
+
+    // =========================================================
+    // Уровень последователя — кастомный UI
+    // =========================================================
+
+    private void BuildFollowerLevelUI(string? subAction)
+    {
+        ParametersPanel.Children.Clear();
+        ParametersPanel.Visibility = Visibility.Visible;
+        _flLevelCombo = null;
+        _flCandidateCombo = null;
+        _flCandidatesPanel = null;
+
+        if (subAction == "Поднять уровень")
+        {
+            // Таблица слотов
+            ParametersPanel.Children.Add(BuildSlotsTable());
+
+            // Выбор целевого уровня
+            ParametersPanel.Children.Add(MkLabel("ЦЕЛЕВОЙ УРОВЕНЬ"));
+            _flLevelCombo = new ComboBox { Style = (Style)FindResource("LightCombo") };
+            for (int i = 2; i <= 5; i++) _flLevelCombo.Items.Add(i);
+            _flLevelCombo.SelectionChanged += OnTargetLevelChanged;
+            ParametersPanel.Children.Add(_flLevelCombo);
+
+            // Панель кандидатов (заполняется при выборе уровня)
+            _flCandidatesPanel = new StackPanel();
+            ParametersPanel.Children.Add(_flCandidatesPanel);
+        }
+        else if (subAction == "Отказаться от последователя")
+        {
+            ParametersPanel.Children.Add(MkLabel("ПОСЛЕДОВАТЕЛЬ"));
+            _flCandidateCombo = new ComboBox { Style = (Style)FindResource("LightCombo") };
+            foreach (var npc in _viewModel.AllNpcs.Where(n => n.IsAlive && n.PlayerId == 1 && n.FollowerLevel >= 1).OrderBy(n => n.Name))
+                _flCandidateCombo.Items.Add($"{npc.Name} (ур.{npc.FollowerLevel})");
+            if (_flCandidateCombo.Items.Count > 0) _flCandidateCombo.SelectedIndex = 0;
+            else _flCandidateCombo.Items.Add("(нет последователей)");
+            ParametersPanel.Children.Add(_flCandidateCombo);
+        }
+    }
+
+    private TextBlock BuildSlotsTable()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Слоты (занято/лимит):");
+        for (int lv = 1; lv <= 5; lv++)
+        {
+            var (used, lim) = _viewModel.GetFollowerSlots(lv);
+            string limStr = lim == -1 ? "∞" : lim == 0 ? "—" : lim.ToString();
+            string cond = lv == 3 || lv == 4 ? "  (2+ ОР/д)" : lv == 5 ? "  (5+ ОР/д)" : "";
+            sb.AppendLine($"  Ур.{lv}: {used}/{limStr}{cond}");
+        }
+        return new TextBlock
+        {
+            Text = sb.ToString().TrimEnd(),
+            Foreground = BrushCache.GetBrush("#7dd3fc"),
+            FontSize = 10,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+    }
+
+    private void OnTargetLevelChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_flLevelCombo?.SelectedItem is not int targetLevel) return;
+        if (_flCandidatesPanel == null) return;
+
+        _flCandidatesPanel.Children.Clear();
+        int sourceLevel = targetLevel - 1;
+
+        string condHint = targetLevel switch
+        {
+            3 or 4 => $"Условие: свободные места + 2+ ОР/день",
+            5      => "Условие: свободные места + 5+ ОР/день",
+            _      => "Условие: свободные места"
+        };
+        _flCandidatesPanel.Children.Add(new TextBlock
+        {
+            Text = condHint,
+            Foreground = BrushCache.GetBrush("#e3b341"),
+            FontSize = 10,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        _flCandidatesPanel.Children.Add(MkLabel("КАНДИДАТ"));
+        _flCandidateCombo = new ComboBox { Style = (Style)FindResource("LightCombo") };
+
+        var candidates = _viewModel.AllNpcs
+            .Where(n => n.IsAlive && n.PlayerId == 1 && n.FollowerLevel == sourceLevel)
+            .OrderBy(n => n.Name)
+            .ToList();
+
+        foreach (var npc in candidates)
+        {
+            double dev = _viewModel.GetNpcDailyDevGen(npc);
+            _flCandidateCombo.Items.Add($"{npc.Name} [{dev:F1} ОР/д]");
+        }
+
+        if (_flCandidateCombo.Items.Count > 0)
+            _flCandidateCombo.SelectedIndex = 0;
+        else
+            _flCandidateCombo.Items.Add($"(нет ур.{sourceLevel} последователей)");
+
+        _flCandidatesPanel.Children.Add(_flCandidateCombo);
+    }
+
+    private void ExecuteFollowerLevelAction()
+    {
+        string? subAction = SubActionCombo.SelectedItem?.ToString();
+
+        if (subAction == "Поднять уровень")
+        {
+            if (_flLevelCombo?.SelectedItem is not int targetLevel)
+            {
+                Log("Выберите целевой уровень.", LogEntry.ColorWarning);
+                return;
+            }
+            string? selectedItem = _flCandidateCombo?.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(selectedItem) || selectedItem.StartsWith("("))
+            {
+                Log("Нет доступных кандидатов.", LogEntry.ColorWarning);
+                return;
+            }
+            // Extract NPC name: "Name [X.X ОР/д]"
+            string npcName = selectedItem.Contains(" [") ? selectedItem[..selectedItem.IndexOf(" [")] : selectedItem;
+            var npc = _viewModel.AllNpcs.FirstOrDefault(n => n.Name == npcName && n.PlayerId == 1);
+            if (npc == null) { Log("НПС не найден.", LogEntry.ColorWarning); return; }
+
+            string result = _viewModel.RaiseFollowerToLevel(npc, targetLevel);
+            bool ok = result.StartsWith("▲");
+            Log(result, ok ? LogEntry.ColorSuccess : LogEntry.ColorWarning);
+            if (ok)
+            {
+                _viewModel.Refresh();
+                Refresh();
+                BuildFollowerLevelUI("Поднять уровень"); // обновить UI
+            }
+        }
+        else if (subAction == "Отказаться от последователя")
+        {
+            string? selectedItem = _flCandidateCombo?.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(selectedItem) || selectedItem.StartsWith("("))
+            {
+                Log("Нет последователей.", LogEntry.ColorWarning);
+                return;
+            }
+            // Extract NPC name: "Name (ур.X)"
+            string npcName = selectedItem.Contains(" (") ? selectedItem[..selectedItem.IndexOf(" (")] : selectedItem;
+            var npc = _viewModel.AllNpcs.FirstOrDefault(n => n.Name == npcName && n.PlayerId == 1);
+            if (npc == null) { Log("НПС не найден.", LogEntry.ColorWarning); return; }
+
+            var confirm = MessageBox.Show(
+                $"Отстранить «{npc.Name}» (ур.{npc.FollowerLevel}) от последователей?",
+                "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            string result = _viewModel.DismissFollower(npc);
+            Log(result, LogEntry.ColorWarning);
+            _viewModel.Refresh();
+            Refresh();
+            BuildFollowerLevelUI("Отказаться от последователя");
+        }
+        else
+        {
+            Log("Выберите действие.", LogEntry.ColorWarning);
+        }
+    }
+
+    private TextBlock MkLabel(string text) => new()
+    {
+        Text = text,
+        Foreground = BrushCache.GetBrush("#8b949e"),
+        FontSize = 11,
+        Margin = new Thickness(0, 8, 0, 4)
+    };
 
 }
