@@ -67,6 +67,9 @@
                 <ToggleButton x:Name="TabTerritory" Content="На территории"
                               Style="{StaticResource TabBtn}"
                               Click="Tab_Click"/>
+                <ToggleButton x:Name="TabNearby" Content="Рядом"
+                              Style="{StaticResource TabBtn}"
+                              Click="Tab_Click"/>
             </StackPanel>
 
             <!-- FILTERS (followers tab only) -->

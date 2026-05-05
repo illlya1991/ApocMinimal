@@ -102,38 +102,22 @@
                 </StackPanel>
             </Border>
 
-            <!-- ACTIONS PANEL (top, fills remaining space) -->
-            <Grid>
-                <ScrollViewer x:Name="PanelActions" VerticalScrollBarVisibility="Auto" Padding="10">
-                    <StackPanel>
-                        <TextBlock Text="КАТЕГОРИЯ" Style="{StaticResource SectionHeader}"/>
-                        <ComboBox x:Name="ActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="ActionCombo_SelectionChanged"/>
+            <!-- ACTIONS PANEL (fills remaining space) -->
+            <ScrollViewer x:Name="PanelActions" VerticalScrollBarVisibility="Auto" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="КАТЕГОРИЯ" Style="{StaticResource SectionHeader}"/>
+                    <ComboBox x:Name="ActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="ActionCombo_SelectionChanged"/>
 
-                        <TextBlock x:Name="SubActionLabel" Text="ДЕЙСТВИЕ" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
-                        <Grid x:Name="SubActionRow" Visibility="Collapsed">
-                            <ComboBox x:Name="SubActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="SubActionCombo_SelectionChanged"/>
-                        </Grid>
+                    <TextBlock x:Name="SubActionLabel" Text="ДЕЙСТВИЕ" Style="{StaticResource SectionHeader}" Visibility="Collapsed"/>
+                    <Grid x:Name="SubActionRow" Visibility="Collapsed">
+                        <ComboBox x:Name="SubActionCombo" Style="{StaticResource LightCombo}" SelectionChanged="SubActionCombo_SelectionChanged"/>
+                    </Grid>
 
-                        <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
+                    <StackPanel x:Name="ParametersPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
 
-                        <Button x:Name="ExecuteBtn" Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <ScrollViewer x:Name="PanelMap" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
-                    <StackPanel>
-                        <TextBlock Text="КАРТА МИРА" Style="{StaticResource SectionHeader}"/>
-                        <StackPanel x:Name="MapPanel"/>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <ScrollViewer x:Name="PanelTechniques" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="10">
-                    <StackPanel>
-                        <TextBlock Text="ТЕХНИКИ" Style="{StaticResource SectionHeader}"/>
-                        <StackPanel x:Name="TechniquePanel"/>
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
+                    <Button x:Name="ExecuteBtn" Content="ВЫПОЛНИТЬ" Style="{StaticResource ActionBtn}" Background="#1a3a1a" Foreground="#56d364" Margin="0,8,0,0" Click="ExecuteAction_Click"/>
+                </StackPanel>
+            </ScrollViewer>
 
         </DockPanel>
     </Border>

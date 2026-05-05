@@ -45,6 +45,7 @@ public partial class GameWindow : Window
             PlayerActionsControl.PlayerInfoRequested += OnPlayerInfoRequested;
             PlayerActionsControl.FullscreenRequested += OnFullscreenRequested;
             NpcListControl.NpcSelected += OnNpcSelected;
+            NpcListControl.NpcFollowerOffered += OnFollowerOffered;
             NpcSidebarControl.FollowerAccepted  += OnFollowerAccepted;
             NpcSidebarControl.FollowerRaised    += OnFollowerRaised;
             NpcSidebarControl.FollowerDismissed += OnFollowerDismissed;
@@ -369,6 +370,10 @@ public partial class GameWindow : Window
     {
         RefreshHeader();
         NpcListControl.UpdateNpcs(_viewModel.AllNpcs, _viewModel.ControlledZoneIds, NpcSidebarControl.CurrentNpc);
+        var nearbyNpcs = _viewModel.AllNpcs
+            .Where(n => n.IsAlive && _viewModel.ControlledZoneIds.Contains(n.LocationId) && (n.PlayerId != 1 || n.FollowerLevel == 0))
+            .ToList();
+        NpcListControl.UpdateNearbyNpcs(nearbyNpcs);
         PlayerActionsControl.Refresh();
     }
 
@@ -452,9 +457,18 @@ public partial class GameWindow : Window
         w.ShowDialog();
     }
 
+    private void OnFollowerOffered(Npc npc)
+    {
+        var result = _viewModel.AcceptFollower(npc);
+        LogPlayer(result, npc.PlayerId == 1 ? "#22c55e" : "#f87171");
+        NpcSidebarControl.UpdateFollowerButtons();
+        RefreshAll();
+    }
+
     private void OnFullscreenRequested()
     {
-        var w = new NpcFullscreenWindow(_viewModel.AllNpcs);
+        var followers = _viewModel.AllNpcs.Where(n => n.IsAlive && n.PlayerId == 1).ToList();
+        var w = new NpcFullscreenWindow(followers);
         w.ShowDialog();
     }
 

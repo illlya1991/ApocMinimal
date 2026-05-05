@@ -4,7 +4,6 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using ApocMinimal.Models.GameActions;
-using ApocMinimal.Models.LocationData;
 using ApocMinimal.Models.PersonData;
 using ApocMinimal.Models.PersonData.PlayerData;
 using ApocMinimal.Models.ResourceData;
@@ -65,15 +64,11 @@ public partial class PlayerActionsControl : UserControl
         SubActionRow.Visibility = Visibility.Collapsed;
         ParametersPanel.Visibility = Visibility.Collapsed;
 
-        RefreshMapTab();
-        RefreshTechniquePanel();
         RefreshResourceCombo();
     }
 
     public void Refresh()
     {
-        RefreshMapTab();
-        RefreshTechniquePanel();
         RefreshResourceCombo();
         RefreshActionCombo();
         RefreshExecuteBtn();
@@ -106,133 +101,6 @@ public partial class PlayerActionsControl : UserControl
     private void RefreshResourceCombo()
     {
         // Для обратной совместимости
-    }
-
-    private void RefreshMapTab()
-    {
-        MapPanel.Children.Clear();
-        var locs = _viewModel.Locations;
-        var controlled = _viewModel.ControlledZoneIds;
-
-        foreach (var city in locs.Where(l => l.Type == LocationType.City))
-        {
-            MapPanel.Children.Add(MapRow("🌆 " + city.Name, 0, "#58a6ff", "#0d1f35", controlled.Contains(city.Id)));
-
-            foreach (var district in locs.Where(l => l.ParentId == city.Id).OrderBy(l => l.Name))
-            {
-                var distStreets = locs.Where(l => l.ParentId == district.Id).ToList();
-                int totalBld = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id && l.Type == LocationType.Building)).Count();
-                int expBld = distStreets.SelectMany(s => locs.Where(l => l.ParentId == s.Id && l.Type == LocationType.Building && l.IsExplored)).Count();
-
-                if (!district.IsExplored)
-                {
-                    MapPanel.Children.Add(MapRow($"  ? Район: {district.Name}  ({totalBld} зданий, не исследован)", 0, "#4b5563", "#0d1117", false));
-                    continue;
-                }
-
-                MapPanel.Children.Add(MapRow($"  🏘 {district.Name}  [{expBld}/{totalBld} зд.]", 0, "#a5b4fc", "#0f1535", controlled.Contains(district.Id)));
-
-                foreach (var street in distStreets.Where(s => s.IsExplored).OrderBy(s => s.Name))
-                {
-                    var buildings = locs.Where(l => l.ParentId == street.Id && l.Type == LocationType.Building).ToList();
-                    var commercials = locs.Where(l => l.ParentId == street.Id && l.Type == LocationType.Commercial).ToList();
-                    int expB = buildings.Count(b => b.IsExplored);
-                    int unkB = buildings.Count - expB;
-
-                    MapPanel.Children.Add(MapRow($"    🛣 {street.Name}  [{expB} иссл.]", 0, "#7dd3fc", "#0a1a28", controlled.Contains(street.Id)));
-
-                    foreach (var bld in buildings.Where(b => b.IsExplored).OrderBy(b => b.Name))
-                    {
-                        var npcsB = _viewModel.AllNpcs.Where(n => n.IsAlive && n.LocationId == bld.Id).ToList();
-                        string status = bld.Status == LocationStatus.Cleared ? "✓" : "⚠";
-                        string color = bld.Status == LocationStatus.Cleared ? "#56d364" : "#fbbf24";
-                        string npcTag = npcsB.Count > 0 ? $"  👤{npcsB.Count}" : "";
-                        MapPanel.Children.Add(MapRow($"      🏢 {bld.Name}  {status}{npcTag}", 0, color, "#111820", controlled.Contains(bld.Id)));
-
-                        foreach (var floor in locs.Where(l => l.ParentId == bld.Id && l.IsExplored).OrderBy(l => l.Name))
-                        {
-                            var npcsF = _viewModel.AllNpcs.Where(n => n.IsAlive && n.LocationId == floor.Id).ToList();
-                            string resLine = floor.ResourceNodes.Count > 0
-                                ? "  " + string.Join(" | ", floor.ResourceNodes.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value:F0}"))
-                                : "";
-                            string npcF = npcsF.Count > 0 ? $"  👤{string.Join(",", npcsF.Select(n => n.Name))}" : "";
-                            string floorStatus = floor.Status == LocationStatus.Cleared ? "#56d364" : "#f87171";
-                            MapPanel.Children.Add(MapRow($"        ▸ {floor.Name}{npcF}{resLine}", 0, floorStatus, "#0d1117", controlled.Contains(floor.Id)));
-                        }
-                    }
-
-                    // Отображаем коммерческие локации
-                    foreach (var comm in commercials.Where(c => c.IsExplored).OrderBy(c => c.Name))
-                    {
-                        string icon = comm.CommercialType switch
-                        {
-                            CommercialType.Shop => "🛒",
-                            CommercialType.Supermarket => "🏪",
-                            CommercialType.Mall => "🏬",
-                            CommercialType.Market => "🛍️",
-                            CommercialType.Hairdresser => "💈",
-                            CommercialType.BeautySalon => "💅",
-                            CommercialType.Pharmacy => "💊",
-                            CommercialType.Hospital => "🏥",
-                            CommercialType.Factory => "🏭",
-                            CommercialType.Hotel => "🏨",
-                            _ => "🏢"
-                        };
-                        string status = comm.Status == LocationStatus.Cleared ? "✓" : "⚠";
-                        string color = comm.Status == LocationStatus.Cleared ? "#56d364" : "#fbbf24";
-                        MapPanel.Children.Add(MapRow($"      {icon} {comm.Name}  {status}", 0, color, "#111820", controlled.Contains(comm.Id)));
-                    }
-
-                    if (unkB > 0)
-                        MapPanel.Children.Add(MapRow($"      + ещё {unkB} зд. (не исследовано)", 0, "#4b5563", "#0d1117", false));
-                }
-            }
-        }
-
-        if (!_viewModel.Locations.Any())
-            MapPanel.Children.Add(new TextBlock { Text = "Карта не загружена.", Foreground = MkBrush("#8b949e"), FontSize = 10 });
-    }
-
-    private static Border MapRow(string text, double leftStripWidth, string textColor, string bgColor, bool isProtected)
-    {
-        string stripColor = isProtected ? "#60a5fa" : textColor;
-        var border = new Border
-        {
-            Background = MkBrush(bgColor),
-            BorderBrush = MkBrush(stripColor),
-            BorderThickness = new Thickness(2, 0, 0, 0),
-            Margin = new Thickness(0, 1, 0, 0),
-            Padding = new Thickness(4, 2, 2, 2),
-        };
-        border.Child = new TextBlock
-        {
-            Text = text,
-            Foreground = MkBrush(textColor),
-            FontSize = 10,
-            TextWrapping = TextWrapping.NoWrap,
-        };
-        return border;
-    }
-
-    private static System.Windows.Media.SolidColorBrush MkBrush(string hex) => BrushCache.GetBrush(hex);
-
-    private void RefreshTechniquePanel()
-    {
-        TechniquePanel.Children.Clear();
-        foreach (var tech in _viewModel.UnlockedTechniques)
-        {
-            var btn = new Button
-            {
-                Content = $"{tech.Name} ({tech.OPCost:F0} ОР)",
-                Style = (Style)FindResource("ActionBtn"),
-                IsEnabled = _viewModel.DevPoints >= tech.OPCost,
-                Opacity = _viewModel.DevPoints >= tech.OPCost ? 1.0 : 0.5,
-                ToolTip = tech.Description,
-                Tag = tech,
-            };
-            btn.Click += TechniqueBtn_Click;
-            TechniquePanel.Children.Add(btn);
-        }
     }
 
     // =========================================================
@@ -304,7 +172,7 @@ public partial class PlayerActionsControl : UserControl
     private ComboBox BuildNpcComboBox(PlayerActionParam param)
     {
         var combo = new ComboBox { Style = (Style)FindResource("LightCombo"), Tag = param.ParamKey };
-        foreach (var npc in _viewModel.AliveNpcs)
+        foreach (var npc in _viewModel.AliveNpcs.Where(n => n.PlayerId == 1 && n.FollowerLevel >= 1))
             combo.Items.Add(npc.Name);
         if (combo.Items.Count > 0) combo.SelectedIndex = 0;
         _dynamicComboBoxes.Add(combo);
@@ -411,7 +279,7 @@ public partial class PlayerActionsControl : UserControl
 
             if (param.ParamType?.Name == "Npc")
             {
-                foreach (var npc in _viewModel.AliveNpcs)
+                foreach (var npc in _viewModel.AliveNpcs.Where(n => n.PlayerId == 1 && n.FollowerLevel >= 1))
                     combo.Items.Add(npc.Name);
             }
             else if (param.ParamType?.Name == "Resource")
@@ -485,7 +353,7 @@ public partial class PlayerActionsControl : UserControl
         if (control is ComboBox combo && combo.SelectedItem != null)
         {
             var name = combo.SelectedItem.ToString();
-            return _viewModel.AllNpcs.FirstOrDefault(n => n.Name == name);
+            return _viewModel.AllNpcs.FirstOrDefault(n => n.Name == name && n.PlayerId == 1 && n.FollowerLevel >= 1);
         }
         return null;
     }
@@ -547,56 +415,21 @@ public partial class PlayerActionsControl : UserControl
 
     private void BtnMap_Click(object sender, RoutedEventArgs e)
     {
-        bool showMap = PanelMap.Visibility != Visibility.Visible;
-        PanelActions.Visibility    = showMap ? Visibility.Collapsed : Visibility.Visible;
-        PanelMap.Visibility        = showMap ? Visibility.Visible   : Visibility.Collapsed;
-        PanelTechniques.Visibility = Visibility.Collapsed;
-        BtnMap.Background        = BrushCache.GetBrush(showMap ? "#0d2a3a" : "#161b22");
-        BtnMap.Foreground        = BrushCache.GetBrush(showMap ? "#58a6ff" : "#7dd3fc");
-        BtnTechniques.Background = BrushCache.GetBrush("#161b22");
-        BtnTechniques.Foreground = BrushCache.GetBrush("#f9a8d4");
-        if (showMap) RefreshMapTab();
+        var win = new MapWindow(_viewModel) { Owner = Window.GetWindow(this) };
+        win.ShowDialog();
     }
 
     private void BtnTechniques_Click(object sender, RoutedEventArgs e)
     {
-        bool showTech = PanelTechniques.Visibility != Visibility.Visible;
-        PanelActions.Visibility    = showTech ? Visibility.Collapsed : Visibility.Visible;
-        PanelMap.Visibility        = Visibility.Collapsed;
-        PanelTechniques.Visibility = showTech ? Visibility.Visible   : Visibility.Collapsed;
-        BtnTechniques.Background = BrushCache.GetBrush(showTech ? "#2a1a2e" : "#161b22");
-        BtnTechniques.Foreground = BrushCache.GetBrush(showTech ? "#f472b6" : "#f9a8d4");
-        BtnMap.Background        = BrushCache.GetBrush("#161b22");
-        BtnMap.Foreground        = BrushCache.GetBrush("#7dd3fc");
-        if (showTech) RefreshTechniquePanel();
+        var win = new TechniqueWindow(_viewModel, Log) { Owner = Window.GetWindow(this) };
+        win.ShowDialog();
+        _viewModel.Refresh();
+        Refresh();
     }
 
     private void BtnQuests_Click(object sender, RoutedEventArgs e) => QuestsRequested?.Invoke();
     private void BtnPlayerInfo_Click(object sender, RoutedEventArgs e) => PlayerInfoRequested?.Invoke();
     private void BtnFullscreen_Click(object sender, RoutedEventArgs e) => FullscreenRequested?.Invoke();
     private void BtnEndDay_Click(object sender, RoutedEventArgs e) => EndDayRequested?.Invoke();
-
-    private void TechniqueBtn_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button btn || btn.Tag is not Technique tech) return;
-        _viewModel.DevPoints -= tech.OPCost;
-        var target = tech.HealAmount > 0
-            ? _viewModel.AliveNpcs.OrderBy(n => n.Health).FirstOrDefault()
-            : _viewModel.AliveNpcs.OrderByDescending(n => n.Initiative).FirstOrDefault();
-        if (target == null)
-        {
-            Log($"«{tech.Name}»: нет живых целей.", LogEntry.ColorWarning);
-            Refresh();
-            return;
-        }
-        if (TechniqueSystem.Apply(tech, target, out string techLog))
-            Log($"  {techLog}", LogEntry.ColorSuccess);
-        else
-        {
-            Log($"«{tech.Name}» не применена: {techLog}", LogEntry.ColorWarning);
-        }
-        _viewModel.Refresh();
-        Refresh();
-    }
 
 }
