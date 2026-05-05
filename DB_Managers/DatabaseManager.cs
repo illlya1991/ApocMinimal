@@ -67,7 +67,7 @@ public partial class DatabaseManager : IDisposable
                 if ((long)checkCmd.ExecuteScalar() == 0) continue;
 
                 using var cmd = new SQLiteCommand(
-                    "SELECT CurrentDay, TerminalLevel, DevPoints FROM Player LIMIT 1", conn);
+                    "SELECT CurrentDay, TerminalLevel, DevPoints FROM Player Where Id = 1 LIMIT 1", conn);
                 using var rdr = cmd.ExecuteReader();
                 if (rdr.Read())
                 {
