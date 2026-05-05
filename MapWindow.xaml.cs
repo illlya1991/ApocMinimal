@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using ApocMinimal.Controls;
 using ApocMinimal.Models.LocationData;
+using ApocMinimal.Services;
 using ApocMinimal.ViewModels;
 
 namespace ApocMinimal;
